@@ -1,10 +1,11 @@
+from _collections_abc import Iterable
 from typing import Literal
 
 import numpy as np
 
 
 def beam_energy_to_wavelength(
-    beam_energy: float, unit: Literal["kev", "ev"] = "kev"
+    beam_energy: float | int, unit: Literal["kev", "ev"] = "kev"
 ) -> float:
     """
 
@@ -15,11 +16,10 @@ def beam_energy_to_wavelength(
 
     """
     if unit.lower() == "kev":
-        beam_energy_in_kev = beam_energy / 1000
+        beam_energy_ev = beam_energy * 1000
     else:
-        beam_energy_in_kev = beam_energy
+        beam_energy_ev = beam_energy
 
-    beam_energy_ev = beam_energy_in_kev * 1000
     ev_to_j = 1.602176634e-19  # electron volt to joule factor
     h_planck = 6.62607015e-34  # h_planck plancks constant
     c_speed_of_light = 299792458.0  # m/s
@@ -30,7 +30,7 @@ def beam_energy_to_wavelength(
     return wavelength
 
 
-def tth_to_q(tth: np.ndarray, wavelength: float) -> np.ndarray:
+def tth_to_q(tth: Iterable[int | float] | int | float, wavelength: float) -> np.ndarray:
     """
 
     Converts a 2th angle to Q using the wavelength. Simple.
@@ -41,7 +41,9 @@ def tth_to_q(tth: np.ndarray, wavelength: float) -> np.ndarray:
 
     """
 
+    tth_array = np.array(tth, dtype=float)
+
     pi = 3.141592653589
-    q_space = (4 * pi / wavelength) * np.sin(np.deg2rad(tth) / 2)
+    q_space = (4 * pi / wavelength) * np.sin(np.deg2rad(tth_array) / 2)
 
     return q_space
