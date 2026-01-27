@@ -1217,6 +1217,15 @@ wheels = [
 ]
 
 [[package]]
+name = "ply"
+version = "3.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/69/882ee5c9d017149285cab114ebeab373308ef0f874fcdac9beb90e0ac4da/ply-3.11.tar.gz", hash = "sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3", size = 159130, upload-time = "2018-02-15T19:01:31.097Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/58/35da89ee790598a0700ea49b2a66594140f44dec458c07e8e3d4979137fc/ply-3.11-py2.py3-none-any.whl", hash = "sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce", size = 49567, upload-time = "2018-02-15T19:01:27.172Z" },
+]
+
+[[package]]
 name = "pre-commit"
 version = "4.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1233,6 +1242,18 @@ wheels = [
 ]
 
 [[package]]
+name = "prettytable"
+version = "3.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wcwidth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/45/b0847d88d6cfeb4413566738c8bbf1e1995fad3d42515327ff32cc1eb578/prettytable-3.17.0.tar.gz", hash = "sha256:59f2590776527f3c9e8cf9fe7b66dd215837cca96a9c39567414cbc632e8ddb0", size = 67892, upload-time = "2025-11-14T17:33:20.212Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/8c/83087ebc47ab0396ce092363001fa37c17153119ee282700c0713a195853/prettytable-3.17.0-py3-none-any.whl", hash = "sha256:aad69b294ddbe3e1f95ef8886a060ed1666a0b83018bbf56295f6f226c43d287", size = 34433, upload-time = "2025-11-14T17:33:19.093Z" },
+]
+
+[[package]]
 name = "prompt-toolkit"
 version = "3.0.52"
 source = { registry = "https://pypi.org/simple" }
@@ -1242,6 +1263,34 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a1/96/06e01a7b38dce6fe1db213e061a4602dd6032a8a97ef6c1a862537732421/prompt_toolkit-3.0.52.tar.gz", hash = "sha256:28cde192929c8e7321de85de1ddbe736f1375148b02f2e17edd840042b1be855", size = 434198, upload-time = "2025-08-27T15:24:02.057Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl", hash = "sha256:9aac639a3bbd33284347de5ad8d68ecc044b91a762dc39b7c21095fcd6a19955", size = 391431, upload-time = "2025-08-27T15:23:59.498Z" },
+]
+
+[[package]]
+name = "pycifrw"
+version = "5.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "ply" },
+    { name = "prettytable" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/58/e0/f1871f520c359e4e3a2eb7437c9e7e792bb6c356414e8617937561167caf/pycifrw-5.0.1.tar.gz", hash = "sha256:e636b80be6a2be15b215e69ecec0c0a784ebcbfed8b1e3bac4bcc6e6ba9a75e0", size = 896861, upload-time = "2025-03-24T05:34:42.247Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/b6/84364503e0726da4a263e1736d0e1754526d1b1729d0087c680d96345570/pycifrw-5.0.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:3eba3a2d394e82fd4a1ca143080f7f938d6aa169c460e0bcd39a7bad4c29a0d2", size = 184019, upload-time = "2025-03-24T05:34:21.106Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/5c/b999ea3e64981018d52846b9b69193fa581a70cd255912cb6962a33a666a/pycifrw-5.0.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:9f200aae9d7cf9c8857326587ee949dad9de8480f38d98ac6d6ee2dff5ab2308", size = 184022, upload-time = "2025-03-24T05:34:22.703Z" },
+    { url = "https://files.pythonhosted.org/packages/75/35/a44ce3d7c3f52a2a443cae261a05c2affc52fde7f1643974adbef105785f/pycifrw-5.0.1-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6569131e601f857f72824ccac73efc38ab7a712f465c2248181f798105196491", size = 204621, upload-time = "2025-03-24T05:34:24.167Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/87/a5148792c832cd243bd68c144bb9e25a55130b0fe2b0622330572dc50ebb/pycifrw-5.0.1-cp311-cp311-win32.whl", hash = "sha256:e7da341b9568861f2a75116690ef2037f2b4c82f61af454b953ef0011ec6e43a", size = 183552, upload-time = "2025-03-24T05:34:25.803Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/58/e60915c59f4adcbd97af30047694978127d63139ae05a0cf987c6f2e90f9/pycifrw-5.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:bca7cc9685b70c45aa326a301b65d393b7a58ba5a07c29c2066c2ebbdc0393d2", size = 184705, upload-time = "2025-03-24T05:34:27.417Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/b1/c227e507318a605d863d6f5112ab567b39109895c77ad1be4fc697ae01ff/pycifrw-5.0.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:4942c2eb7b4eb54e0909d90f4301f5c5be122ef6c0f5707cd6aa11c87bf91847", size = 184048, upload-time = "2025-03-24T05:34:29.074Z" },
+    { url = "https://files.pythonhosted.org/packages/32/a0/37fb236da6040e337381dd656cafb97d09eacb998c5db3057547f5ffddd9/pycifrw-5.0.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2d0464e10abda9890347a95c8c385654c2741fca186df371a5c47c3b4b819866", size = 184024, upload-time = "2025-03-24T05:34:30.624Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/61/3c1ea8c10bf4f6bf83c33a7f5b4a3143f4cc1f979859dec5498b6cc31900/pycifrw-5.0.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:379801e71509d0f9c59b56edc5ceb6600796eaf2b84ee5e0f5a256c76542047d", size = 204922, upload-time = "2025-03-24T05:34:32.211Z" },
+    { url = "https://files.pythonhosted.org/packages/07/84/a1f98428d20611a21f47144788ce56c4cda7a93aa62eba88855a736dc1cc/pycifrw-5.0.1-cp312-cp312-win32.whl", hash = "sha256:7dbbed562238416e81cb614e2df433182c75b4fd330e182db0d5875b20472704", size = 183571, upload-time = "2025-03-24T05:34:33.44Z" },
+    { url = "https://files.pythonhosted.org/packages/28/55/5733807f4af131ea6194309ac0f43eb5b05463c676d036ef948f3143c1f2/pycifrw-5.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:9d2939cce3bded805f02beda5a6aea62eb95951d59a1b99d73aa3463052fe4fe", size = 184706, upload-time = "2025-03-24T05:34:34.636Z" },
+    { url = "https://files.pythonhosted.org/packages/87/0d/6af0bb9a45c771ffccd5c4c035c57ac9005e711b1191ddad1dd954187cfe/pycifrw-5.0.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:1d01c83295a9e5f91e1cd5df03a24387a79388992b60c9e043f2c24a65b6607d", size = 184049, upload-time = "2025-03-24T05:34:35.867Z" },
+    { url = "https://files.pythonhosted.org/packages/83/81/bdd4bfabe70b7c9a8c0716a722ced4ebd27311afd1f4800cd405d3229c1b/pycifrw-5.0.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:e9ad2fdb4fca6398ed5ae50c19908bf6238434893b68d0125bda79a54a03d708", size = 184027, upload-time = "2025-03-24T05:34:37.043Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/a5/a8c7562ec39f2647245b52ea4aeb13b5b125b3f48c0c152e9ebce7047a0a/pycifrw-5.0.1-cp313-cp313-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:65a90ee34e46e6be20834493382585277d12daaa8d1a145cb158c163b3d9fc1c", size = 205819, upload-time = "2025-03-24T05:34:38.623Z" },
+    { url = "https://files.pythonhosted.org/packages/66/4a/a59dbf6f3ceccf277b2969dd0bc7b9b162f8284b032a47a59ed26c77313d/pycifrw-5.0.1-cp313-cp313-win32.whl", hash = "sha256:6fdb4cfd28cb70eea64c3520e0c29559e38cf82f819bae818a4b94ffa210aae9", size = 183574, upload-time = "2025-03-24T05:34:39.736Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/9b/50835e8fd86073fa7aa921df61b4cebc1f0ff400e4338541675cb72b5507/pycifrw-5.0.1-cp313-cp313-win_amd64.whl", hash = "sha256:8632df76b99932408ab432e09b30aa9a6c390df884a5f34f1e1f76201e625156", size = 184711, upload-time = "2025-03-24T05:34:40.918Z" },
 ]
 
 [[package]]
@@ -1895,6 +1944,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "peakutils" },
+    { name = "pycifrw" },
     { name = "pyfai" },
     { name = "scipy" },
 ]
@@ -1919,6 +1969,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "peakutils" },
+    { name = "pycifrw" },
     { name = "pyfai" },
     { name = "scipy" },
 ]
