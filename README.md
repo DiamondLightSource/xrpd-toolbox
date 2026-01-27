@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/XRPD-Toolbox.svg)](https://pypi.org/project/XRPD-Toolbox)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-# XRPD_Toolbox
+# xrpd_toolbox
 
 A repository for useful python data analysis tools for the X-ray powder diffraction beamlines at Diamond Light Source
 
@@ -21,13 +21,13 @@ some relevant examples. If it is a library then you might put some
 introductory code here:
 
 ```python
-from XRPD_Toolbox import __version__
+from xrpd_toolbox import __version__
 
-print(f"Hello XRPD_Toolbox {__version__}")
+print(f"Hello xrpd_toolbox {__version__}")
 ```
 
 Or if it is a commandline tool then you might put some example commands here:
 
 ```
-python -m XRPD_Toolbox --version
+python -m xrpd_toolbox --version
 ```

@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-XRPD-Toolbox = "XRPD_Toolbox.__main__:main"
+XRPD-Toolbox = "xrpd_toolbox.__main__:main"
 
 [project.urls]
 GitHub = "https://github.com/DiamondLightSource/XRPD-Toolbox"
@@ -48,7 +48,7 @@ email = "richard.dixey@diamond.ac.uk"
 name = "Richard Dixey"
 
 [tool.setuptools_scm]
-version_file = "src/XRPD_Toolbox/_version.py"
+version_file = "src/xrpd_toolbox/_version.py"
 
 [tool.pyright]
 typeCheckingMode = "standard"
@@ -66,7 +66,7 @@ testpaths = "docs src tests"
 
 [tool.coverage.run]
 patch = ["subprocess"]
-data_file = "/tmp/XRPD_Toolbox.coverage"
+data_file = "/tmp/xrpd_toolbox.coverage"
 
 [tool.coverage.paths]
 # Tests are run from installed location, map back to the src directory
@@ -113,7 +113,7 @@ description = "Run tests with coverage"
 commands = [
     [
         "pytest",
-        "--cov=XRPD_Toolbox",
+        "--cov=xrpd_toolbox",
         "--cov-report",
         "term",
         "--cov-report",
