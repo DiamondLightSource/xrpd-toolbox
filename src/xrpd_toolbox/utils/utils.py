@@ -117,23 +117,24 @@ def bin_and_propagate_errors(
         # than remove all together or create a bin with a single value
 
     sums, bin_edges = np.histogram(x, bins=bin_edges, weights=y)
-    counts = np.histogram(x, bins=bin_edges)[0]
+    occurances = np.histogram(x, bins=bin_edges)[0]
+
+    # occurances = np.where(occurances != 0, occurances, 1)  # avoid division by zero
 
     if sum_counts:
         binned_counts = sums
     else:
         binned_counts = (
-            sums / counts
+            sums / occurances
         )  # throws a warning if e missing counts in a bin as a result of missing module
 
-    e_sums = np.histogram(x, bins=bin_edges, weights=e**2)[
-        0
-    ]  # https://faraday.physics.utoronto.ca/PVB/Harrison/ErrorAnalysis/Propagation.html
-    prop_errors = np.sqrt(e_sums) / counts
+    e_sums = np.histogram(x, bins=bin_edges, weights=e**2)[0]
+    # https://faraday.physics.utoronto.ca/PVB/Harrison/ErrorAnalysis/Propagation.html
+    prop_errors = np.sqrt(e_sums) / occurances
 
-    repeated_mean = np.repeat(binned_counts, counts)
+    repeated_mean = np.repeat(binned_counts, occurances)
     std_sums = np.histogram(x, bins=bin_edges, weights=(y - repeated_mean) ** 2)[0]
-    std_errors = np.sqrt(std_sums / counts)
+    std_errors = np.sqrt(std_sums / occurances)
 
     if error_calc == "internal":
         errors = prop_errors

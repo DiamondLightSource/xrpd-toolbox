@@ -5,7 +5,11 @@ FROM ghcr.io/diamondlightsource/ubuntu-devcontainer:noble-20260113@sha256:d59c10
 # Add any system dependencies for the developer/build environment here
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     graphviz \
-    && apt-get dist-clean
+    && apt-get dist-clean 
+
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+RUN apt-get install '^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libegl1 -y
+
 
 # The build stage installs the context into the venv
 FROM developer AS build
