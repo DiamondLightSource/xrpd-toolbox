@@ -134,7 +134,7 @@ class I11_reduction():
 		'whole_data_raw_tth', 'beam_intensity', 'ffcorr','bad_channels_filepath', 'modules_in_flatfield','angcal_filepath','live','send_to_ispyb','execute_reduction','logger', 'logging')
 	
 	@staticmethod
-	def read_singular_angcal_files(angcal_filepath: str) -> dict:
+	def read_singular_angcal_files(angcal_filepath: str) -> tuple[dict, float |  None]:
 
 		"""
 	
@@ -928,29 +928,6 @@ class I11_reduction():
 
 		return Q_space
 
-	def create_bins(self, tth_values: np.ndarray, rebin_step) -> np.ndarray:
-
-		"""
-		Return a suitable set of bin centres, and edges for histogramming this data.
-
-		To match old GDA mythen2 behaviour, want start and stop to align with "multiples" of rebin step
-		(as far as f.p. arithmetic allows this...).
-
-		"""
-		mintth, maxtth = np.amin(tth_values), np.amax(tth_values)
-		start = np.round((mintth / rebin_step),decimals=3) * rebin_step
-		stop = np.round((maxtth / rebin_step),decimals=3) * rebin_step
-		
-		# start = mintth
-		# stop = maxtth
-		# self.logger.log("Min2th:",f'{start:.3f}'," | ","Max2th:",f"{stop:.3f}","\n")
-
-		bin_edges =  np.arange(start=start-(rebin_step/2), stop=stop+rebin_step+(rebin_step/2), step=rebin_step, dtype=np.float64)
-		bin_centres = 0.5*(bin_edges[1:] + bin_edges[:-1])
-
-		return bin_centres, bin_edges
-
-
 
 	def bin_and_propagate_errors(self, x: np.ndarray, y: np.ndarray ,e: np.ndarray, error_calc: str ='best') ->  np.ndarray:
 
@@ -1005,9 +982,9 @@ class I11_reduction():
 
 		"""
 
-		rebinned_tth, tth_bin_edges, rebinned_counts, errors = self.bin_and_propagate_errors(angular_corrected_data["tth"].values,
-																							angular_corrected_data["counts"].values, 
-																							angular_corrected_data["error"].values,error_calc)
+		rebinned_tth, tth_bin_edges, rebinned_counts, errors = self.bin_and_propagate_errors(angular_corrected_data["tth"].to_numpy(),
+																							angular_corrected_data["counts"].to_numpy(), 
+																							angular_corrected_data["error"].to_numpy(), error_calc)
 
 		xyedata = DataFrame()
 
@@ -1018,7 +995,7 @@ class I11_reduction():
 		xyedata = xyedata[(xyedata['counts'] != 0 ) & (~xyedata['counts'].isnull())] #remove no counts #remove null counts
 
 		if (self.beam_energy) and (self.save_in_Q_space):
-			Q_space = I11_reduction.convert_tth_to_Q(xyedata["tth"].values, self.wavelength)
+			Q_space = I11_reduction.convert_tth_to_Q(xyedata["tth"].to_numpy(), self.wavelength)
 			xyedata["Q"] = Q_space
 
 		return xyedata
@@ -1034,7 +1011,7 @@ class I11_reduction():
 		"""
 
 		xye_out_data = np.stack(
-		(xyedata[x].values, xyedata["counts"].values, xyedata["error"].values), axis=-1
+		(xyedata[x].to_numpy(), xyedata["counts"].to_numpy(), xyedata["error"].to_numpy()), axis=-1
 		)
 
 		np.savetxt(xye_filepath_out, xye_out_data, fmt="%.6f", delimiter=" ", newline="\n")
@@ -1177,10 +1154,10 @@ class I11_reduction():
 
 		for n,new_rebin in enumerate(np.linspace(self.rebin_step/10,self.rebin_step+(self.rebin_step/10),10000)):
 
-			bin_centres, bin_edges = self.create_bins(self.angular_corrected_data["tth"].values,new_rebin)
+			bin_centres, bin_edges = self.create_bins(self.angular_corrected_data["tth"].to_numpy(),new_rebin)
 			
-			sums, bin_edges = np.histogram(self.angular_corrected_data["tth"].values, bins=bin_edges, weights=self.angular_corrected_data["counts"].values)
-			counts = np.histogram(self.angular_corrected_data["tth"].values, bins=bin_edges)[0]
+			sums, bin_edges = np.histogram(self.angular_corrected_data["tth"].to_numpy(), bins=bin_edges, weights=self.angular_corrected_data["counts"].to_numpy())
+			counts = np.histogram(self.angular_corrected_data["tth"].to_numpy(), bins=bin_edges)[0]
 
 			if np.amin(counts) == 0:
 				continue
@@ -1189,7 +1166,7 @@ class I11_reduction():
 
 			bin_centres_repeated = np.repeat(bin_centres, counts)
 
-			chi = np.sum(np.abs(bin_centres_repeated-self.angular_corrected_data["tth"].values))*len(bin_centres)
+			chi = np.sum(np.abs(bin_centres_repeated-self.angular_corrected_data["tth"].to_numpy()))*len(bin_centres)
 
 			if n%100 == 0:
 				self.logger.log(new_rebin)
@@ -1312,7 +1289,7 @@ class I11_reduction():
 
 		for n_mod in self.active_modules:
 
-			if n_mod in self.angular_corrected_data["n_mod"].values:
+			if n_mod in self.angular_corrected_data["n_mod"].to_numpy():
 				plt.bar(n_mod, np.sum(self.module_raw_data[n_mod]))
 
 		plt.xlabel("module number")
@@ -1416,7 +1393,7 @@ class I11_reduction():
 			
 			mod_data =  self.angular_corrected_data[self.angular_corrected_data["n_mod"] == n_mod]
 
-			hist, bin_edges  =  np.histogram(mod_data["counts"].values,bins=hist_model)
+			hist, bin_edges  =  np.histogram(mod_data["counts"].to_numpy(),bins=hist_model)
 			mean_hist = np.mean(bin_edges)
 			std_hist = np.std(bin_edges)
 			stdfact = 1.5*std_hist
@@ -1425,7 +1402,7 @@ class I11_reduction():
 
 			if plot:
 
-				plt.hist(mod_data["counts"].values, bins=hist_model)  # arguments are passed to np.histogram
+				plt.hist(mod_data["counts"].to_numpy(), bins=hist_model)  # arguments are passed to np.histogram
 				plt.title(f"Histogram with {hist_model} bins")
 				plt.show()
 
@@ -1436,8 +1413,8 @@ class I11_reduction():
 			low_data_points = mod_data[(mod_data["counts"] < median_count/factor)]
 			high_data_points = mod_data[(mod_data["counts"] > median_count*factor)]
 
-			low_channels = low_data_points["det_channel"].values
-			high_channels = high_data_points["det_channel"].values
+			low_channels = low_data_points["det_channel"].to_numpy()
+			high_channels = high_data_points["det_channel"].to_numpy()
 
 			bad_channels = np.sort(np.unique(np.append(low_channels, high_channels)))
 			all_bad_channels = np.append(all_bad_channels, bad_channels)
@@ -1446,7 +1423,7 @@ class I11_reduction():
 
 			if low_bound:
 				low_bound_points = mod_data[(mod_data["counts"] < low_bound)]
-				low_bound_channels = low_bound_points["det_channel"].values
+				low_bound_channels = low_bound_points["det_channel"].to_numpy()
 				
 				if len(low_bound_channels) > 0:
 					print("\n", "low bound", low_bound_channels,"\n")
@@ -1713,7 +1690,7 @@ class I11_reduction():
 
 
 	def __init__(self, 
-		filepath: str | None = None, 
+		filepath: str, 
 		reduced_nxs_filepath_out: str | None = None, 
 		xye_filepath_out: str | None = None, 
 		xye_filepath_out_Q: str | None = None,

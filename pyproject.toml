@@ -22,6 +22,9 @@ dependencies = [
     "lmfit",
     "peakutils",
     "PyCifRW",
+    "pyyaml",
+    "PyQt6"
+    "PyQt5"
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"

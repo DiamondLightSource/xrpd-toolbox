@@ -3,12 +3,26 @@ import os
 import numpy as np
 
 from xrpd_toolbox.utils.energy import beam_energy_to_wavelength, tth_to_q
-from xrpd_toolbox.utils.utils import load_int_array_from_file, normalise_to
+from xrpd_toolbox.utils.utils import load_int_array_from_file, normalise_to, normalise, gaussian
 
 
 def test_normalise_to():
     normalised_array = normalise_to([1, 2, 4], minval=0)
     assert np.array_equal(normalised_array, [0.25, 0.5, 1.0])
+
+
+def test_normalise():
+    normalised_array = normalise([1, 2, 4])
+    assert np.amax(normalised_array) == 1.0
+    assert np.amin(normalised_array) == 0.0
+
+
+
+def test_gaussian():
+    x = np.linspace(0, 10, 100)
+    y = gaussian(x, amp=22.0, cen=5.0, fwhm=1.0, background=0.0)
+    assert len(y) == len(x)
+    assert np.amax(y) == 22.0
 
 
 def test_tth_to_q():
