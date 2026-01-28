@@ -1,9 +1,15 @@
 import os
 
 import numpy as np
+import scipy.integrate as integrate
 
 from xrpd_toolbox.utils.energy import beam_energy_to_wavelength, tth_to_q
-from xrpd_toolbox.utils.utils import load_int_array_from_file, normalise_to, normalise, gaussian
+from xrpd_toolbox.utils.utils import (
+    gaussian,
+    load_int_array_from_file,
+    normalise,
+    normalise_to,
+)
 
 
 def test_normalise_to():
@@ -17,12 +23,12 @@ def test_normalise():
     assert np.amin(normalised_array) == 0.0
 
 
-
 def test_gaussian():
     x = np.linspace(0, 10, 100)
     y = gaussian(x, amp=22.0, cen=5.0, fwhm=1.0, background=0.0)
     assert len(y) == len(x)
-    assert np.amax(y) == 22.0
+    integral = integrate.simpson(y, x)
+    assert np.isclose(integral, 22.0, atol=0.5)
 
 
 def test_tth_to_q():
