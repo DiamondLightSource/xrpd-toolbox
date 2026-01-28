@@ -1,10 +1,9 @@
-import json
 import sys
 import time
 from pathlib import Path
 from typing import cast
 
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from PyQt5.QtCore import QDir, Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
     QAbstractItemView,
@@ -27,17 +26,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-# =========================
-# Pydantic settings model
-# =========================
-
-
-class ProcessingSettings(BaseModel):
-    threshold: float
-    max_iterations: int
-    normalize: bool
-    output_dir: str
-
+from xrpd_toolbox.i11.mythen import MythenReductionSettings
 
 # =========================
 # Worker Thread
@@ -49,10 +38,10 @@ class ProcessingWorker(QThread):
     file_finished = pyqtSignal(Path)
     file_failed = pyqtSignal(Path, str)
 
-    def __init__(self, files: list[Path], settings: ProcessingSettings) -> None:
+    def __init__(self, files: list[Path], settings: MythenReductionSettings) -> None:
         super().__init__()
         self.files: list[Path] = files
-        self.settings: ProcessingSettings = settings
+        self.settings: MythenReductionSettings = settings
 
     def run(self) -> None:
         for file in self.files:
@@ -77,14 +66,24 @@ class MainWindow(QWidget):
     def __init__(
         self,
         settings_columns: int = 1,
-        settings_path: str | Path = Path("settings.json"),
+        settings_path: str | Path | None = None,
+        settings: MythenReductionSettings | None = None,
     ) -> None:
         super().__init__()
 
+        self.output_dir: str = str(Path.home())
+
         self.settings_columns: int = max(1, settings_columns)
 
-        self.settings_path: Path = Path(settings_path)
-        self.settings_model: ProcessingSettings = self.load_settings()
+        if settings is not None:
+            self.settings_model: MythenReductionSettings = settings
+        elif settings_path is not None:
+            self.settings_path: Path = Path(settings_path)
+            self.settings_model: MythenReductionSettings = (
+                MythenReductionSettings.load_from_toml(settings_path)
+            )
+        else:
+            raise ValueError("Either settings or settings_path must be provided.")
 
         self.selected_files: list[Path] = []
         self.worker: ProcessingWorker | None = None
@@ -158,14 +157,6 @@ class MainWindow(QWidget):
         main_layout.addLayout(right_layout, 1)
 
     # ---------------------
-    # Load settings
-    # ---------------------
-
-    def load_settings(self) -> ProcessingSettings:
-        with self.settings_path.open("r") as f:
-            return ProcessingSettings(**json.load(f))
-
-    # ---------------------
     # Settings grid
     # ---------------------
 
@@ -228,7 +219,7 @@ class MainWindow(QWidget):
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        edit = QLineEdit(self.settings_model.output_dir)
+        edit = QLineEdit(self.output_dir)
         browse = QPushButton("Browse…")
         browse.clicked.connect(self.browse_output_dir)
 
@@ -283,8 +274,8 @@ class MainWindow(QWidget):
     # Collect settings
     # ---------------------
 
-    def collect_settings(self) -> ProcessingSettings:
-        return ProcessingSettings(
+    def collect_settings(self) -> MythenReductionSettings:
+        return MythenReductionSettings(
             threshold=cast(QDoubleSpinBox, self.widgets["threshold"]).value(),
             max_iterations=cast(QSpinBox, self.widgets["max_iterations"]).value(),
             normalize=cast(QCheckBox, self.widgets["normalize"]).isChecked(),
