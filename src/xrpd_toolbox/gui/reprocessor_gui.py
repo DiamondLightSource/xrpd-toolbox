@@ -1,37 +1,36 @@
-import sys
 import json
+import sys
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Set, cast
-
-from PyQt5.QtCore import QDir, Qt, QThread, pyqtSignal
-from PyQt5.QtWidgets import (
-    QApplication,
-    QWidget,
-    QTreeView,
-    QListWidget,
-    QListWidgetItem,
-    QGridLayout,
-    QLineEdit,
-    QSpinBox,
-    QDoubleSpinBox,
-    QCheckBox,
-    QPushButton,
-    QHBoxLayout,
-    QVBoxLayout,
-    QMessageBox,
-    QFileSystemModel,
-    QAbstractItemView,
-    QFileDialog,
-    QLabel,
-)
+from typing import cast
 
 from pydantic import BaseModel, ValidationError
-
+from PyQt5.QtCore import QDir, Qt, QThread, pyqtSignal
+from PyQt5.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFileSystemModel,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+)
 
 # =========================
 # Pydantic settings model
 # =========================
+
 
 class ProcessingSettings(BaseModel):
     threshold: float
@@ -44,14 +43,15 @@ class ProcessingSettings(BaseModel):
 # Worker Thread
 # =========================
 
+
 class ProcessingWorker(QThread):
     file_started = pyqtSignal(Path)
     file_finished = pyqtSignal(Path)
     file_failed = pyqtSignal(Path, str)
 
-    def __init__(self, files: List[Path], settings: ProcessingSettings) -> None:
+    def __init__(self, files: list[Path], settings: ProcessingSettings) -> None:
         super().__init__()
-        self.files: List[Path] = files
+        self.files: list[Path] = files
         self.settings: ProcessingSettings = settings
 
     def run(self) -> None:
@@ -72,8 +72,13 @@ class ProcessingWorker(QThread):
 # Main Window
 # =========================
 
+
 class MainWindow(QWidget):
-    def __init__(self, settings_columns: int = 1, settings_path: str | Path = Path("settings.json")) -> None:
+    def __init__(
+        self,
+        settings_columns: int = 1,
+        settings_path: str | Path = Path("settings.json"),
+    ) -> None:
         super().__init__()
 
         self.settings_columns: int = max(1, settings_columns)
@@ -81,10 +86,10 @@ class MainWindow(QWidget):
         self.settings_path: Path = Path(settings_path)
         self.settings_model: ProcessingSettings = self.load_settings()
 
-        self.selected_files: List[Path] = []
-        self.worker: Optional[ProcessingWorker] = None
+        self.selected_files: list[Path] = []
+        self.worker: ProcessingWorker | None = None
 
-        self.widgets: Dict[str, QWidget] = {}
+        self.widgets: dict[str, QWidget] = {}
 
         self.fs_model: QFileSystemModel
         self.tree: QTreeView
@@ -122,9 +127,7 @@ class MainWindow(QWidget):
 
         selection_model = self.tree.selectionModel()
         if selection_model:
-            selection_model.selectionChanged.connect(
-                self.on_selection_changed
-            )
+            selection_model.selectionChanged.connect(self.on_selection_changed)
 
         self.file_list = QListWidget()
 
@@ -167,7 +170,7 @@ class MainWindow(QWidget):
     # ---------------------
 
     def build_settings_grid(self) -> None:
-        normal_settings: List[Tuple[str, QWidget]] = [
+        normal_settings: list[tuple[str, QWidget]] = [
             ("Threshold", self.make_threshold()),
             ("Max Iterations", self.make_max_iterations()),
             ("Normalize", self.make_normalize()),
@@ -261,7 +264,7 @@ class MainWindow(QWidget):
         if selection_model is None:
             return
         indexes = selection_model.selectedIndexes()
-        seen: Set[Path] = set()
+        seen: set[Path] = set()
 
         for index in indexes:
             if index.column() != 0:
@@ -316,7 +319,7 @@ class MainWindow(QWidget):
     # Worker callbacks
     # ---------------------
 
-    def find_item(self, path: Path) -> Optional[QListWidgetItem]:
+    def find_item(self, path: Path) -> QListWidgetItem | None:
         for i in range(self.file_list.count()):
             item = self.file_list.item(i)
             if item is not None and item.data(Qt.ItemDataRole.UserRole) == path:
@@ -350,6 +353,8 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow(settings_columns=2, settings_path="/Users/akz63626/Documents/settings.json")
+    window = MainWindow(
+        settings_columns=2, settings_path="/Users/akz63626/Documents/settings.json"
+    )
     window.show()
     sys.exit(app.exec_())

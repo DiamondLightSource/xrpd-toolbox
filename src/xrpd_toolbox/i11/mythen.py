@@ -1,12 +1,13 @@
-from pathlib import Path
-from pydantic import BaseModel
-import numpy as np
-from h5py import File as h5pyFile
 import tomllib
-import yaml
+from collections.abc import Collection
+from pathlib import Path
 from typing import Literal
 
-from xrpd_toolbox.gui.bad_pixel_gui import DATASET_PATH
+import numpy as np
+import yaml
+from h5py import Dataset, File
+from pydantic import BaseModel
+
 
 class MythenReductionSettings(BaseModel):
     active_modules: list[int]
@@ -25,14 +26,12 @@ class MythenReductionSettings(BaseModel):
     angcal_filepath: str | Path
 
     @classmethod
-    def load_from_toml(cls, file_path: str | Path) -> MythenReductionSettings:
-
+    def load_from_toml(cls, file_path: str | Path):
         settings_dict = tomllib.load(open(file_path, "rb"))
         return cls(**settings_dict)
-    
-    @classmethod
-    def load_from_yaml(cls, file_path: str | Path) -> MythenReductionSettings:
 
+    @classmethod
+    def load_from_yaml(cls, file_path: str | Path):
         settings_dict = yaml.safe_load(open(file_path, "rb"))
         return cls(**settings_dict)
 
@@ -51,44 +50,51 @@ class MythenReductionSettings(BaseModel):
                 explicit_start=True,
             )
 
-DATASET_PATH = "/entry/mythen_nx/data"
-MODULE_COUNT = 28
-MODULE_SIZE = 1280
-UNDO_LIMIT = 10
-COUNTER = 0
 
 class MythenDataLoader:
-    def __init__(self, file_path: str | Path, n_modules: int = 28, counter: int = 0):
+    def __init__(
+        self,
+        file_path: str | Path,
+        active_modules: Collection[int] = tuple(range(28)),
+        counter: int = 0,
+    ):
         self.file_path = Path(file_path)
-        self.n_modules = n_modules
+        self.active_modules = active_modules
         self.counter = counter
         self.dataset_path = "/entry/mythen_nx/data"
         self.raw_data = self.load_data()
-        self.module_data = np.array_split(self.raw_data, self.n_modules, axis=-1)
+        self.module_data = np.array_split(
+            self.raw_data, len(self.active_modules), axis=-1
+        )
+        self.n_modules = len(self.module_data)
 
     def load_data(self) -> np.ndarray:
-
         if not self.file_path.exists():
             raise FileNotFoundError(self.file_path)
 
-        with h5pyFile(self.file_path, "r") as file:
+        with File(self.file_path, "r") as file:
             if self.dataset_path not in file:
-                raise ValueError(f"Dataset path {self.dataset_path} not found in HDF5 file.")
+                raise ValueError(
+                    f"Dataset path {self.dataset_path} not found in HDF5 file."
+                )
 
             data = file.get(self.dataset_path)
 
-            if data.ndim < 1:
-                raise ValueError("Dataset must have at least one dimension")
+            if (data is not None) and isinstance(data, Dataset):
+                if data.ndim < 1:
+                    raise ValueError("Data has insufficient dimensions.")
+                data = data[..., self.counter]
 
-            data = data[..., self.counter]
+                return np.asarray(data)
+            else:
+                raise ValueError("Data is None.")
 
-        return data
-    
     def get_module_data(self, module_index: int) -> np.ndarray:
-        if module_index < 0 or module_index >= self.n_modules:
+        if module_index not in self.active_modules:
             raise IndexError("Module index out of range.")
 
         return self.module_data[module_index]
+
 
 class MythenModule:
     def __init__(self, data, pixels_per_modules: int = 1280):
@@ -105,8 +111,9 @@ class MythenDetector:
 
 
 if __name__ == "__main__":
-
-    settings = MythenReductionSettings.load_from_toml("/Users/akz63626/projects/XRPD-Toolbox/src/xrpd_toolbox/i11/mythen_calibration/mythen3_reduction_config.toml")
+    settings = MythenReductionSettings.load_from_toml(
+        "/Users/akz63626/projects/XRPD-Toolbox/src/xrpd_toolbox/i11/mythen_calibration/mythen3_reduction_config.toml"
+    )
 
     print("Loaded settings:", settings)
 

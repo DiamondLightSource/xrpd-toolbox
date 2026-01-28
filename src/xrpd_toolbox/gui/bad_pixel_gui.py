@@ -1,28 +1,25 @@
 import sys
 from pathlib import Path
-from typing import List, Optional, Set
 
 import h5py
 import numpy as np
-
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+from matplotlib.widgets import RectangleSelector
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHBoxLayout,
-    QVBoxLayout,
-    QSlider,
-    QPushButton,
+    QLabel,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
+    QSlider,
     QSpinBox,
+    QVBoxLayout,
     QWidget,
-    QLabel,
 )
-
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
-from matplotlib.figure import Figure
-from matplotlib.widgets import RectangleSelector
 
 from xrpd_toolbox.utils.utils import load_int_array_from_file
 
@@ -41,7 +38,7 @@ def load_mythen_data(filepath: str) -> np.ndarray:
     with h5py.File(path, "r") as file:
         if DATASET_PATH not in file:
             raise KeyError(f"Dataset not found: {DATASET_PATH}")
-        
+
         data = np.asarray(file.get(DATASET_PATH, []))
 
     if data.ndim < 1:
@@ -56,16 +53,15 @@ class PlotCanvas(FigureCanvasQTAgg):
     def __init__(
         self,
         data: np.ndarray,
-        global_selected_indices: Set[int],
+        global_selected_indices: set[int],
         selection_callback,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ) -> None:
         self.figure = Figure()
         super().__init__(self.figure)
         self.setParent(parent)
 
         self._pan_start = None  # new attribute
-
 
         self.ax = self.figure.add_subplot(111)
 
@@ -122,9 +118,9 @@ class PlotCanvas(FigureCanvasQTAgg):
             self.ax,
             self._on_rectangle_select,
             useblit=True,
-            button=[1], #type: ignore
+            button=[1],  # type: ignore
             interactive=False,
-            props=dict(facecolor="blue", alpha=0.2),
+            props={"facecolor": "blue", "alpha": 0.2},
         )
 
     def reset_zoom(self) -> None:
@@ -163,7 +159,6 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.ax.set_xlim(x0, x1)
         self.ax.set_ylim(y0, y1)
         self.draw_idle()
-
 
     def _on_click(self, event) -> None:
         # Right-click toggle
@@ -221,19 +216,17 @@ class PlotCanvas(FigureCanvasQTAgg):
 
 
 class MainWindow(QWidget):
-    def __init__(self, data: np.ndarray, initial_indices: Set[int]) -> None:
+    def __init__(self, data: np.ndarray, initial_indices: set[int]) -> None:
         super().__init__()
 
         self.setWindowTitle("Mythen NXS Viewer")
 
         self.global_selected_indices = initial_indices
 
-        self.undo_stack: List[Set[int]] = []
-        self.redo_stack: List[Set[int]] = []
+        self.undo_stack: list[set[int]] = []
+        self.redo_stack: list[set[int]] = []
 
-        self.canvas = PlotCanvas(
-            data, self.global_selected_indices, self._toggle_index
-        )
+        self.canvas = PlotCanvas(data, self.global_selected_indices, self._toggle_index)
         self.list_widget = QListWidget()
 
         self.module_slider = QSlider(Qt.Orientation.Horizontal)
@@ -289,7 +282,7 @@ class MainWindow(QWidget):
 
         self.setLayout(main_layout)
 
-    def timerEvent(self, event) -> None: #type: ignore
+    def timerEvent(self, event) -> None:  # type: ignore # noqa
         self._sync_list()
 
     def _sync_list(self) -> None:
@@ -313,7 +306,7 @@ class MainWindow(QWidget):
             self.global_selected_indices.remove(idx)
         else:
             self.global_selected_indices.add(idx)
-        self.canvas._update_selected_points()
+        self.canvas._update_selected_points()  # noqa
 
     def _undo(self) -> None:
         if not self.undo_stack:
@@ -322,7 +315,7 @@ class MainWindow(QWidget):
         prev_state = self.undo_stack.pop()
         self.global_selected_indices.clear()
         self.global_selected_indices.update(prev_state)
-        self.canvas._update_selected_points()
+        self.canvas._update_selected_points()  # noqa
 
     def _redo(self) -> None:
         if not self.redo_stack:
@@ -331,7 +324,7 @@ class MainWindow(QWidget):
         next_state = self.redo_stack.pop()
         self.global_selected_indices.clear()
         self.global_selected_indices.update(next_state)
-        self.canvas._update_selected_points()
+        self.canvas._update_selected_points()  # noqa
 
     def _add_edge_indices(self) -> None:
         self._record_state()
@@ -341,7 +334,7 @@ class MainWindow(QWidget):
             for i in range(n):
                 self.global_selected_indices.add(base + i)
                 self.global_selected_indices.add(base + MODULE_SIZE - 1 - i)
-        self.canvas._update_selected_points()
+        self.canvas._update_selected_points()  # noqa
 
     def _save_indices(self) -> None:
         path_str, _ = QFileDialog.getSaveFileName(
@@ -358,9 +351,9 @@ class MainWindow(QWidget):
                 f.write(f"{idx}\n")
 
 
-def run_gui(filepath: str, indices_file: Optional[str] = None) -> None:
+def run_gui(filepath: str, indices_file: str | None = None) -> None:
     data = load_mythen_data(filepath)
-    initial_indices: Set[int] = set()
+    initial_indices: set[int] = set()
     if indices_file is not None:
         initial_indices = set(load_int_array_from_file(indices_file))
 
@@ -371,7 +364,9 @@ def run_gui(filepath: str, indices_file: Optional[str] = None) -> None:
     sys.exit(app.exec())
 
 
-
 if __name__ == "__main__":
     # Example usage:
-    run_gui("/Users/akz63626/cm44155-1/1407178.nxs", indices_file="/Users/akz63626/cm44155-1/combined_bad_channels.txt")
+    run_gui(
+        "/Users/akz63626/cm44155-1/1407178.nxs",
+        indices_file="/Users/akz63626/cm44155-1/combined_bad_channels.txt",
+    )
