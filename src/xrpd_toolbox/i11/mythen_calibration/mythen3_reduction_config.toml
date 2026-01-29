@@ -32,7 +32,7 @@ error_calc = "internal" #this can be "internal" "external" or "best". internal e
 
 
 ######
-data_reduction_mode = 0
+data_reduction_mode = "step_scan"
 # data_reduction_mode
 #0 = standard (all data will be reduced into 1 file, possibly multiple angles)
 #1 = time-resolved mode (many frames per .nxs saved into seperate .xye files for each frame)

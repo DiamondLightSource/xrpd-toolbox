@@ -150,11 +150,11 @@ class MythenDetector:
 
 
 if __name__ == "__main__":
-    filepath = "/Users/akz63626/projects/XRPD-Toolbox/src/xrpd_toolbox/i11/mythen_calibration/mythen3_reduction_config.toml"  # noqa
+    filepath = "/workspaces/XRPD-Toolbox/src/xrpd_toolbox/i11/mythen_calibration/mythen3_reduction_config.toml"  # noqa
 
-    # settings = MythenReductionSettings.load_from_toml(filepath)
+    settings = MythenReductionSettings.load_from_toml(filepath)
 
-    # print("Loaded settings:", settings)
+    print("Loaded settings:", settings)
 
     MythenDataLoader("/dls/i11/data/2026/cm44155-1/1406733.nxs")
 
