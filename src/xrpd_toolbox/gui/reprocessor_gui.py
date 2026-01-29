@@ -383,9 +383,7 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-
     settings = MythenReductionSettings()
-
     window = MainWindow(settings=settings, settings_columns=1)
     window.show()
     sys.exit(app.exec_())

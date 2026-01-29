@@ -1,4 +1,5 @@
 import os
+import re
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -9,6 +10,12 @@ import numpy as np
 def get_entry(nexus_filepath: str | Path) -> str:
     with h5py.File(nexus_filepath, "r") as file:
         return list(file.keys())[0]
+
+
+def get_filenumber_from_nxs(nexus_file: str | Path) -> int:
+    basename = os.path.basename(str(nexus_file))
+    filenumber_str = re.findall(r"\d+", basename)[-1]
+    return int(filenumber_str)
 
 
 def normalise_to(data: Iterable[float | int], minval: float | int = 0) -> np.ndarray:
