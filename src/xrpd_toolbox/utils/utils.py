@@ -1,7 +1,14 @@
 import os
 from collections.abc import Iterable
+from pathlib import Path
 
+import h5py
 import numpy as np
+
+
+def get_entry(nexus_filepath: str | Path) -> str:
+    with h5py.File(nexus_filepath, "r") as file:
+        return list(file.keys())[0]
 
 
 def normalise_to(data: Iterable[float | int], minval: float | int = 0) -> np.ndarray:

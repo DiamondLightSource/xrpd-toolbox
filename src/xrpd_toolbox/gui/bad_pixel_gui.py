@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-import h5py
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
@@ -21,40 +20,18 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from xrpd_toolbox.i11.mythen import MythenDataLoader
 from xrpd_toolbox.utils.utils import load_int_array_from_file
-
-DATASET_PATH = "/entry/mythen_nx/data"
-MODULE_COUNT = 28
-MODULE_SIZE = 1280
-UNDO_LIMIT = 10
-COUNTER = 0
-
-
-def load_mythen_data(filepath: str) -> np.ndarray:
-    path = Path(filepath)
-    if not path.exists():
-        raise FileNotFoundError(path)
-
-    with h5py.File(path, "r") as file:
-        if DATASET_PATH not in file:
-            raise KeyError(f"Dataset not found: {DATASET_PATH}")
-
-        data = np.asarray(file.get(DATASET_PATH, []))
-
-    if data.ndim < 1:
-        raise ValueError("Dataset must have at least one dimension")
-    else:
-        data = data[:, :, COUNTER]
-
-    return data
 
 
 class PlotCanvas(FigureCanvasQTAgg):
     def __init__(
         self,
-        data: np.ndarray,
+        data: MythenDataLoader,
         global_selected_indices: set[int],
         selection_callback,
+        undo_limit: int = 10,
+        pixels_per_modules: int = 1280,
         parent: QWidget | None = None,
     ) -> None:
         self.figure = Figure()
@@ -65,12 +42,17 @@ class PlotCanvas(FigureCanvasQTAgg):
 
         self.ax = self.figure.add_subplot(111)
 
-        self.raw_data = data
+        self.data = data
+        self.raw_data = data.raw_data
+
+        self.pixels_per_modules = pixels_per_modules
+        self.undo_limit = undo_limit
+
         self.current_module = 0
         self.global_selected_indices = global_selected_indices
         self.selection_callback = selection_callback
 
-        self.x = np.arange(MODULE_SIZE)
+        self.x = np.arange(self.pixels_per_modules)
         self.scatter = None
         self.reference_curve = None
 
@@ -87,8 +69,8 @@ class PlotCanvas(FigureCanvasQTAgg):
     def _plot_module(self, module: int) -> None:
         self.ax.cla()
 
-        start = module * MODULE_SIZE
-        end = start + MODULE_SIZE
+        start = module * self.pixels_per_modules
+        end = start + self.pixels_per_modules
 
         curves = self.raw_data[:, start:end]
 
@@ -164,8 +146,8 @@ class PlotCanvas(FigureCanvasQTAgg):
         # Right-click toggle
         if event.button == 3 and event.xdata is not None:
             index = int(round(event.xdata))
-            if 0 <= index < MODULE_SIZE:
-                global_index = self.current_module * MODULE_SIZE + index
+            if 0 <= index < self.data.pixels_per_module:
+                global_index = self.current_module * self.data.pixels_per_module + index
                 self.selection_callback(global_index)
         # Middle-button press starts panning
         elif event.button == 2 and event.xdata is not None and event.ydata is not None:
@@ -195,8 +177,8 @@ class PlotCanvas(FigureCanvasQTAgg):
         if self.scatter is None or self.reference_curve is None:
             return
 
-        module_start = self.current_module * MODULE_SIZE
-        module_end = module_start + MODULE_SIZE
+        module_start = self.current_module * self.pixels_per_modules
+        module_end = module_start + self.pixels_per_modules
 
         local_indices = [
             idx - module_start
@@ -216,21 +198,30 @@ class PlotCanvas(FigureCanvasQTAgg):
 
 
 class MainWindow(QWidget):
-    def __init__(self, data: np.ndarray, initial_indices: set[int]) -> None:
+    def __init__(
+        self, data: MythenDataLoader, initial_indices: set[int], undo_limit: int = 10
+    ) -> None:
         super().__init__()
 
         self.setWindowTitle("Mythen NXS Viewer")
 
         self.global_selected_indices = initial_indices
+        self.data = data
+        self.undo_limit = undo_limit
 
         self.undo_stack: list[set[int]] = []
         self.redo_stack: list[set[int]] = []
 
-        self.canvas = PlotCanvas(data, self.global_selected_indices, self._toggle_index)
+        self.canvas = PlotCanvas(
+            self.data,
+            self.global_selected_indices,
+            self._toggle_index,
+            undo_limit=self.undo_limit,
+        )
         self.list_widget = QListWidget()
 
         self.module_slider = QSlider(Qt.Orientation.Horizontal)
-        self.module_slider.setRange(0, MODULE_COUNT - 1)
+        self.module_slider.setRange(0, self.data.n_modules - 1)
         self.module_slider.valueChanged.connect(self.canvas.set_module)
 
         self.reset_zoom_button = QPushButton("Reset Zoom")
@@ -246,7 +237,7 @@ class MainWindow(QWidget):
         self.redo_button.clicked.connect(self._redo)
 
         self.n_spin = QSpinBox()
-        self.n_spin.setRange(1, MODULE_SIZE // 2)
+        self.n_spin.setRange(1, self.data.pixels_per_module // 2)
         self.n_spin.setValue(5)
 
         self.add_edges_button = QPushButton("Add First/Last N per Module")
@@ -296,7 +287,7 @@ class MainWindow(QWidget):
 
     def _record_state(self) -> None:
         self.undo_stack.append(self.global_selected_indices.copy())
-        if len(self.undo_stack) > UNDO_LIMIT:
+        if len(self.undo_stack) > self.undo_limit:
             self.undo_stack.pop(0)
         self.redo_stack.clear()
 
@@ -329,11 +320,13 @@ class MainWindow(QWidget):
     def _add_edge_indices(self) -> None:
         self._record_state()
         n = self.n_spin.value()
-        for module in range(MODULE_COUNT):
-            base = module * MODULE_SIZE
+        for module in range(self.data.n_modules):
+            base = module * self.data.pixels_per_module
             for i in range(n):
                 self.global_selected_indices.add(base + i)
-                self.global_selected_indices.add(base + MODULE_SIZE - 1 - i)
+                self.global_selected_indices.add(
+                    base + self.data.pixels_per_module - 1 - i
+                )
         self.canvas._update_selected_points()  # noqa
 
     def _save_indices(self) -> None:
@@ -352,21 +345,27 @@ class MainWindow(QWidget):
 
 
 def run_gui(filepath: str, indices_file: str | None = None) -> None:
-    data = load_mythen_data(filepath)
+    mythen_data = MythenDataLoader(filepath)
     initial_indices: set[int] = set()
     if indices_file is not None:
         initial_indices = set(load_int_array_from_file(indices_file))
+    else:
+        initial_indices = set()
 
     app = QApplication(sys.argv)
-    window = MainWindow(data, initial_indices)
+    window = MainWindow(mythen_data, initial_indices)
     window.resize(1450, 900)
     window.show()
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
+    filepath = "/dls/i11/data/2026/cm44155-1/1406733.nxs"
+
+    mythen_data = MythenDataLoader(filepath)
+
     # Example usage:
     run_gui(
-        "/Users/akz63626/cm44155-1/1407178.nxs",
-        indices_file="/Users/akz63626/cm44155-1/combined_bad_channels.txt",
+        filepath,
+        indices_file=None,
     )

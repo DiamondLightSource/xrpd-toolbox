@@ -63,6 +63,11 @@
             "source": "devcontainer-shared-cache",
             "target": "/cache",
             "type": "volume"
+        },
+        {
+            "source": "/dls/i11/data/2026",
+            "target": "/dls/i11/data/2026",
+            "type": "bind"
         }
     ],
     // Mount the parent as /workspaces so we can pip install peers as editable
