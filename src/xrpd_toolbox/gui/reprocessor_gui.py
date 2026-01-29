@@ -69,11 +69,13 @@ class MainWindow(QWidget):
         self,
         settings_path: str | Path | None = None,
         settings: MythenReductionSettings | None = None,
+        beamline: str = "i11",
         settings_columns: int = 1,
     ) -> None:
         super().__init__()
 
         self.output_dir: str = str(Path.home())
+        self.beamline = beamline
 
         self.settings_columns: int = max(1, settings_columns)
 
@@ -98,7 +100,7 @@ class MainWindow(QWidget):
         self.settings_grid: QGridLayout
         self.process_btn: QPushButton
 
-        self.setWindowTitle("NXS Processor")
+        self.setWindowTitle("NXS Reprocessor")
         self.resize(1200, 650)
 
         self.init_ui()
@@ -114,13 +116,16 @@ class MainWindow(QWidget):
         left_layout = QVBoxLayout()
 
         self.fs_model = QFileSystemModel()
+
+        self.base_path = f"/dls/{self.beamline}/data/"
+
         self.fs_model.setRootPath(QDir.rootPath())
         self.fs_model.setNameFilters(["*.nxs"])
         self.fs_model.setNameFilterDisables(False)
 
         self.tree = QTreeView()
         self.tree.setModel(self.fs_model)
-        self.tree.setRootIndex(self.fs_model.index(QDir.currentPath()))
+        self.tree.setRootIndex(self.fs_model.index(self.base_path))
         self.tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
         for col in range(1, self.fs_model.columnCount()):
