@@ -320,20 +320,17 @@ class MainWindow(QWidget):
     def on_file_started(self, path: Path) -> None:
         item = self.find_item(path)
         if item:
-            item.setText(f"O {path.name}")
-            # item.setText(f"🔄 {path.name}")
+            item.setText(f"🔄 {path.name}")
 
     def on_file_finished(self, path: Path) -> None:
         item = self.find_item(path)
         if item:
-            item.setText(f"Y {path.name}")
-            # item.setText(f"✅ {path.name}")
+            item.setText(f"✅ {path.name}")
 
     def on_file_failed(self, path: Path, error: str) -> None:
         item = self.find_item(path)
         if item:
-            item.setText(f"X {path.name}")
-            # item.setText(f"❌ {path.name}")
+            item.setText(f"❌ {path.name}")
 
         print(f"Error processing {path}: {error}")
 

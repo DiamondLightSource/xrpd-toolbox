@@ -68,6 +68,11 @@
             "source": "/dls/i11/data/2026",
             "target": "/dls/i11/data/2026",
             "type": "bind"
+        },
+        {
+            "source": "/dls_sw/i11/software",
+            "target": "/dls_sw/i11/software",
+            "type": "bind"
         }
     ],
     // Mount the parent as /workspaces so we can pip install peers as editable
