@@ -79,6 +79,33 @@ def get_folder_paths(root_folder: str | Path):
     return instrument_session_folders
 
 
+def copy_datapath_to_nexus(
+    source_file: str | Path,
+    destination_file: str | Path,
+    source_path: str,
+    destination_path: str,
+):
+    """
+    Copy a detector group from a source NeXus file to a destination NeXus file.
+    Overwrites the destination path if it already exists.
+    """
+
+    with h5py.File(source_file, "r") as src, h5py.File(destination_file, "a") as dst:
+        if source_path not in src:
+            raise KeyError(f"Source path not found: {source_path}")
+
+        # Remove destination path if it exists (overwrite behavior)
+        if destination_path in dst:
+            del dst[destination_path]
+
+        # Ensure parent group exists
+        parent_path = destination_path.rsplit("/", 1)[0]
+        dst.require_group(parent_path)
+
+        # Copy the group recursively
+        src.copy(source_path, dst, destination_path)
+
+
 def normalise_to(data: Iterable[float | int], minval: float | int = 0) -> np.ndarray:
     """
     normalises an array
