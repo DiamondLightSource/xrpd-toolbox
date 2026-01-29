@@ -41,8 +41,8 @@ def get_entry(nexus_filepath: str | Path) -> str:
         return list(file.keys())[0]
 
 
-def nexus_file_match(f, beamline: str = "i15-1"):
-    return re.match(f"{beamline}" + r"-+[0-9]+\.nxs", f)
+def nexus_file_match(str_to_match, beamline: str = "i15-1"):
+    return re.match(f"{beamline}" + r"-+[0-9]+\.nxs", str_to_match)
 
 
 def get_nexus_files(
