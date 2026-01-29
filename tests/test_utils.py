@@ -55,7 +55,7 @@ def test_beam_energy_to_wavelength():
     assert round(wavelength_in_angstrom, 2) == 1.0
 
 
-def test_load_int_array_from_file():
+def test_load_int_array_from_file_returns_array_when_contains_ints():
     test_file = "int_array.txt"
 
     # Create a temporary file
@@ -66,6 +66,31 @@ def test_load_int_array_from_file():
     # Test loading the array
     result = load_int_array_from_file(test_file)
     expected = np.array([1, 2, 3, 4, 5])
+    assert np.array_equal(result, expected)
+
+    # Clean up
+    os.remove(test_file)
+
+
+def test_load_int_array_from_file_returns_none_when_file_doesnt_exist():
+    test_file = "nob_existent.txt"
+
+    # Test loading the array
+    result = load_int_array_from_file(test_file)
+    expected = np.array([])
+    assert np.array_equal(result, expected)
+
+
+def test_load_int_array_from_file_returns_none_when_file_empty():
+    test_file = "int_array.txt"
+
+    # Create a temporary file
+    with open(test_file, "w") as f:
+        f.write("")
+
+    # Test loading the array
+    result = load_int_array_from_file(test_file)
+    expected = np.array([])
     assert np.array_equal(result, expected)
 
     # Clean up
