@@ -35,7 +35,7 @@ def gaussian(x, amp, cen, fwhm, background) -> np.ndarray:
     ) + background
 
 
-def load_int_array_from_file(filepath: str) -> np.ndarray:
+def load_int_array_from_file(filepath: str | Path) -> np.ndarray:
     """
     File format is just a list of integers in a text file, one integer per line.
 

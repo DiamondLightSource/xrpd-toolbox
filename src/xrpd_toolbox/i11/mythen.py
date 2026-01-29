@@ -9,7 +9,7 @@ import yaml
 from h5py import Dataset, File
 from pydantic import BaseModel
 
-from xrpd_toolbox.utils.utils import get_entry
+from xrpd_toolbox.utils.utils import get_entry, load_int_array_from_file
 
 
 class MythenReductionSettings(BaseModel):
@@ -17,7 +17,7 @@ class MythenReductionSettings(BaseModel):
     bad_modules: list[int] = []
     bad_channel_masking: bool = True
     flatfield_filepath: str | Path = ""
-    apply_flatfield: bool = True
+    apply_flatfield: bool = False
     modules_in_flatfield: list[int] = list(range(28))
     send_to_ispyb: bool = False
     rebin_step: float = 0.004
@@ -39,6 +39,12 @@ class MythenReductionSettings(BaseModel):
     def load_from_yaml(cls, file_path: str | Path):
         settings_dict = yaml.safe_load(open(file_path, "rb"))
         return cls(**settings_dict)
+
+    def load_bad_channels(self):
+        if not self.bad_channels_filepath:
+            raise ValueError("Bad channels file path is not set.")
+        self.bad_channels = load_int_array_from_file(self.bad_channels_filepath)
+        return self.bad_channels
 
     def save_to_yaml(self, file_path: str | Path) -> None:
         print("Saving configuration to:", file_path)
