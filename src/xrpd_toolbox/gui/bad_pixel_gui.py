@@ -367,5 +367,5 @@ if __name__ == "__main__":
     # Example usage:
     run_gui(
         filepath,
-        indices_file=None,
+        indices_file="/dls_sw/i11/software/mythen/badchannels.txt",
     )
