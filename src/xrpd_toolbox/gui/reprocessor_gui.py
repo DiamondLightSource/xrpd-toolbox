@@ -1,7 +1,8 @@
 import sys
 import time
 from pathlib import Path
-from typing import cast
+from types import UnionType
+from typing import Any, Literal, cast, get_args, get_origin
 
 from pydantic import ValidationError
 from PyQt5.QtCore import QDir, Qt, QThread, pyqtSignal
@@ -9,6 +10,7 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
+    QComboBox,
     QDoubleSpinBox,
     QFileDialog,
     QFileSystemModel,
@@ -161,11 +163,19 @@ class MainWindow(QWidget):
     # ---------------------
 
     def build_settings_grid(self) -> None:
-        normal_settings: list[tuple[str, QWidget]] = [
-            ("Threshold", self.make_threshold()),
-            ("Max Iterations", self.make_max_iterations()),
-            ("Normalize", self.make_normalize()),
-        ]
+        normal_settings: list[tuple[str, QWidget]] = []
+
+        model_class = type(self.settings_model)
+
+        for setting_name, field in model_class.model_fields.items():
+            setting_val = getattr(self.settings_model, setting_name)
+            annotation = field.annotation
+            # default = field.default
+
+            widget = self.make_setting(setting_name, setting_val, annotation)
+            print("\n")
+
+            normal_settings.append((setting_name, widget))
 
         for i, (label, widget) in enumerate(normal_settings):
             col = i % self.settings_columns
@@ -181,9 +191,10 @@ class MainWindow(QWidget):
             len(normal_settings) + self.settings_columns - 1
         ) // self.settings_columns
 
-        self.settings_grid.addWidget(QLabel("Output Directory"), output_row, 0)
+        output_name = "Output Directory"
+        self.settings_grid.addWidget(QLabel(output_name), output_row, 0)
         self.settings_grid.addWidget(
-            self.make_output_dir(),
+            self.make_dir_widget(output_name),
             output_row,
             1,
             1,
@@ -194,27 +205,49 @@ class MainWindow(QWidget):
     # Widget builders
     # ---------------------
 
-    def make_threshold(self) -> QDoubleSpinBox:
-        w = QDoubleSpinBox()
-        # w.setRange(0.0, 1e9)
-        # w.setValue(self.settings_model.threshold)
-        # self.widgets["threshold"] = w
-        return w
+    def make_setting(
+        self, setting_name: str, setting_val: Any, annotation: Any
+    ) -> QWidget:
+        if (get_origin(annotation) is list) and (get_args(annotation) == (int,)):
+            w = QLineEdit()
+            w.setText(str(setting_val))
+            self.widgets[setting_name] = w
+            return w
+        elif (get_origin(annotation) is UnionType) and (Path in get_args(annotation)):
+            w = QLineEdit()
+            w.setText(setting_val)
+            self.widgets[setting_name] = w
+            return w
+        elif get_origin(annotation) is Literal:
+            get_allowed_literals = get_args(annotation)
+            w = QComboBox()
+            w.addItems(get_allowed_literals)
+            w.setCurrentText(setting_val)
+            self.widgets[setting_name] = w
+            return w
+        elif annotation is float:
+            w = QDoubleSpinBox()
+            w.setRange(0.0, 1e9)
+            w.setDecimals(3)
+            w.setSingleStep(0.001)
+            w.setValue(setting_val)
+            self.widgets[setting_name] = w
+            return w
+        elif annotation is int:
+            w = QSpinBox()
+            w.setRange(1, 1_000_000)
+            w.setValue(setting_val)
+            self.widgets[setting_name] = w
+            return w
+        elif annotation is bool:
+            w = QCheckBox()
+            w.setChecked(setting_val)
+            self.widgets[setting_name] = w
+            return w
+        else:
+            raise ValueError(f"Unknown setting type: {setting_name}")
 
-    def make_max_iterations(self) -> QSpinBox:
-        w = QSpinBox()
-        # w.setRange(1, 1_000_000)
-        # w.setValue(self.settings_model.max_iterations)
-        # self.widgets["max_iterations"] = w
-        return w
-
-    def make_normalize(self) -> QCheckBox:
-        w = QCheckBox()
-        # w.setChecked(self.settings_model.normalize)
-        # self.widgets["normalize"] = w
-        return w
-
-    def make_output_dir(self) -> QWidget:
+    def make_dir_widget(self, name) -> QWidget:
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -226,7 +259,7 @@ class MainWindow(QWidget):
         layout.addWidget(edit)
         layout.addWidget(browse)
 
-        self.widgets["output_dir"] = edit
+        self.widgets[name] = edit
         return container
 
     # ---------------------
@@ -348,6 +381,6 @@ if __name__ == "__main__":
 
     settings = MythenReductionSettings()
 
-    window = MainWindow(settings=settings, settings_columns=2)
+    window = MainWindow(settings=settings, settings_columns=1)
     window.show()
     sys.exit(app.exec_())

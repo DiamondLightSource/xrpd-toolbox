@@ -24,8 +24,10 @@ class MythenReductionSettings(BaseModel):
     default_counter: int = 0
     edge_bad_channels: int = 15
     error_calc: Literal["internal", "external", "best"] = "internal"
-    data_reduction_mode: int = 0
-    bad_channels_filepath: str | Path = ""
+    data_reduction_mode: Literal[
+        "step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"
+    ] = "step_scan"
+    bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
     angcal_filepath: str | Path = ""
 
     @classmethod
