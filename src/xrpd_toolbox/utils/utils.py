@@ -68,6 +68,17 @@ def get_filenumber_from_nxs(nexus_file: str | Path) -> int:
     return int(filenumber_str)
 
 
+def get_folder_paths(root_folder: str | Path):
+    """get all folder directories within another folder"""
+
+    instrument_session_folders = [
+        os.path.join(root_folder, f) for f in os.listdir(root_folder)
+    ]
+    instrument_session_folders.sort()
+
+    return instrument_session_folders
+
+
 def normalise_to(data: Iterable[float | int], minval: float | int = 0) -> np.ndarray:
     """
     normalises an array
