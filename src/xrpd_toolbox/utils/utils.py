@@ -41,6 +41,27 @@ def get_entry(nexus_filepath: str | Path) -> str:
         return list(file.keys())[0]
 
 
+def nexus_file_match(f, beamline: str = "i15-1"):
+    return re.match(f"{beamline}" + r"-+[0-9]+\.nxs", f)
+
+
+def get_nexus_files(
+    instrument_session_folder: str | Path,
+    beamline: str = "i15-1",
+    exclude: str = "processed",
+):
+    """Get all final data files ending with .nxs in some folder"""
+
+    nexus_files = [
+        os.path.join(instrument_session_folder, f)
+        for f in os.listdir(instrument_session_folder)
+        if nexus_file_match(f, beamline) and (exclude not in f)
+    ]
+    nexus_files.sort()
+
+    return nexus_files
+
+
 def get_filenumber_from_nxs(nexus_file: str | Path) -> int:
     basename = os.path.basename(str(nexus_file))
     filenumber_str = re.findall(r"\d+", basename)[-1]
