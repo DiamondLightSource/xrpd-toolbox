@@ -7,6 +7,35 @@ import h5py
 import numpy as np
 
 
+class NexusToDict:
+    def __init__(self, nexus_filepath: str | Path):
+        self.nexus_dict = {}
+
+        with h5py.File(nexus_filepath, "r") as open_nexus_file:
+            self.recursive_inspect(open_nexus_file)
+
+    def recursive_inspect(self, dataset):
+        for key in dataset.keys():
+            if hasattr(dataset[key], "keys"):
+                self.recursive_inspect(dataset[key])
+            else:
+                try:
+                    self.nexus_dict[key] = dataset[key][()].decode("UTF-8")
+                except Exception:
+                    data = dataset[key][()]
+
+                    if isinstance(data, np.ndarray) and (len(data) == 1):
+                        data = data.flatten()[0]
+
+                        if isinstance(data, bytes):
+                            data = data.decode("UTF-8")
+
+                    self.nexus_dict[key] = data
+
+    def get_dict(self):
+        return self.nexus_dict
+
+
 def get_entry(nexus_filepath: str | Path) -> str:
     with h5py.File(nexus_filepath, "r") as file:
         return list(file.keys())[0]
