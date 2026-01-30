@@ -23,6 +23,7 @@ dependencies = [
     "peakutils",
     "PyCifRW",
     "pyyaml",
+    "toml",
     "PyQt6",
     "PyQt5",
 ] # Add project dependencies here, e.g. ["click", "numpy"]
