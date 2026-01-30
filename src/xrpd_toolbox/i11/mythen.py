@@ -6,6 +6,7 @@ from typing import Literal
 
 import h5py
 import numpy as np
+import toml
 import yaml
 from h5py import Dataset, File
 from pydantic import BaseModel
@@ -13,7 +14,50 @@ from pydantic import BaseModel
 from xrpd_toolbox.utils.utils import get_entry, load_int_array_from_file
 
 
-class MythenReductionSettings(BaseModel):
+class SettingsBase(BaseModel):
+    @classmethod
+    def load_from_toml(cls, file_path: str | Path):
+        with open(file_path, "rb") as f:
+            settings_dict = tomllib.load(f)
+
+        return cls(**settings_dict)
+
+    @classmethod
+    def load_from_yaml(cls, file_path: str | Path):
+        settings_dict = yaml.safe_load(open(file_path, "rb"))
+        return cls(**settings_dict)
+
+    def save_to_toml(self, file_path: str | Path) -> None:
+        if not str(file_path).endswith(".toml"):
+            raise ValueError("file name must end with .toml")
+
+        print("Saving configuration to:", file_path)
+
+        config_dict = self.model_dump()
+
+        with open(file_path, "w") as outfile:
+            toml.dump(config_dict, outfile)
+
+    def save_to_yaml(self, file_path: str | Path) -> None:
+        if not str(file_path).endswith(".yaml"):
+            raise ValueError("file name must end with .yaml")
+
+        print("Saving configuration to:", file_path)
+
+        config_dict = self.model_dump()
+
+        with open(file_path, "w") as outfile:
+            yaml.dump(
+                config_dict,
+                outfile,
+                default_flow_style=None,
+                sort_keys=False,
+                indent=2,
+                explicit_start=True,
+            )
+
+
+class MythenReductionSettings(SettingsBase):
     active_modules: list[int] = list(range(28))
     bad_modules: list[int] = []
     bad_channel_masking: bool = True
@@ -31,36 +75,11 @@ class MythenReductionSettings(BaseModel):
     bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
     angcal_filepath: str | Path = ""
 
-    @classmethod
-    def load_from_toml(cls, file_path: str | Path):
-        settings_dict = tomllib.load(open(file_path, "rb"))
-        return cls(**settings_dict)
-
-    @classmethod
-    def load_from_yaml(cls, file_path: str | Path):
-        settings_dict = yaml.safe_load(open(file_path, "rb"))
-        return cls(**settings_dict)
-
     def load_bad_channels(self):
         if not self.bad_channels_filepath:
             raise ValueError("Bad channels file path is not set.")
         self.bad_channels = load_int_array_from_file(self.bad_channels_filepath)
         return self.bad_channels
-
-    def save_to_yaml(self, file_path: str | Path) -> None:
-        print("Saving configuration to:", file_path)
-
-        config_dict = self.model_dump()
-
-        with open(file_path, "w") as outfile:
-            yaml.dump(
-                config_dict,
-                outfile,
-                default_flow_style=None,
-                sort_keys=False,
-                indent=2,
-                explicit_start=True,
-            )
 
 
 class MythenDataLoader:

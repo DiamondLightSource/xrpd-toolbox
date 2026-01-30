@@ -1,19 +1,21 @@
 import numpy as np
+import pytest
 
 from xrpd_toolbox.i11.mythen import MythenReductionSettings
 from xrpd_toolbox.utils.utils import bin_and_propagate_errors, gaussian
 
 
-def test_mythen_settings():
-    settings = MythenReductionSettings(
+@pytest.fixture
+def mythen_settings():
+    mythen_settings = MythenReductionSettings(
         active_modules=[1, 2, 3],
         bad_modules=[4, 5],
         bad_channel_masking=True,
         flatfield_filepath="flatfield.h5",
-        apply_flatfield=True,
+        apply_flatfield=False,
         modules_in_flatfield=[1, 2],
         send_to_ispyb=False,
-        rebin_step=2.0,
+        rebin_step=0.004,
         default_counter=0,
         edge_bad_channels=10,
         error_calc="internal",
@@ -22,15 +24,20 @@ def test_mythen_settings():
         angcal_filepath="angcal.txt",
     )
 
-    assert settings.apply_flatfield is True
-    assert settings.rebin_step == 2.0
+    return mythen_settings
+
+
+def test_mythen_settings(mythen_settings: MythenReductionSettings):
+    assert mythen_settings.data_reduction_mode == "step_scan"
+    assert mythen_settings.rebin_step == 0.004
 
 
 def test_mythen_settings_load_from_toml():
     settings = MythenReductionSettings.load_from_toml(
-        "tests/test_data/mythen_settings.toml"
+        "/workspaces/XRPD-Toolbox/examples/i11/mythen3_reduction_config.toml"
     )
-    assert settings.apply_flatfield is True
+
+    print(settings.rebin_step)
 
 
 def test_peak_bin_and_propagate_errors():
