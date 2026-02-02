@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import tomllib
@@ -99,6 +100,10 @@ class SettingsBase(BaseModel):
 class ModuleConversion(BaseModel):
     conv: float
     offset: float
+
+    @property
+    def module_sign(self) -> int:  # returns -1 or 1 depending on sign of conv
+        return int(math.copysign(1, self.conv))
 
 
 class AngularCalibration(SettingsBase):
