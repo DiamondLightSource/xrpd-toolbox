@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from collections.abc import Iterable
@@ -5,13 +6,14 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from h5py import Dataset, File
 
 
 class NexusToDict:
     def __init__(self, nexus_filepath: str | Path):
         self.nexus_dict = {}
 
-        with h5py.File(nexus_filepath, "r") as open_nexus_file:
+        with File(nexus_filepath, "r") as open_nexus_file:
             self.recursive_inspect(open_nexus_file)
 
     def recursive_inspect(self, dataset):
@@ -36,9 +38,23 @@ class NexusToDict:
         return self.nexus_dict
 
 
+def h5_to_array(file_path: str | Path, data_path: str) -> np.ndarray:
+    with File(file_path, "r") as file:
+        data = file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            return np.asarray(data)
+        else:
+            raise ValueError(f"Data is None at {data_path} in {file_path}")
+
+
 def get_entry(nexus_filepath: str | Path) -> str:
-    with h5py.File(nexus_filepath, "r") as file:
+    with File(nexus_filepath, "r") as file:
         return list(file.keys())[0]
+
+
+def dict_to_json(dict_to_save: dict, filepath: str | Path):
+    with open(filepath, "w") as file:
+        json.dump(dict_to_save, file, indent=4)
 
 
 def nexus_file_match(str_to_match, beamline: str = "i15-1"):

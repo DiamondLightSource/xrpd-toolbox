@@ -75,3 +75,7 @@ def test_mythen_load_fails_when_incorrect_file_extension(
 
     with pytest.raises(ValueError):
         mythen_settings.save_to_toml(file_path)
+
+
+def test_mythen_data_loader():
+    pass

@@ -14,7 +14,7 @@ import pandas as pd
 from h5py import File as h5pyFile
 
 from xrpd_toolbox.utils.daq_messenger import DaqMessenger
-from xrpd_toolbox.utils.energy import convert_tth_to_q
+from xrpd_toolbox.utils.energy import tth_to_q
 from xrpd_toolbox.utils.utils import load_int_array_from_file
 
 np.seterr(
@@ -1146,7 +1146,7 @@ class I11Reduction:
         ]  # remove no counts #remove null counts
 
         if (self.beam_energy) and (self.save_in_q_space):
-            q_space = convert_tth_to_q(xyedata["tth"].to_numpy(), self.wavelength)
+            q_space = tth_to_q(xyedata["tth"].to_numpy(), self.wavelength)
             xyedata["Q"] = q_space
 
         return xyedata
