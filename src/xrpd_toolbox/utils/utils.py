@@ -157,100 +157,99 @@ def load_int_array_from_file(filepath: str | Path) -> np.ndarray:
 
 
 def create_bins(
-    tth_values: np.ndarray, rebin_step: float | int = 0.004
-) -> tuple[np.ndarray, np.ndarray]:
+    x: np.ndarray, rebin_step: float | int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Return a suitable set of bin centres, and edges for histogramming this data.
-
-    To match old GDA mythen2 behaviour, want start and stop to align with "multiples"ß
-    of rebin step (as far as f.p. arithmetic allows this...).
-
+    Create uniform bins for x, returning:
+    - bin_edges: the edges of the bins
+    - bin_centers: center of each bin
+    - indices: which bin each x belongs to
     """
-    rebin_step = float(rebin_step)
-    mintth, maxtth = np.amin(tth_values), np.amax(tth_values)
-    start = np.round((mintth / rebin_step), decimals=3) * rebin_step
-    stop = np.round((maxtth / rebin_step), decimals=3) * rebin_step
-
-    # start = mintth
-    # stop = maxtth
-    # self.logger.log("Min2th:",f'{start:.3f}'," | ","Max2th:",f"{stop:.3f}","\n")
-
-    rebin_start = start - (rebin_step / 2)
-    rebin_stop = stop + rebin_step + (rebin_step / 2)
-
-    bin_edges = np.arange(
-        rebin_start,
-        rebin_stop,
-        float(rebin_step),
-        dtype=np.float64,
-    )
-    bin_centres = 0.5 * (bin_edges[1:] + bin_edges[:-1])
-
-    return bin_centres, bin_edges
+    bin_edges = np.arange(x.min(), x.max() + rebin_step, rebin_step)
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    indices = np.digitize(x, bin_edges) - 1  # 0-based
+    return bin_centers, bin_edges, indices
 
 
 def bin_and_propagate_errors(
     x: np.ndarray,
     y: np.ndarray,
     e: np.ndarray,
-    rebin_step: float | int = 0.004,
+    rebin_step: float | int,
     error_calc: str = "best",
-    sum_counts: bool = False,
+    sum_counts: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
+    Rebin diffraction data with overlap-corrected averaging.
 
-    The bin centres and edges are calculated and used to bin the data.
-    Binning of the data is done used searchsorted == np.digitize.
+    sum_counts=False:
+        return the average diffraction pattern
 
-    Because we want to propagate the errors we will iterate though all the values of
-    x, y and e that need to be binned together and propagate the errors
-
-    Errors can be calculated using internal error = error propagation, external error
-    std_dev of error or we can take the greatest of the two values.
-    Which is probabaly the best idea.
-
-    If you have a high spread of data (high noise), ie peaks with weak intensity surely
-    the error can't be less than the spread.
-    But equally if you have very large peaks with low spread the
-    error should reflect that.
-
+    sum_counts=True:
+        return the pattern scaled by the effective number of detector steps
     """
+    # --- Validation ---
+    if not (x.ndim == y.ndim == e.ndim == 1):
+        raise ValueError("x, y, and e must be 1D arrays")
+    if not (x.shape == y.shape == e.shape):
+        raise ValueError("x, y, and e must have the same length")
 
-    bin_centres, bin_edges = create_bins(x, rebin_step)
+    # --- Bin definition ---
+    bin_centres, bin_edges, _ = create_bins(x, rebin_step)
 
-    if (
-        x[-1] == bin_edges[-1]
-    ):  # if the last value is exactly equal to the final bin edge it will be lost.
-        x[-1] = x[-1] - (
-            rebin_step / 10000
-        )  # I think it would be better to move it inside bin edge, and include, rather
-        # than remove all together or create a bin with a single value
+    # Prevent last point from falling exactly on the final bin edge
+    if x[-1] == bin_edges[-1]:
+        x = x.copy()
+        x[-1] -= rebin_step / 10_000
 
-    sums, bin_edges = np.histogram(x, bins=bin_edges, weights=y)
-    occurances = np.histogram(x, bins=bin_edges)[0]
+    # --- Bin statistics ---
+    y_sums, _ = np.histogram(x, bins=bin_edges, weights=y)
+    y2_sums, _ = np.histogram(x, bins=bin_edges, weights=y**2)
+    e2_sums, _ = np.histogram(x, bins=bin_edges, weights=e**2)
+    bin_counts, _ = np.histogram(x, bins=bin_edges)
 
-    # occurances = np.where(occurances != 0, occurances, 1)  # avoid division by zero
+    # Effective scaling factor (heuristic)
+    scale = np.max(bin_counts) - np.median(bin_counts)
 
-    if sum_counts:
-        binned_counts = sums
-    else:
-        binned_counts = (
-            sums / occurances
-        )  # throws a warning if e missing counts in a bin as a result of missing module
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mean = y_sums / bin_counts
+        intensity = mean if not sum_counts else mean * scale
 
-    e_sums = np.histogram(x, bins=bin_edges, weights=e**2)[0]
-    # https://faraday.physics.utoronto.ca/PVB/Harrison/ErrorAnalysis/Propagation.html
-    prop_errors = np.sqrt(e_sums) / occurances
+        # --- Errors ---
+        # Internal (propagated) error
+        prop_errors = np.sqrt(e2_sums) / bin_counts
 
-    repeated_mean = np.repeat(binned_counts, occurances)
-    std_sums = np.histogram(x, bins=bin_edges, weights=(y - repeated_mean) ** 2)[0]
-    std_errors = np.sqrt(std_sums / occurances)
+        # External (sample) error with Bessel correction
+        variance = (y2_sums - bin_counts * mean**2) / (bin_counts - 1)
+        std_errors = np.sqrt(variance)
 
-    if error_calc == "internal":
-        errors = prop_errors
-    elif error_calc == "external":
-        errors = std_errors
-    else:
-        errors = np.where(prop_errors > std_errors, prop_errors, std_errors)
+        # Invalidate bins with <2 points for external error
+        std_errors[bin_counts < 2] = np.nan
 
-    return bin_centres, binned_counts, errors
+        if error_calc == "internal":
+            errors = prop_errors
+        elif error_calc == "external":
+            errors = std_errors
+        elif error_calc == "best":
+            errors = np.maximum(prop_errors, std_errors)
+        else:
+            raise ValueError(f"Invalid error_calc: {error_calc}")
+
+        if sum_counts:
+            errors *= scale
+
+        ##remove Nan's
+        nan_mask = np.isnan(intensity)
+        nan_index = np.where(nan_mask)[0]
+
+        bin_centres = np.delete(bin_centres, nan_index)
+        intensity = np.delete(intensity, nan_index)
+        errors = np.delete(errors, nan_index)
+
+    return bin_centres, intensity, errors
+
+
+def save_to_xye(xye_filepath_out, x: np.ndarray, y: np.ndarray, e: np.ndarray):
+    xye_out_data = np.stack((x, y, e), axis=-1)
+
+    np.savetxt(xye_filepath_out, xye_out_data, fmt="%.6f", delimiter=" ", newline="\n")

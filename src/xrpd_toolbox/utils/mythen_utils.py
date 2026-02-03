@@ -3,13 +3,13 @@ import numpy.typing as npt
 
 
 def channel_to_angle(
-    module_pixel_number: npt.NDArray[np.int_],
+    pixel_number: npt.NDArray[np.int_],
     centre: int | float,
     conv: int | float,
     offset: int | float,
     beamline_offset: int | float,
 ):
-    module_conversions = module_pixel_number - centre
+    module_conversions = pixel_number - centre
     module_conversions = module_conversions * conv
     module_conversions = np.arctan(module_conversions)
     raw_tth = offset + np.rad2deg(module_conversions) + beamline_offset
@@ -18,7 +18,7 @@ def channel_to_angle(
 
 
 def channel_to_angle_in_real_units(
-    module_pixel_number: npt.NDArray[np.int_],
+    pixel_number: npt.NDArray[np.int_],
     centre: int | float,
     offset: int | float,
     beamline_offset: int | float,
@@ -26,7 +26,7 @@ def channel_to_angle_in_real_units(
     p: float = 0.05,
 ):
     """
-    module_pixel_number: channel number, 0-1280
+    pixel_number: channel number, usually 0-1280
     centre: centre (in pixel number - ie 1280/2)
     offset: module offset, degrees
     radius: radius, mm - approx 760
@@ -35,7 +35,7 @@ def channel_to_angle_in_real_units(
     """
 
     raw_tth = channel_to_angle(
-        module_pixel_number, centre, (p / radius), offset, beamline_offset
+        pixel_number, centre, (p / radius), offset, beamline_offset
     )
 
     return raw_tth

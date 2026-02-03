@@ -21,10 +21,10 @@ class DaqScanListener4(stomp.ConnectionListener):
     def __init__(self):
         self.queue = deque()
 
-    def on_error(self, headers, message):
+    def on_error(self, headers, message):  # type: ignore
         print(f"Received an error {message}")
 
-    def on_message(self, headers, message):
+    def on_message(self, headers, message):  # type: ignore
         m = json.loads(message)
         self.queue.append(m)
 
@@ -39,7 +39,7 @@ class DaqMessenger:
             [(self.beamline, 61613)], auto_content_length=False
         )
         if self.old_stomp:
-            self.conn.start()
+            self.conn.start()  # type: ignore
         self.conn.connect()
 
     def disconnect(self):

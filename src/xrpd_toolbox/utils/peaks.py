@@ -31,10 +31,10 @@ def multi_gaussian(
 
     peaks: list of (cen, amp, fwhm)
 
-    background: scalar or array
+    background: scalar or array, if array must be same shape as x
     """
 
-    y = np.zeros_like(x) + background
+    intensity = np.zeros_like(x) + background
 
     for peak in peaks:
         start_idx = np.searchsorted(x, peak.centre - peak.fwhm)
@@ -43,6 +43,6 @@ def multi_gaussian(
         xi = x[start_idx:end_idx]
         peak = gaussian(xi, peak.centre, peak.amplitude, peak.fwhm) * phase_scale
 
-        y[start_idx:end_idx] += peak
+        intensity[start_idx:end_idx] += peak
 
-    return y
+    return intensity

@@ -26,8 +26,6 @@ dependencies = [
     "toml",
     "PyQt6",
     "PyQt5",
-    "Dans_Diffraction",
-    "stomp.py",
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"

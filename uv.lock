@@ -272,6 +272,19 @@ wheels = [
 ]
 
 [[package]]
+name = "dans-diffraction"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/c1/23a07e0bb8edeaa50f85a5399dd10e7b002d5bab90a1cfc41461eb229825/dans_diffraction-3.4.0.tar.gz", hash = "sha256:d808af4db4dcc30ec0a6d10d7566cafd9a0c22913456e369166d9a267236ded7", size = 3605391, upload-time = "2025-09-15T20:09:06.203Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/92/b7bbffc01432c63ea79295686b42a4959dacb298e6f39a95029600acb73b/dans_diffraction-3.4.0-py3-none-any.whl", hash = "sha256:d19a522b37655970dfa9f0eaa1abbea6a20643c9b5473cb613d80d5362180746", size = 3698901, upload-time = "2025-09-15T20:09:03.806Z" },
+]
+
+[[package]]
 name = "dill"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -288,6 +301,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
 ]
+
+[[package]]
+name = "docopt"
+version = "0.6.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/55/8f8cab2afd404cf578136ef2cc5dfb50baa1761b68c9da1fb1e4eed343c9/docopt-0.6.2.tar.gz", hash = "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491", size = 25901, upload-time = "2014-06-16T11:18:57.406Z" }
 
 [[package]]
 name = "dunamai"
@@ -1863,6 +1882,19 @@ wheels = [
 ]
 
 [[package]]
+name = "stomp-py"
+version = "8.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "docopt" },
+    { name = "websocket-client" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bc/66/c07f01feb5fbc669c4333c76eb02fb8149c653c25ba9769477f8427d5e55/stomp_py-8.2.0.tar.gz", hash = "sha256:9908689361e263bf198e6acfb3c4386759fb7df7d141f4384d7414771c68d7fc", size = 39286, upload-time = "2024-10-31T21:59:38.465Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/b6/ebfd6daef0c19a5ca3ac1fb2fc092331d67af5a30c868f106fcc2504c287/stomp_py-8.2.0-py3-none-any.whl", hash = "sha256:fad24e51b505996015a39ca1632df4e0225c1c552980955e21f2aebfc0d9d85c", size = 42751, upload-time = "2024-10-31T21:59:36.658Z" },
+]
+
+[[package]]
 name = "toml"
 version = "0.10.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2057,9 +2089,19 @@ wheels = [
 ]
 
 [[package]]
+name = "websocket-client"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/41/aa4bf9664e4cda14c3b39865b12251e8e7d239f4cd0e3cc1b6c2ccde25c1/websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98", size = 70576, upload-time = "2025-10-07T21:16:36.495Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef", size = 82616, upload-time = "2025-10-07T21:16:34.951Z" },
+]
+
+[[package]]
 name = "xrpd-toolbox"
 source = { editable = "." }
 dependencies = [
+    { name = "dans-diffraction" },
     { name = "h5py" },
     { name = "lmfit" },
     { name = "matplotlib" },
@@ -2072,6 +2114,7 @@ dependencies = [
     { name = "pyqt6" },
     { name = "pyyaml" },
     { name = "scipy" },
+    { name = "stomp-py" },
     { name = "toml" },
 ]
 
@@ -2089,6 +2132,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dans-diffraction" },
     { name = "h5py" },
     { name = "lmfit" },
     { name = "matplotlib" },
@@ -2101,6 +2145,7 @@ requires-dist = [
     { name = "pyqt6" },
     { name = "pyyaml" },
     { name = "scipy" },
+    { name = "stomp-py" },
     { name = "toml" },
 ]
 

@@ -79,3 +79,19 @@ def test_mythen_load_fails_when_incorrect_file_extension(
 
 def test_mythen_data_loader():
     pass
+
+
+def test_mythen_step_scan_process():
+    raise Exception("Not done")
+
+
+def test_mythen_flatefield_process():
+    raise Exception("Not done")
+
+
+def test_mythen_pump_probe_process():
+    raise Exception("Not done")
+
+
+def test_mythen_time_resolved_process():
+    raise Exception("Not done")

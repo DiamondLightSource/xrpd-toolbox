@@ -451,7 +451,7 @@ class MainWindow(QMainWindow):
 # =========================
 
 
-def run_gui(filepath: str, indices_file: str | None = None) -> None:
+def run_bad_pixel_gui(filepath: str, indices_file: str | None = None) -> None:
     data = MythenDataLoader(filepath)
 
     if indices_file:
@@ -463,13 +463,13 @@ def run_gui(filepath: str, indices_file: str | None = None) -> None:
     win = MainWindow(data, initial_indices)
     win.resize(1500, 900)
     win.show()
+    win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)  # optional
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
     DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1406731.nxs"
 
-    run_gui(
+    run_bad_pixel_gui(
         DATA_FILE,
-        indices_file="/dls_sw/i11/software/mythen/badchannels.txt",
     )
