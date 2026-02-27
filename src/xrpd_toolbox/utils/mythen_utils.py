@@ -35,13 +35,13 @@ def channel_to_angle(
     pixel_number: npt.NDArray[np.int_],
     centre: int | float,
     conv: int | float,
-    offset: int | float,
-    beamline_offset: int | float,
+    module_offset: int | float,
+    zero_offset: int | float,
 ) -> np.ndarray:
     module_conversions = pixel_number - centre
     module_conversions = module_conversions * conv
     module_conversions = np.arctan(module_conversions)
-    raw_tth = offset + np.rad2deg(module_conversions) + beamline_offset
+    raw_tth = module_offset + np.rad2deg(module_conversions) + zero_offset
 
     return raw_tth
 

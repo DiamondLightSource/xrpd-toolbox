@@ -61,8 +61,8 @@ class ModuleConversion(BaseModel):
             pixel_number=PIXEL_NUMBER,
             centre=self.centre,
             conv=self.conv,
-            offset=self.offset,
-            beamline_offset=zero_offset,
+            module_offset=self.offset,
+            zero_offset=zero_offset,
         )
         return raw_tth
 
