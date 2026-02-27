@@ -2,6 +2,20 @@ from _collections_abc import Iterable
 from typing import Literal
 
 import numpy as np
+import pint
+
+from xrpd_toolbox.utils.settings import SettingsBase
+
+ureg = pint.UnitRegistry()
+
+
+class Wavelength(SettingsBase):
+    value: float
+    unit: str
+
+    def to(self, target_unit: str) -> float:
+        quantity = self.value * ureg(self.unit)
+        return quantity.to(target_unit).magnitude
 
 
 def beam_energy_to_wavelength(

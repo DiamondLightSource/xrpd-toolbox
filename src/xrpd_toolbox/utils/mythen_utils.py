@@ -1,5 +1,33 @@
+from pathlib import Path
+
 import numpy as np
 import numpy.typing as npt
+
+# def channel_to_angle(ich, off, r, c, dir=1, p=0.05):
+#     """
+#     ich: channel number, 0-1280
+#     off: module offset, degrees
+#     r: radius, mm
+#     c: center (in pixel or mm?)
+#     dir: direction, 1
+#     p: pixel size, mm
+#     """
+#     # print(off)
+#     if r < 0:
+#         ich = 1279 - ich
+#     return off + np.degrees(
+#         c * p / np.abs(r) - dir * np.arctan(p * (ich - c) / np.abs(r))
+#     )
+
+# def angle_to_channel(ang, off, r, c, dir=1, p=0.05):
+#     ich = (
+#         np.tan(dir * (np.radians(ang - off) - c * p / np.abs(r))) * np.abs(r) / p
+#         + c
+#     )
+#     if r > 0:
+#         return ich
+#     else:
+#         return 1279 - ich
 
 
 def channel_to_angle(
@@ -8,7 +36,7 @@ def channel_to_angle(
     conv: int | float,
     offset: int | float,
     beamline_offset: int | float,
-):
+) -> np.ndarray:
     module_conversions = pixel_number - centre
     module_conversions = module_conversions * conv
     module_conversions = np.arctan(module_conversions)
@@ -24,7 +52,7 @@ def channel_to_angle_in_real_units(
     beamline_offset: int | float,
     radius: int | float = 762,
     p: float = 0.05,
-):
+) -> np.ndarray:
     """
     pixel_number: channel number, usually 0-1280
     centre: centre (in pixel number - ie 1280/2)
@@ -41,7 +69,7 @@ def channel_to_angle_in_real_units(
     return raw_tth
 
 
-def calc_intial_module_conv(conv=6.5e-05):
+def calc_intial_module_conv(conv=6.5e-05) -> dict[int, float]:
     module_conv_dict = {}
 
     for mod in range(28):
@@ -75,7 +103,16 @@ def paired_modules():
     return pairs
 
 
-def calc_starting_module_offset(initial_module=0.45, offset=2.5):
+def find_pair(mod: int):
+    modules_array = paired_modules()
+
+    row, col = np.where(modules_array == mod)
+    if len(row) == 0:
+        return None  # value not found
+    return modules_array[row[0], 1 - col[0]]
+
+
+def calc_starting_module_offset(initial_module=0.45, offset=2.5) -> dict[int, float]:
     """Used for calculatign the intial centres of each of the modules"""
 
     module_pairs = paired_modules()
@@ -93,3 +130,44 @@ def calc_starting_module_offset(initial_module=0.45, offset=2.5):
     print(module_offsets_dict)
 
     return module_offsets_dict
+
+
+def calc_starting_module_centre(initial_module=0.45, offset=2.5):
+    """Used for calculatign the intial centres of each of the modules"""
+
+    module_pairs = paired_modules()
+    module_centres_dict = {}
+
+    for n, module_pair in enumerate(module_pairs[::-1]):
+        print(module_pair)
+
+        ring_2_cen = (n * 5) + initial_module
+        ring_1_cen = ring_2_cen + offset
+
+        module_centres_dict[int(module_pair[1])] = ring_2_cen
+        module_centres_dict[int(module_pair[0])] = ring_1_cen
+
+    print(module_centres_dict)
+
+    return module_centres_dict
+
+
+def read_config(mythen3_config_filepath: str | Path) -> list[int]:
+    """
+    reads the config file used by SLSDet and works out what modules are currently active
+    """
+
+    enabled_modules_hostnames = []
+
+    with open(mythen3_config_filepath) as file:
+        lines = [line.rstrip() for line in file]
+
+    for _, line in enumerate(lines):
+        if line.startswith("hostname"):
+            enabled_modules_hostnames = line.split()[1::]
+
+    enabled_modules = [
+        int(n_mod.rstrip()[-3::]) - 100 for n_mod in enabled_modules_hostnames
+    ]
+
+    return enabled_modules

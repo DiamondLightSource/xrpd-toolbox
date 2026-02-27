@@ -22,7 +22,7 @@ save_in_Q_space = false #save a file where the diffraction pattern has been conv
 rebin_step = 0.004
 default_counter = 0 #this specifies the type of threshold used internally by the detector, 0, 1 or 2, 0 = 7500 ev threshold
 edge_bad_channels = 15 #number of channels that are bad at the edge of modules (5-15 are about right)
-error_calc = "internal" #this can be "internal" "external" or "best", internal error is propagated poisson errors, external is std_dev of counts in bin (will result in nan values if there is only 1 count in the bin), and "best" is the whichever is max for each bin
+error_calc = "poisson" #this can be "poisson" "std_dev" or "max", poisson error is propagated poisson errors, std_dev is std_dev of counts in bin (will result in nan values if there is only 1 count in the bin), and "max" is the whichever is max for each bin
 
 ###
 # Note on errors, If you have peaks with weak intensity, a high spread of data (high noise), the error shouldn't be less than the spread even if
@@ -46,7 +46,7 @@ data_reduction_mode = "step_scan"
 # module 1 offset 62.99916323710597 conv 6.568575932737774e-05 center 639.5
 ######
 
-bad_channels_filepath = "/dls_sw/i11/software/mythen/badchannels.txt" #THIS SHOULD BE MOVED ALONG WITH EVERYTHING ELSE TO A CONSISTENT DIR!
+bad_channels_filepath = "/workspaces/XRPD-Toolbox/config/i11/bad_channels.txt" #THIS SHOULD BE MOVED ALONG WITH EVERYTHING ELSE TO A CONSISTENT DIR!
 angcal_filepath = "/dls_sw/i11/software/mythen3/diamond/ang_cal_171125_cen_639.5_leastsq.off"
 
 # [angular_calibrations]

@@ -2,20 +2,25 @@
 import argparse
 import os
 import sys
-from datetime import datetime
 from itertools import product
 from pathlib import Path
 from shutil import copy, copy2
 from tomllib import load
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from h5py import File as h5pyFile
+from matplotlib.gridspec import GridSpec
 
-from xrpd_toolbox.utils.daq_messenger import DaqMessenger
 from xrpd_toolbox.utils.energy import tth_to_q
-from xrpd_toolbox.utils.utils import load_int_array_from_file
+from xrpd_toolbox.utils.messenger import Messenger
+from xrpd_toolbox.utils.mythen_utils import paired_modules
+from xrpd_toolbox.utils.utils import AnalysisLogger, load_int_array_from_file
+
+matplotlib.use("Qt5Agg")  # or TkAgg
+
 
 np.seterr(
     divide="ignore", invalid="ignore"
@@ -28,96 +33,12 @@ pd.set_option("display.width", 1000)
 np.set_printoptions(threshold=sys.maxsize)
 
 
-def paired_modules(modules=None):
-    """
-    Given a list of module numbers, return a list of (a, b) pairs such that
-    a and b are paired as described: 0-27, 1-26, 2-25, ..., 13-14.
-    Only pairs where both a and b are in the input list are returned.
-    """
-
-    if modules is None:
-        modules = list(range(28))
-
-    modules = np.array(modules)
-    n = modules.max()
-    pairs = []
-    for m in modules:
-        pair = n - m
-        if pair in modules and m <= pair:
-            pairs.append((m, pair))
-
-    pairs = np.array(pairs)
-
-    return pairs
-
-
-def calc_starting_module_centre(initial_module=0.45, offset=2.5):
-    """Used for calculatign the intial centres of each of the modules"""
-
-    module_pairs = paired_modules()
-    module_centres_dict = {}
-
-    for n, module_pair in enumerate(module_pairs[::-1]):
-        print(module_pair)
-
-        ring_2_cen = (n * 5) + initial_module
-        ring_1_cen = ring_2_cen + offset
-
-        module_centres_dict[int(module_pair[1])] = ring_2_cen
-        module_centres_dict[int(module_pair[0])] = ring_1_cen
-
-    print(module_centres_dict)
-
-    return module_centres_dict
-
-
-def calc_intial_module_conv(modules, conv=6.5e-05):
-    module_conv_dict = {}
-
-    for mod in modules:
-        if mod > 13:
-            module_conv_dict[mod] = -conv
-        else:
-            module_conv_dict[mod] = conv
-
-    return module_conv_dict
-
-
-class AnalysisLogger:
-    def __init__(self, log_filepath, logging=False):
-        self.log_filepath = log_filepath
-        self.logging = logging
-
-        if not os.path.exists(self.log_filepath):
-            os.makedirs(os.path.dirname(self.log_filepath), exist_ok=True)
-        elif os.path.exists(self.log_filepath) and (
-            os.path.getsize(self.log_filepath) > 1e7
-        ):
-            os.remove(self.log_filepath)
-            with open(self.log_filepath, "a+") as f:
-                f.write("Log File for I11 Data Reduction\n")
-
-        with open(self.log_filepath, "a+") as f:
-            f.write("================================\n")
-            f.write(f"Datetime: {datetime.now()}\n")
-            f.write("================================\n")
-
-    def log(self, *args, print_to_console=True):
-        if print_to_console:
-            print(*args)
-
-        if self.logging:
-            with open(self.log_filepath, "a") as f:
-                [f.write(str(m)) for m in args]
-                f.write("\n")
-
-
 class I11Reduction:
     __slots__ = (
         "filepath",
         "reduced_nxs_filepath_out",
         "xye_filepath_out",
-        "xye_filepath_out_Q",
+        "xye_filepath_out_q",
         "file_dir",
         "out_directory",
         "file_name",
@@ -143,7 +64,7 @@ class I11Reduction:
         "save_nxs_out",
         "verbose_nxs",
         "debug_mode",
-        "save_in_Q_space",
+        "save_in_q_space",
         "data_reduction_mode",
         "wavelength",
         "raw_flatfield_counts",
@@ -165,6 +86,7 @@ class I11Reduction:
         "angular_corrected_data_unmasked",
         "out_raw_data",
         "n_modules_in_data",
+        "good_modules",
         "Ie",
         "Ic4",
         "whole_data_raw_tth",
@@ -282,7 +204,13 @@ class I11Reduction:
 
     @staticmethod
     def channel_to_angle_in_real_units(
-        module_pixel_number, centre, offset, beamline_offset, radius, p=0.05
+        module_pixel_number,
+        centre,
+        offset,
+        beamline_offset,
+        radius,
+        p=0.05,
+        direction=1,
     ):
         """
         module_pixel_number: channel number, 0-1280
@@ -659,6 +587,9 @@ class I11Reduction:
         self.logger.log(reduced_nxs_filepath_out)
 
         #####################################
+        if os.path.exists(reduced_nxs_filepath_out):
+            os.remove(reduced_nxs_filepath_out)
+            print("remove")
 
         copy(self.filepath, reduced_nxs_filepath_out)
 
@@ -674,6 +605,7 @@ class I11Reduction:
             ##################################
             # save rings exactly as they were from the hdf5 file but split ring 1 and 2
             ##################################
+            print(out_file["entry"].keys())
 
             out_file["entry"]["mythen_nx"]["ring1"] = left_ring
             out_file["entry"]["mythen_nx"]["ring2"] = right_ring
@@ -1057,7 +989,7 @@ class I11Reduction:
         return bin_centres, bin_edges
 
     def bin_and_propagate_errors(
-        self, x: np.ndarray, y: np.ndarray, e: np.ndarray, error_calc: str = "best"
+        self, x: np.ndarray, y: np.ndarray, e: np.ndarray, error_calc: str = "poisson"
     ) -> np.ndarray:
         """
 
@@ -1106,12 +1038,16 @@ class I11Reduction:
         std_sums = np.histogram(x, bins=bin_edges, weights=(y - repeated_mean) ** 2)[0]
         std_errors = np.sqrt(std_sums / counts)
 
-        if error_calc == "internal":
+        if error_calc == "poisson":
             errors = prop_errors
-        elif error_calc == "external":
+        elif error_calc == "std_dev":
             errors = std_errors
-        elif error_calc == "best":
+        elif error_calc == "max":
             errors = np.where(prop_errors > std_errors, prop_errors, std_errors)
+        else:
+            raise ValueError(
+                f"Invalid error_calc value: {error_calc}. Must be 'poisson', 'std_dev', or 'max'."  # noqa
+            )
 
         return bin_centres, bin_edges, mean_counts, errors
 
@@ -1244,7 +1180,7 @@ class I11Reduction:
 
         self.save_nxs_out = self.config["save_nxs_out"]
         self.out_raw_data = self.config["out_raw_data"]
-        self.save_in_Q_space = self.config["save_in_Q_space"]
+        self.save_in_q_space = self.config["save_in_Q_space"]
         self.debug_mode = self.config["debug_mode"]
         self.modules_in_flatfield = self.config["modules_in_flatfield"]
         self.send_to_ispyb = self.config["send_to_ispyb"]
@@ -1265,7 +1201,7 @@ class I11Reduction:
         self.logger.log("Beam energy (keV):", self.beam_energy)
         self.logger.log("Beamline offset:", self.beamline_offset)
         self.logger.log("Flatfield filepath:", self.flatfield_filepath)
-        self.logger.log("Saving in Q space:", self.save_in_Q_space)
+        self.logger.log("Saving in Q space:", self.save_in_q_space)
         self.logger.log("Saving in NXS:", self.save_nxs_out)
         self.logger.log("Apply Flatfield:", self.apply_flatfield)
         self.logger.log("Using counter:", self.default_counter)
@@ -1304,8 +1240,8 @@ class I11Reduction:
                 f"{self.file_name}_reduced_mythen3{self.filename_suffix}.nxs",
             )
 
-        if not self.xye_filepath_out_Q:
-            self.xye_filepath_out_Q = os.path.join(
+        if not self.xye_filepath_out_q:
+            self.xye_filepath_out_q = os.path.join(
                 self.file_dir,
                 f"{self.file_name}_summed_mythen3_Q{self.filename_suffix}.xye",
             )
@@ -1372,6 +1308,8 @@ class I11Reduction:
     def plot_modules_by_ring(self, mask=(), block=True):
         plt.figure(figsize=(10, 4))
 
+        modules_min_max = {}
+
         for n_mod in self.active_modules:
             if n_mod in mask:
                 continue
@@ -1384,14 +1322,108 @@ class I11Reduction:
                 plt.plot(n_mod_theta, [1] * 1280, label=str(n_mod))
                 plt.text(n_mod_theta[640], 0.9, str(n_mod), fontsize=8)
 
+            modules_min_max[n_mod] = [float(min(n_mod_theta)), float(max(n_mod_theta))]
+
         plt.ylabel("Ring number")
         plt.yticks([0, 1])
         plt.xlabel("Angle (tth)")
+        plt.savefig("./outputs/module_arrangment.png")
         plt.show(block=block)
         if block is True:
             plt.close()
 
+        total_degrees = np.amax(self.module_raw_tth[0]) - np.amin(
+            self.module_raw_tth[13]
+        )
+
+        radius = 762
+        circum = 2 * 3.14159 * radius
+
+        length_of_arc = circum * (total_degrees / 360)
+
+        mm_per_degree = length_of_arc / total_degrees
+        print("Total Angular Coverage", total_degrees)
+        print("Radius of detector (mm):", 762)
+        print("mm/tth", mm_per_degree)
+
+        module_tth_spans = []
+        module_sizes = []
+        print(len(self.active_modules))
+        print(len(self.good_modules))
+
+        spec_module_size = 1280 * 0.05
+
+        for n_mod in list(self.good_modules):
+            module_1 = modules_min_max[n_mod]
+            module_tth_span = np.amax(module_1) - np.amin(module_1)
+            module_tth_spans.append(module_tth_span)
+            module_size = module_tth_span * mm_per_degree
+            module_sizes.append(module_size)
+
+            mm_per_deg_size = spec_module_size / module_tth_span
+
+            print(n_mod, module_tth_span, module_size, mm_per_deg_size)
+
+        fig, ax1 = plt.subplots(figsize=(10, 7))
+        ax1.scatter(list(self.good_modules), module_tth_spans)
+        ax1.set_ylabel("Size (tth)")
+        ax2 = ax1.twinx()
+
+        ax2.scatter(list(self.good_modules), module_sizes)
+        ax2.set_ylabel("Size (mm)")
+        ax1.set_xlabel("Module")
+        plt.savefig("./outputs/sizes.png")
+        plt.close()
+
+        for n_mod in self.active_modules[0:-1]:
+            if n_mod == 13:
+                continue
+
+            n_mod1 = n_mod
+            n_mod2 = n_mod + 1
+
+            module_1 = modules_min_max[n_mod1]
+            module_2 = modules_min_max[n_mod2]
+
+            sorted_modules = np.sort(np.concatenate((module_1, module_2)))
+
+            diff = mm_per_degree * (sorted_modules[2] - sorted_modules[1])
+
+            print("Modules:", n_mod1, n_mod2)
+            print("Sorted Module Edges (tth):", sorted_modules)
+            print("Gap (mm)", diff, "\n")
+
+        mod1spans = []
+        mod2spans = []
+
+        for mod1, mod2 in paired_modules():
+            n_mod1_theta = self.module_raw_tth[mod1]
+            mod1span = np.amax(n_mod1_theta) - np.amin(n_mod1_theta)
+            n_mod2_theta = self.module_raw_tth[mod2]
+            mod2span = np.amax(n_mod2_theta) - np.amin(n_mod2_theta)
+
+            if mod1 in [11, 17, 27]:
+                mod1spans.append(np.nan)
+            else:
+                mod1spans.append(mod1span)
+
+            if mod2 in [11, 17, 27]:
+                mod2spans.append(np.nan)
+            else:
+                mod2spans.append(mod2span)
+
+        plt.plot(np.array(mod1spans) * mm_per_degree)
+        plt.plot(np.array(mod2spans) * mm_per_degree)
+        plt.ylabel("size (mm)")
+        plt.xlabel("Index from module")
+        plt.savefig("./outputs/module_compare.png")
+
+        plt.show()
+
     def plot_by(self, parameters=(), x="tth", at_a_time=False):
+        if isinstance(parameters, str):
+            parameters = [parameters]
+
         for parameter in parameters:
             for val in np.unique(self.angular_corrected_data[parameter]):
                 parameter_data = self.angular_corrected_data[
@@ -1517,6 +1549,50 @@ class I11Reduction:
         axes[1].legend()
         plt.show()
 
+    def plot_by_region_of_interest(self, peaks, tol=0.03, filepath=None):
+        fig = plt.figure(figsize=(15, 10))
+
+        max_rows = 4
+        max_cols = 4
+
+        gs = GridSpec(max_rows, max_cols, figure=fig)  # upper bound on plots
+
+        i = 0
+
+        for peak in np.sort(peaks):
+            if i > 15:
+                break
+
+            region_of_interest = self.angular_corrected_data[
+                (self.angular_corrected_data["tth"] > peak - tol)
+                & (self.angular_corrected_data["tth"] < peak + tol)
+            ]
+
+            present_modules = np.unique(region_of_interest["n_mod"])
+
+            if len(region_of_interest) == 0:  # or (len(present_modules) < 2):
+                continue
+
+            row = i // max_rows
+            col = i % max_cols
+
+            ax = fig.add_subplot(gs[row, col])
+
+            for n_mod in present_modules:
+                mod_data = region_of_interest[region_of_interest["n_mod"] == n_mod]
+                ax.scatter(mod_data["tth"], mod_data["counts"], label=str(n_mod))
+                ax.vlines(peak, np.min(mod_data["counts"]), np.max(mod_data["counts"]))
+                ax.legend()
+
+            i = i + 1
+
+        plt.xlabel("tth")
+        plt.ylabel("Intensity (arb. units)")
+        if filepath:
+            plt.savefig(filepath)
+        plt.show()
+        plt.close()
+
     def plot_diffraction_by_mod(self, filepath=None, block=True):
         plt.figure(figsize=(15, 10))
 
@@ -1524,8 +1600,10 @@ class I11Reduction:
             mod_data = self.angular_corrected_data[
                 self.angular_corrected_data["n_mod"] == n_mod
             ]
-            plt.plot(mod_data["tth"], mod_data["counts"], label=str(n_mod))
-            plt.text(np.mean(mod_data["tth"]), np.amin(mod_data["counts"]), str(n_mod))
+            plt.scatter(mod_data["tth"], mod_data["counts"], label=str(n_mod))
+            plt.text(
+                np.median(mod_data["tth"]), np.amin(mod_data["counts"]), str(n_mod)
+            )
 
         plt.xlabel("tth")
         plt.ylabel("Intensity (arb. units)")
@@ -1660,21 +1738,21 @@ class I11Reduction:
         #####save data
         self.save_xye(self.xye_filepath_out, self.xyedata, "tth")
 
-        if (self.save_in_Q_space) and (self.beam_energy):
-            self.save_xye(self.xye_filepath_out_Q, self.xyedata, "Q")
+        if (self.save_in_q_space) and (self.beam_energy):
+            self.save_xye(self.xye_filepath_out_q, self.xyedata, "Q")
 
         if self.save_nxs_out:
-            # try:
-            self.save_nxs_outfile(
-                self.reduced_nxs_filepath_out,
-                self.xyedata,
-                self.module_raw_data,
-                self.frame_data,
-                self.angular_corrected_data_unmasked,
-                debug=self.debug_mode,
-            )
-            # except:
-            # self.logger.log(self.filepath, "is open?")
+            try:
+                self.save_nxs_outfile(
+                    self.reduced_nxs_filepath_out,
+                    self.xyedata,
+                    self.module_raw_data,
+                    self.frame_data,
+                    self.angular_corrected_data_unmasked,
+                    debug=self.debug_mode,
+                )
+            except Exception as e:
+                self.logger.log(e, self.filepath, "is open?")
 
     def data_reduction_mode_time_resolved(self):
         ###where every frame is a unique dataset and you want lots of final xye's
@@ -1706,9 +1784,9 @@ class I11Reduction:
                 self.xyedata,
                 "tth",
             )
-            if (self.save_in_Q_space) and (self.beam_energy):
+            if (self.save_in_q_space) and (self.beam_energy):
                 self.save_xye(
-                    self.xye_filepath_out_Q.replace(
+                    self.xye_filepath_out_q.replace(
                         ".xye", f"_frame_{n_frame + 1}{self.filename_suffix}.xye"
                     ),
                     self.xyedata,
@@ -1737,8 +1815,8 @@ class I11Reduction:
 
         self.save_xye(self.xye_filepath_out, self.xyedata, "tth")
 
-        if (self.save_in_Q_space) and (self.beam_energy):
-            self.save_xye(self.xye_filepath_out_Q, self.xyedata, "Q")
+        if (self.save_in_q_space) and (self.beam_energy):
+            self.save_xye(self.xye_filepath_out_q, self.xyedata, "Q")
 
         if self.save_nxs_out:
             self.save_nxs_outfile(
@@ -1863,8 +1941,8 @@ class I11Reduction:
 
         self.save_xye(self.xye_filepath_out, self.xyedata, "tth")
 
-        if (self.save_in_Q_space) and (self.beam_energy):
-            self.save_xye(self.xye_filepath_out_Q, self.xyedata, "Q")
+        if (self.save_in_q_space) and (self.beam_energy):
+            self.save_xye(self.xye_filepath_out_q, self.xyedata, "Q")
 
         if self.save_nxs_out:
             self.save_nxs_outfile(
@@ -1889,7 +1967,7 @@ class I11Reduction:
         """
 
         try:
-            daq = DaqMessenger("i11-control")
+            daq = Messenger("i11-control")
             daq.connect()
             daq.send_file(str(self.xye_filepath_out))  # sends message to GDA
 
@@ -1943,10 +2021,6 @@ class I11Reduction:
         self.logging = logging
         self.filepath = filepath
 
-        if not os.path.exists(self.filepath):
-            self.logger.log("NXS file does not exist")
-            quit()
-
         if self.bad_frames is None:
             self.bad_frames = []  # frames that should be removed, because they are bad
 
@@ -1962,6 +2036,11 @@ class I11Reduction:
         self.logger = AnalysisLogger(
             os.path.join(self.file_dir, "processed", "mythen3_reduction.log")
         )
+
+        if not os.path.exists(self.filepath):
+            self.logger.log("NXS file does not exist")
+            quit()
+
         self.logger.log("######################################\n")
         self.logger.log(f"Data reduction being performed on: {self.filepath}")
 
@@ -1982,8 +2061,9 @@ class I11Reduction:
         self.load_toml_config()
         self.set_save_filepaths()
 
-        output_data_modules = set(self.active_modules).difference(set(self.bad_modules))
-        self.logger.log("Modules in output data:", output_data_modules)
+        self.good_modules = set(self.active_modules).difference(set(self.bad_modules))
+
+        self.logger.log("Modules in output data:", self.good_modules)
 
         if self.beam_energy:
             self.wavelength = I11Reduction.calculate_wavelength(self.beam_energy)
@@ -2158,7 +2238,7 @@ if __name__ == "__main__":
     Analysis = I11Reduction(
         filepath=args.data,
         config_filepath=args.config,
-        xye_filepath_out_Q=args.out_q_space_file,
+        xye_filepath_out_q=args.out_q_space_file,
         reduced_nxs_filepath_out=args.out_nxs_file,
         angcal_filepath=args.ang_cal_file,
         live=args.live,

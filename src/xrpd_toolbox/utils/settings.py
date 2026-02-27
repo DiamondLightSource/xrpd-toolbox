@@ -10,8 +10,6 @@ SUPPORTED_FILE_TYPES = [".json", ".toml", ".yaml"]
 
 
 class SettingsBase(BaseModel):
-    supported_file_types: list[str] = SUPPORTED_FILE_TYPES
-
     @classmethod
     def load_from_toml(cls, filepath: str | Path):
         with open(filepath, "rb") as file:
@@ -42,7 +40,7 @@ class SettingsBase(BaseModel):
         elif file_extension == ".toml":
             return cls.load_from_toml(filepath)
         else:
-            raise ValueError(f"Filetype must be: {cls.supported_file_types}")
+            raise ValueError(f"Filetype must be: {SUPPORTED_FILE_TYPES}")
 
     def save_to_toml(self, filepath: str | Path) -> None:
         if not str(filepath).endswith(".toml"):
@@ -94,4 +92,11 @@ class SettingsBase(BaseModel):
         elif file_extension == ".toml":
             return self.save_to_toml(filepath)
         else:
-            raise ValueError(f"Filetype must be: {self.supported_file_types}")
+            raise ValueError(f"Filetype must be: {SUPPORTED_FILE_TYPES}")
+
+    def __getitem__(self, name):
+        if name in type(self).model_fields:
+            value = getattr(self, name)
+            return value
+        else:
+            raise ValueError(f"{name} not in {self}")

@@ -3,24 +3,30 @@ import math
 import os
 import re
 from collections import OrderedDict
+from collections.abc import Collection, Iterable
 from functools import cached_property
 from pathlib import Path
-from shutil import copy2
+from shutil import copy, copy2
 from typing import Literal
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 from h5py import Dataset, File
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from xrpd_toolbox.utils.daq_messenger import DaqMessenger
+from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle
+from xrpd_toolbox.utils.peaks import fit_peaks
 from xrpd_toolbox.utils.settings import SettingsBase
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
+    get_calibrant_peaks,
     get_entry,
     h5_to_array,
     load_int_array_from_file,
+    save_data_to_h5,
+    save_to_xye,
 )
 
 # np.set_printoptions(threshold=sys.maxsize)
@@ -30,19 +36,54 @@ PIXELS_PER_MODULE = 1280
 PSD_RADIUS = 762  # mm
 MYTHEN_PIXEL_SIZE = 0.05  # mm
 
+PIXEL_NUMBER = np.arange(PIXELS_PER_MODULE, dtype=np.int64)
+
+
+def modules_to_pixels(modules: int | Iterable[int]):
+    if isinstance(modules, int):
+        pixels = slice(modules * 1280, (modules + 1) * 1280, None)
+    elif isinstance(modules, Iterable):
+        pixels = np.concatenate([np.arange(i * 1280, (i + 1) * 1280) for i in modules])
+    else:
+        raise TypeError("Must be int or iterable of ints")
+
+    return pixels
+
 
 class ModuleConversion(BaseModel):
+    # TODO: Decide whether it's best to stick beamline offset and centre in here a
+    # nd then have those be duplicated for every module,
+    # then when making a MythenModule we can just pass this. Will have to rebuild json
+    # YES DO THIS. But Do other things first
     conv: float
     offset: float
+    centre: float
 
     @property
     def module_sign(self) -> int:  # returns -1 or 1 depending on sign of conv
         return int(math.copysign(1, self.conv))
 
+    @property
+    def distance(self) -> float:
+        """returns the theoretical distance of the module based on the conv"""
+        return abs(MYTHEN_PIXEL_SIZE / self.conv)
+
+    def return_raw_tth(self, zero_offset: float) -> np.ndarray:
+        """this calculated the module raw tth, ie the tth of the detector
+        without taking the delta angle into account"""
+
+        raw_tth = channel_to_angle(
+            pixel_number=PIXEL_NUMBER,
+            centre=self.centre,
+            conv=self.conv,
+            offset=self.offset,
+            beamline_offset=zero_offset,
+        )
+        return raw_tth
+
 
 class AngularCalibration(SettingsBase):
-    beamline_offset: float
-    centre: float
+    beamline_offset: float | int
     module_0: ModuleConversion
     module_1: ModuleConversion
     module_2: ModuleConversion
@@ -72,15 +113,8 @@ class AngularCalibration(SettingsBase):
     module_26: ModuleConversion
     module_27: ModuleConversion
 
-    def __getitem__(self, name):
-        if name in AngularCalibration.model_fields:
-            value = getattr(self, name)
-            return value
-        else:
-            raise ValueError(f"{name} not in {self}")
 
-
-class MythenReductionSettings(SettingsBase):
+class MythenSettings(SettingsBase):
     active_modules: list[int] = list(range(MODULES_IN_DETECTOR))
     bad_modules: list[int] = []
     bad_channel_masking: bool = True
@@ -89,9 +123,9 @@ class MythenReductionSettings(SettingsBase):
     modules_in_flatfield: list[int] = list(range(MODULES_IN_DETECTOR))
     send_to_ispyb: bool = False
     rebin_step: float = 0.004
-    default_counter: int = 0
+    default_counter: int = Field(default=0, ge=0, le=3)
     edge_bad_channels: int = 15
-    error_calc: Literal["internal", "external", "best"] = "internal"
+    error_calc: Literal["poisson", "std_dev", "max"] = "poisson"
     data_reduction_mode: Literal[
         "step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"
     ] = "step_scan"
@@ -112,8 +146,8 @@ class BadChannels:
         return self.bad_channels
 
     def _split_bad_channels_into_modules(self, bad_channels: np.ndarray):
-        """Takes a long array eg. 0, 1, 67, 7655, 32000
-        turns it into 28 arrays, [0, 1, 67], ... [67], ... [7655], ...[32000]
+        """Takes a long array eg. 0, 1, 67, 1285, 7655, 32000
+        turns it into 28 arrays, [0, 1, 67], ... [1285], ... [7655], ...[32000]
         """
 
         bins = np.arange(
@@ -154,35 +188,78 @@ class BadChannels:
             mask[module_bad_channels[module]] = True
             bad_channel_mask[module] = mask
 
-        return bad_channel_mask  # bad channels are 1
+        return bad_channel_mask  # bad channels are denoted by 1
 
 
 class MythenDataLoader:
     def __init__(
         self,
-        file_path: str | Path,
-        pixels_per_module: int = PIXELS_PER_MODULE,
+        filepath: str | Path,
         counter: int = 0,
         mythen_data_path="mythen_nx",
+        frames: int | slice | Collection[int] = slice(None),
+        modules: int | slice | Collection[int] = slice(None),
     ):
-        self.file_path = Path(file_path)
-        self.pixels_per_module = pixels_per_module
+        self.filepath = Path(filepath)
+        self.frames = frames
+        self.modules = modules
         self.counter = counter
         self.mythen_data_path = mythen_data_path
 
-        self.entry = get_entry(self.file_path)
+        self.entry = get_entry(self.filepath)
         self.dataset_path = f"/{self.entry}/{self.mythen_data_path}/data"
         self.n_modules_in_data, self.n_frames = self.read_nxs_metadata()
 
-        self.raw_data = self.load_data(self.counter)
-        self.module_data = np.array_split(
-            self.raw_data, self.n_modules_in_data, axis=-1
-        )
+        if self.frames == slice(None) and self.modules == slice(None):
+            self.data, self.module_data = self.load()
+        else:
+            self.data = self.get_data(modules=self.modules, frame=self.frames)
 
-    def get_delta_path(self) -> str:
+    def load(self):
+        self.data = self.load_all_data(self.counter)
+        self.module_data = np.array_split(self.data, self.n_modules_in_data, axis=-1)
+
+        return self.data, self.module_data
+
+    @property
+    def pixels_per_module(self):
+        return PIXELS_PER_MODULE
+
+    def get_data(
+        self,
+        modules: int | Collection[int] | slice,
+        frame: int | Collection[int] | slice,
+        counter: int = 0,
+    ):
+        if isinstance(modules, int) or isinstance(modules, Collection):
+            pixels = modules_to_pixels(modules=modules)
+        else:
+            pixels = modules
+
+        with File(self.filepath, "r") as file:
+            if self.dataset_path not in file:
+                raise ValueError(
+                    f"Dataset path {self.dataset_path} not found in HDF5 file."
+                )
+
+            data = file.get(self.dataset_path)
+
+            if (data is not None) and isinstance(data, Dataset):
+                if data.ndim < 1:
+                    raise ValueError("Data has insufficient dimensions.")
+                module_frame_data = data[frame, pixels, counter]
+
+                return np.asarray(module_frame_data)
+            else:
+                raise ValueError(
+                    f"Data at {self.dataset_path} in {self.filepath}is None."
+                )
+
+    @cached_property
+    def delta_path(self) -> str:
         delta_subpaths = ("delta", "deltas", "ds")
 
-        with h5py.File(self.file_path, "r") as file:
+        with h5py.File(self.filepath, "r") as file:
             base = f"/{self.entry}/{self.mythen_data_path}"
 
             for name in delta_subpaths:
@@ -196,18 +273,25 @@ class MythenDataLoader:
             )
 
     @cached_property
-    def deltas(self) -> np.ndarray:
+    def count_time_path(self) -> str:
+        return f"/{self.entry}/instrument/{self.mythen_data_path}/count_time"
+
+    @cached_property
+    def positions(self) -> np.ndarray:
         try:
-            self.delta_path = self.get_delta_path()
-            deltas = h5_to_array(self.file_path, self.delta_path)
+            deltas = h5_to_array(self.filepath, self.delta_path)
             return deltas
         except ValueError as e:
             print(f"{e} - {self.delta_path} in data - returning 0")
             deltas = np.array([0])
             return deltas
 
+    @cached_property
+    def durations(self) -> np.ndarray:
+        return h5_to_array(self.filepath, self.count_time_path)
+
     def read_nxs_metadata(self) -> tuple[int, int]:
-        with h5py.File(self.file_path, "r") as file:
+        with h5py.File(self.filepath, "r") as file:
             data = file.get(self.dataset_path)
             if (data is not None) and isinstance(data, Dataset):
                 first_frame = data[0, :, self.counter]
@@ -218,29 +302,8 @@ class MythenDataLoader:
             else:
                 raise ValueError(f"Data is None at {self.dataset_path}")
 
-    def load_data(self, counter: int) -> np.ndarray:
-        if not self.file_path.exists():
-            raise FileNotFoundError(self.file_path)
-
-        with File(self.file_path, "r") as file:
-            if self.dataset_path not in file:
-                raise ValueError(
-                    f"Dataset path {self.dataset_path} not found in HDF5 file."
-                )
-
-            data = file.get(self.dataset_path)
-
-            if (data is not None) and isinstance(data, Dataset):
-                if data.ndim < 1:
-                    raise ValueError("Data has insufficient dimensions.")
-                self.n_frames = len(data)
-                data = data[..., counter]
-
-                return np.asarray(data)
-            else:
-                raise ValueError(
-                    f"Data at {self.dataset_path} in {self.file_path}is None."
-                )
+    def load_all_data(self, counter: int) -> np.ndarray:
+        return self.get_data(slice(None), slice(None), counter)
 
 
 class MythenModule:
@@ -248,61 +311,81 @@ class MythenModule:
         self,
         data: np.ndarray,
         conversion: ModuleConversion,
-        centre: float | int,
         beamline_offset: float,
-        deltas: np.ndarray,
         module_id: int,
+        positions: np.ndarray,
+        durations: np.ndarray | None = None,
         bad_channel_mask: np.ndarray | None = None,
-        pixels_per_modules: int = PIXELS_PER_MODULE,
     ):
         self.data = data
         self.conversion = conversion
-        self.centre = centre
         self.beamline_offset = beamline_offset
-        self.deltas = deltas
+        self.positions = positions
         self.module_id = module_id
-        self.pixels_per_modules = pixels_per_modules
 
         if bad_channel_mask is None:
             self.bad_channel_mask = np.zeros(self.data.shape[-1], dtype=bool)
         else:
             self.bad_channel_mask = bad_channel_mask
 
-    @cached_property
-    def pixel_number(self) -> np.ndarray:
-        """returns a 1d array of integers between 0 and 1280"""
-        return np.arange(self.pixels_per_modules, dtype=np.int64)
+        if durations is None:
+            self.durations = np.ones(self.data.shape[-1], dtype=bool)
+        else:
+            self.durations = durations
+
+    # @cached_property
+    # def pixel_number(self) -> np.ndarray:
+    #     """returns a 1d array of integers between 0 and 1280"""
+    #     return PIXEL_NUMBER
 
     @cached_property
     def raw_tth(self) -> np.ndarray:
         """this calculated the module raw tth, ie the tth of the detector
         without taking the delta angle into account"""
 
-        raw_tth = channel_to_angle(
-            pixel_number=self.pixel_number,
-            centre=self.centre,
-            conv=self.conversion.conv,
-            offset=self.conversion.offset,
-            beamline_offset=self.beamline_offset,
-        )
+        raw_tth = self.conversion.return_raw_tth(self.beamline_offset)
+
         return raw_tth
 
     @cached_property
-    def tth_shaped(self) -> np.ndarray:
+    def positions_2d(self):
+        print(len(self.positions))
+        positions_2d = np.broadcast_to(self.positions, self.data.shape)
+        return positions_2d
+
+    @cached_property
+    def duration_2d(self):
+        duration_2d = np.broadcast_to(self.durations[:, np.newaxis], self.data.shape)
+        return duration_2d
+
+    @cached_property
+    def tth_2d(self) -> np.ndarray:
         """Creates an array with the same shape as the data,
         with the tth values at the corresponding indexes"""
 
-        raw_tth_shaped = np.broadcast_to(self.raw_tth, self.data.shape)
-        tth_shaped = raw_tth_shaped + self.deltas[:, None]
-        return tth_shaped
+        tth_2d = np.broadcast_to(self.raw_tth, self.data.shape)
+        tth_2d = tth_2d + self.positions[:, None]
+        return tth_2d
+
+    @cached_property
+    def mask_2d(self) -> np.ndarray:
+        """Creates an array with the same shape as the data,
+        with the tth values at the corresponding indexes"""
+
+        mask_2d = np.broadcast_to(self.bad_channel_mask, self.data.shape)
+        return mask_2d
 
     @cached_property
     def unmasked_counts(self) -> np.ndarray:
         return self.data.flatten()
 
     @cached_property
+    def unmasked_duration(self) -> np.ndarray:
+        return self.duration_2d.flatten()
+
+    @cached_property
     def unmasked_tth(self) -> np.ndarray:
-        return self.tth_shaped.flatten()
+        return self.tth_2d.flatten()
 
     @cached_property
     def unmasked_error(self) -> np.ndarray:
@@ -314,8 +397,13 @@ class MythenModule:
         return masked_counts.flatten()
 
     @cached_property
+    def duration(self) -> np.ndarray:
+        duration = self.duration_2d[:, ~self.bad_channel_mask]
+        return duration.flatten()
+
+    @cached_property
     def tth(self) -> np.ndarray:
-        masked_tth = self.tth_shaped[:, ~self.bad_channel_mask]
+        masked_tth = self.tth_2d[:, ~self.bad_channel_mask]
         return masked_tth.flatten()
 
     @cached_property
@@ -328,7 +416,7 @@ class MythenDetector:
         self,
         filepath: str | Path,
         angular_calibration: AngularCalibration | None = None,
-        settings: MythenReductionSettings | None = None,
+        settings: MythenSettings | None = None,
         xye_filepath_out: str | Path | None = None,
         output_directory: str | Path | None = None,
         filename_suffix: str = "",
@@ -336,99 +424,148 @@ class MythenDetector:
         self.filepath = filepath
         self.filename_suffix = filename_suffix
 
-        if not str(self.filepath).lower().endswith(".nxs"):
+        if str(self.filepath) == "dev":
+            pass
+        elif not str(self.filepath).lower().endswith(".nxs"):
             raise ValueError(f"{self.filepath} should be a Nexus File!!")
-
-        self.output_directory = output_directory or os.path.join(
-            str(self.filepath), "processed"
-        )
+        elif not os.path.exists(self.filepath):
+            raise ValueError(f"{self.filepath} does not exist!!")
 
         self.file_dir = os.path.dirname(str(self.filepath))
         self.filename = os.path.basename(str(self.filepath))
+
+        self.output_directory = output_directory or os.path.join(
+            str(self.file_dir), "processed"
+        )
+
+        if not os.path.exists(self.output_directory):
+            os.makedirs(self.output_directory)
+
+        self.processed_nexus_filepath = os.path.join(
+            str(self.output_directory),
+            f"{Path(self.filename).stem}_reduced_mythen3{self.filename_suffix}.nxs",
+        )
 
         self.xye_filepath_out = xye_filepath_out or os.path.join(
             self.file_dir,
             f"{self.filename}_summed_mythen3{self.filename_suffix}.xye",
         )
 
-        self.settings = settings or MythenReductionSettings()
+        self.settings = settings or MythenSettings()
         self.calibration = angular_calibration or AngularCalibration.load(
             self.settings.angcal_filepath
         )
 
         self.active_modules: list[int] = self.settings.active_modules
         self.bad_modules: list[int] = self.settings.bad_modules
+        self.good_modules: list[int] = list(
+            set(self.active_modules) ^ set(self.bad_modules)
+        )
+        self.ring1_modules: list[int] = list(range(0, 14))
+        self.ring2_modules: list[int] = list(range(14, 28))
+
+        self.active_ring1_modules: list[int] = list(
+            set(self.active_modules) ^ set(self.ring2_modules)
+        )
+        self.active_ring2_modules: list[int] = list(
+            set(self.active_modules) ^ set(self.ring1_modules)
+        )
+
         self.bad_channels = BadChannels(self.settings.bad_channels_filepath)
 
         # mythen data loader, just loads the data,
         # it has no information about which modules are which
+
         self.mythen_data = MythenDataLoader(
-            file_path=filepath,
+            filepath=filepath,
         )
 
         self.contruct_modules()
+
+    def _make_mythen_module_kwargs(self, n_module, nth_active_module):
+        """MythenModule requires quite a lot of info,
+        so it's easier to make a contructor of it's kwargs"""
+
+        return {
+            "data": self.mythen_data.module_data[n_module],
+            "conversion": self.calibration[f"module_{nth_active_module}"],
+            "beamline_offset": self.calibration.beamline_offset,
+            "module_id": nth_active_module,
+            "positions": self.mythen_data.positions,
+            "durations": self.mythen_data.durations,
+            "bad_channel_mask": self.bad_channels.masks[nth_active_module],
+        }
+
+    def get_module(self, mod: int) -> MythenModule:
+        return self.modules[mod]
 
     def contruct_modules(self):
         self.modules = OrderedDict()
 
         for n_module, nth_active_module in enumerate(self.settings.active_modules):
             module = MythenModule(
-                data=self.mythen_data.module_data[n_module],
-                conversion=self.calibration[f"module_{nth_active_module}"],
-                centre=self.calibration.centre,
-                beamline_offset=self.calibration.beamline_offset,
-                deltas=self.mythen_data.deltas,
-                bad_channel_mask=self.bad_channels.masks[nth_active_module],
-                module_id=nth_active_module,
+                **self._make_mythen_module_kwargs(n_module, nth_active_module)
             )
 
             self.modules[nth_active_module] = module
 
-    @cached_property
-    def good_modules(self) -> list[MythenModule]:
-        return [
-            self.modules[f]
-            for f in list(self.modules.keys())
-            if f not in self.bad_modules
-        ]  # noqa
-
     def generate_xye(
-        self, masked: bool = True
+        self, modules: Iterable[int], masked: bool = True
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         if masked:
-            module_tth_list = [f.tth for f in self.good_modules]
-            module_counts_list = [f.counts for f in self.good_modules]
-            module_errors_list = [f.error for f in self.good_modules]
+            module_tth_list = [self.get_module(f).tth for f in modules]
+            module_counts_list = [self.get_module(f).counts for f in modules]
+            module_errors_list = [self.get_module(f).error for f in modules]
         else:
-            module_tth_list = [f.unmasked_tth for f in self.good_modules]
-            module_counts_list = [f.unmasked_counts for f in self.good_modules]
-            module_errors_list = [f.unmasked_error for f in self.good_modules]
+            module_tth_list = [self.get_module(f).unmasked_tth for f in modules]
+            module_counts_list = [self.get_module(f).unmasked_counts for f in modules]
+            module_errors_list = [self.get_module(f).unmasked_error for f in modules]
 
-        tth = np.concatenate(module_tth_list)
-        counts = np.concatenate(module_counts_list)
-        error = np.concatenate(module_errors_list)
+        unsorted_tth = np.concatenate(module_tth_list)
+        unsorted_counts = np.concatenate(module_counts_list)
+        unsorted_error = np.concatenate(module_errors_list)
+
+        sort_indexes = np.argsort(unsorted_tth)
+
+        tth = unsorted_tth[sort_indexes]
+        counts = unsorted_counts[sort_indexes]
+        error = unsorted_error[sort_indexes]
 
         return tth, counts, error
 
-    def generate_summed_xye(
+    def generate_binned_xye(
         self,
         masked: bool = True,
         rebin_step: float = 0.004,
-        error_calc: str = "internal",
-        sum_counts: bool = True,
+        error_calc: str = "poisson",
+        normalise: bool = True,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        tth, counts, error = self.generate_xye(masked=masked)
+        """
+        Returns the final dataset that you would use to generate a xye file,
+        binned and all
+        """
 
-        summed_tth, summed_counts, summed_error = bin_and_propagate_errors(
+        tth, counts, error = self.generate_xye(modules=self.good_modules, masked=masked)
+
+        # TODO: Should count times really be in MythenModule and then recreated this way
+        # - seems like extra wasteful computation?
+
+        if normalise:
+            module_duration_list = [
+                self.get_module(f).duration for f in self.good_modules
+            ]
+            durations = np.concatenate(module_duration_list)
+            counts = counts / durations
+
+        binned_tth, binned_counts, binned_error = bin_and_propagate_errors(
             tth,
             counts,
             error,
             rebin_step=rebin_step,
             error_calc=error_calc,
-            sum_counts=sum_counts,
         )
 
-        return summed_tth, summed_counts, summed_error
+        return binned_tth, binned_counts, binned_error
 
     def communicate_with_control(self, send_to_ispyb: bool = False):
         """
@@ -439,7 +576,7 @@ class MythenDetector:
 
         """
 
-        daq = DaqMessenger("i11-control")
+        daq = Messenger(host="i11-control")
         daq.connect()
         daq.send_file(str(self.xye_filepath_out))  # sends message to GDA
 
@@ -449,28 +586,130 @@ class MythenDetector:
             copy2(self.xye_filepath_out, magic_path)  # copies to ispyb
 
     def process_step_scan(self):
-        summed_tth, summed_counts, summed_error = self.generate_summed_xye(
-            masked=self.settings.bad_channel_masking,
-            rebin_step=self.settings.rebin_step,
-            error_calc=self.settings.error_calc,
-            sum_counts=True,
+        """Analyses the data using the settings provided by the MythenSettings class
+        Takes all of the data from each module and each step of the multistep scan
+        and calculates the tth for each delta position, orders them, concatenates
+        and puts them into a single array. Bins it, and saves it to xye/nexus file"""
+
+        self.binned_tth, self.binned_counts, self.binned_error = (
+            self.generate_binned_xye(
+                masked=self.settings.bad_channel_masking,
+                rebin_step=self.settings.rebin_step,
+                error_calc=self.settings.error_calc,
+            )
         )
 
-        # plt.plot(normalise(summed_tth), normalise(summed_counts))
-        # plt.show()
+        save_to_xye(
+            self.xye_filepath_out,
+            self.binned_tth,
+            self.binned_counts,
+            self.binned_error,
+        )
 
-        # save_to_xye(self.xye_filepath_out, summed_tth, summed_counta, summed_error)
-        self.save_processed_nexus()
-        # self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
+        xye_names_and_data = {
+            "tth": self.binned_tth,
+            "counts": self.binned_counts,
+            "error": self.binned_error,
+        }
 
-    def save_processed_nexus(self):
-        pass
+        self.save_data_to_nexus(subpath="/xye", names_and_data=xye_names_and_data)
+
+        ring1_data, ring2_data = self.get_ring1_ring2_data()
+        self.save_data_to_nexus(subpath="/ring1", names_and_data={"data": ring1_data})
+        self.save_data_to_nexus(subpath="/ring1", names_and_data={"data": ring2_data})
+
+        print(f"Data saved to: {self.processed_nexus_filepath}")
+
+        try:
+            self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
+        except Exception as e:
+            print(f"Could not connect with control - {e}")
+            pass
+
+    def get_ring1_ring2_data(self):
+        first_ring_pixels = len(self.active_ring1_modules) * PIXELS_PER_MODULE
+        ring1_data = self.mythen_data.get_data(slice(0, first_ring_pixels), slice(None))
+        ring2_data = self.mythen_data.get_data(
+            slice(first_ring_pixels, None), slice(None)
+        )
+
+        return ring1_data, ring2_data
+
+    def save_data_to_nexus(
+        self, subpath: str, names_and_data: dict[str, np.ndarray], **kwargs
+    ):
+        copy(self.filepath, self.processed_nexus_filepath)
+
+        for name, data in names_and_data.items():
+            save_data_to_h5(
+                self.filepath,
+                f"{self.mythen_data.entry}{subpath}/{name}",
+                data,
+                **kwargs,
+            )
 
     def process_pump_probe(self):
         pass
 
     def process_time_resolved(self):
         pass
+
+    def plot_diffraction(self, filepath: str | Path | None = None):
+        plt.figure(figsize=(10, 7))
+
+        tth, counts, error = self.generate_binned_xye(
+            masked=self.settings.bad_channel_masking,
+            rebin_step=self.settings.rebin_step,
+            error_calc=self.settings.error_calc,
+        )
+
+        si_tth = get_calibrant_peaks("Si", 0.828783)
+        plt.vlines(si_tth, 0, np.amax(counts), color="red")
+
+        plt.errorbar(tth, counts, error, label=self.settings.error_calc)
+        plt.legend()
+        plt.xlabel("tth")
+        plt.ylabel("Intensity (arb. units)")
+
+        if filepath:
+            plt.savefig(filepath)
+
+        plt.show()
+        plt.close()
+
+        amps, fit_xpos, fwhms = fit_peaks(tth, counts, si_tth)
+
+        plt.plot(si_tth, fit_xpos - si_tth)
+        plt.show()
+
+    def plot_diffraction_by_mod(self, filepath: str | Path | None = None):
+        plt.figure(figsize=(10, 7))
+
+        for module in self.good_modules:
+            sort_index = np.argsort(self.modules[module].tth)
+            tth = (self.modules[module].tth)[sort_index]
+            counts = (self.modules[module].counts)[sort_index]
+
+            plt.plot(
+                tth,
+                counts,
+                label=str(self.modules[module].module_id),
+            )
+            plt.text(
+                np.mean(tth),
+                np.amin(counts),
+                str(self.modules[module].module_id),
+            )  # type: ignore
+
+        plt.xlabel("tth")
+        plt.ylabel("Intensity (arb. units)")
+        # plt.legend()
+
+        if filepath:
+            plt.savefig(filepath)
+
+        plt.show()
+        plt.close()
 
 
 def convert_angcal_to_pydantic_json(
@@ -498,6 +737,35 @@ def convert_angcal_to_pydantic_json(
     pydantic_model.save_to_json(new_path)
 
 
+def convert_angcal_to_new_pydantic_json(
+    ang_cal_json_path: str | Path, new_path: str | Path
+):
+    pydantic_dict = {}
+    module_conv_list = []
+
+    with open(ang_cal_json_path, "rb") as file:
+        legacy_dict = json.load(file)
+
+    for entry in legacy_dict.keys():
+        numbers = re.findall(r"-?\d*\.?\d+", str(entry))
+
+        if len(numbers) > 0:
+            module = numbers[0]
+            module_conv_list.append(
+                {
+                    "name": f"module_{module}",
+                    "conv": legacy_dict[f"conv_{module}"],
+                    "beamline_offset": legacy_dict[f"conv_{module}"],
+                    "centre": legacy_dict["beamline_offset"],
+                    "offset": legacy_dict["centre"],
+                }
+            )
+
+    pydantic_dict["modules"] = module_conv_list
+    pydantic_model = AngularCalibration(**pydantic_dict)
+    pydantic_model.save_to_json(new_path)
+
+
 if __name__ == "__main__":
     PARENT_PATH = Path(__file__).parent.parent
 
@@ -507,10 +775,11 @@ if __name__ == "__main__":
         PARENT_PATH / "i11" / "mythen_calibration" / "mythen3_reduction_config.toml"
     )
 
-    DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1410286.nxs"
+    DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1410289.nxs"
 
-    ANG_CAL = PARENT_PATH / "i11" / "mythen_calibration" / "ang_cal_171125_new.json"
-    settings = MythenReductionSettings.load_from_toml(CONFIG_FILE)
+    ANG_CAL = "/workspaces/XRPD-Toolbox/src/xrpd_toolbox/i11/mythen_calibration/processed/ang_cal_020426_cen_639.5_leastsq_[11, 17, 27]_new.json"  # noqa
+
+    settings = MythenSettings.load_from_toml(CONFIG_FILE)
     print("Loaded settings:", settings)
 
     # print(DATA_FILE)
@@ -520,11 +789,19 @@ if __name__ == "__main__":
     BAD_CHAN_FILE = "/workspaces/XRPD-Toolbox/examples/i11/bad_channels.txt"
 
     angular_calibration = AngularCalibration.load_from_json(ANG_CAL)
+    # angular_calibration.beamline_offset = -0.4979739
+
+    print(angular_calibration)
 
     settings.bad_channels_filepath = BAD_CHAN_FILE
+
+    # DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1414223.nxs"
+    DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/angular_calibration/1410289.nxs"
 
     mythen3 = MythenDetector(
         filepath=DATA_FILE, settings=settings, angular_calibration=angular_calibration
     )
 
-    mythen3.process_step_scan()
+    mythen3.plot_diffraction()
+    mythen3.plot_diffraction_by_mod()
+    # print(mythen3.counts_times)

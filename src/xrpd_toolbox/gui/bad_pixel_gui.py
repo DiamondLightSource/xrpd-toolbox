@@ -468,7 +468,7 @@ def run_bad_pixel_gui(filepath: str, indices_file: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1406731.nxs"
+    DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1410286.nxs"
 
     run_bad_pixel_gui(
         DATA_FILE,
