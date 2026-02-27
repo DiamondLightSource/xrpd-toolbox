@@ -40,10 +40,6 @@ PIXEL_NUMBER = np.arange(PIXELS_PER_MODULE, dtype=np.int64)
 
 
 class ModuleConversion(BaseModel):
-    # TODO: Decide whether it's best to stick beamline offset and centre in here a
-    # nd then have those be duplicated for every module,
-    # then when making a MythenModule we can just pass this. Will have to rebuild json
-    # YES DO THIS. But Do other things first
     conv: float
     offset: float
     centre: float
