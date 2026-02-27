@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
@@ -41,33 +42,59 @@ class AnalysisLogger:
                 f.write("\n")
 
 
-class NexusToDict:
-    def __init__(self, nexus_filepath: str | Path):
-        self.nexus_dict = {}
+class NexusDatasetMapper:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self._mapping = defaultdict(list)
+        self._build_mapping()
 
-        with File(nexus_filepath, "r") as open_nexus_file:
-            self.recursive_inspect(open_nexus_file)
+    def _build_mapping(self):
+        """Scan file once and build dataset name → path mapping."""
+        with h5py.File(self.filepath, "r") as f:
 
-    def recursive_inspect(self, dataset):
-        for key in dataset.keys():
-            if hasattr(dataset[key], "keys"):
-                self.recursive_inspect(dataset[key])
-            else:
-                try:
-                    self.nexus_dict[key] = dataset[key][()].decode("UTF-8")
-                except Exception:
-                    data = dataset[key][()]
+            def visitor(name, obj):
+                if isinstance(obj, h5py.Dataset):
+                    dataset_name = name.split("/")[-1]
+                    self._mapping[dataset_name].append(f"/{name}")
 
-                    if isinstance(data, np.ndarray) and (len(data) == 1):
-                        data = data.flatten()[0]
+            f.visititems(visitor)
 
-                        if isinstance(data, bytes):
-                            data = data.decode("UTF-8")
+    def find(self, dataset_name):
+        """
+        Returns:
+            - None if not found
+            - Single string if exactly one match
+            - List of paths if multiple matches
+        """
+        matches = self._mapping.get(dataset_name)
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+        return matches
 
-                    self.nexus_dict[key] = data
+    def get(self, dataset_name, index=0):
+        """
+        Lazily open the file and return the h5py.Dataset object.
 
-    def get_dict(self) -> dict:
-        return self.nexus_dict
+        NOTE:
+        The returned dataset is only valid while the file is open.
+        Use within a context manager.
+        """
+        paths = self._mapping.get(dataset_name)
+        if not paths:
+            raise KeyError(f"Dataset '{dataset_name}' not found.")
+
+        path = paths[index]
+
+        f = h5py.File(self.filepath, "r")
+        return f[path]  # lazy dataset handle
+
+    def keys(self):
+        return list(self._mapping.keys())
+
+    def items(self):
+        return dict(self._mapping)
 
 
 def h5_to_array(file_path: str | Path, data_path: str) -> np.ndarray:

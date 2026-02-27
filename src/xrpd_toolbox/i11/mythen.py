@@ -16,7 +16,7 @@ from h5py import Dataset, File
 from pydantic import BaseModel, Field
 
 from xrpd_toolbox.utils.messenger import Messenger
-from xrpd_toolbox.utils.mythen_utils import channel_to_angle
+from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.peaks import fit_peaks
 from xrpd_toolbox.utils.settings import SettingsBase
 from xrpd_toolbox.utils.utils import (
@@ -37,17 +37,6 @@ PSD_RADIUS = 762  # mm
 MYTHEN_PIXEL_SIZE = 0.05  # mm
 
 PIXEL_NUMBER = np.arange(PIXELS_PER_MODULE, dtype=np.int64)
-
-
-def modules_to_pixels(modules: int | Iterable[int]):
-    if isinstance(modules, int):
-        pixels = slice(modules * 1280, (modules + 1) * 1280, None)
-    elif isinstance(modules, Iterable):
-        pixels = np.concatenate([np.arange(i * 1280, (i + 1) * 1280) for i in modules])
-    else:
-        raise TypeError("Must be int or iterable of ints")
-
-    return pixels
 
 
 class ModuleConversion(BaseModel):

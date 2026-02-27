@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
@@ -171,3 +172,14 @@ def read_config(mythen3_config_filepath: str | Path) -> list[int]:
     ]
 
     return enabled_modules
+
+
+def modules_to_pixels(modules: int | Iterable[int]):
+    if isinstance(modules, int):
+        pixels = slice(modules * 1280, (modules + 1) * 1280, None)
+    elif isinstance(modules, Iterable):
+        pixels = np.concatenate([np.arange(i * 1280, (i + 1) * 1280) for i in modules])
+    else:
+        raise TypeError("Must be int or iterable of ints")
+
+    return pixels
