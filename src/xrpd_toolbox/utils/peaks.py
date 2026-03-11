@@ -75,7 +75,7 @@ def fit_peaks(
                 fitted_peaks.append(Peak(centre=np.nan, amplitude=np.nan, fwhm=np.nan))
                 continue
 
-            popt, _ = curve_fit(gaussian, x_fit, y_fit, p0=p0, maxfev=10000)
+            popt, _ = curve_fit(gaussian, x_fit, y_fit, p0=p0, maxfev=10000)  # type: ignore
             fitted_peaks.append(Peak(centre=popt[0], amplitude=popt[1], fwhm=popt[2]))
 
         except RuntimeError:
@@ -92,7 +92,7 @@ def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[Peak]:
     )  # smooth the data to reduce noise
 
     threshold = np.amax(y_smoothed) / 20
-    indexes = peakutils.indexes(y_smoothed, thres=threshold, min_dist=30)
+    indexes = peakutils.indexes(y_smoothed, thres=threshold, min_dist=30)  # type: ignore
 
     initial_x_pos = x[indexes]
     fitted_peaks = fit_peaks(x, y_smoothed, initial_x_pos=initial_x_pos)
