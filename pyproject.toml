@@ -26,8 +26,11 @@ dependencies = [
     "toml",
     "PyQt6",
     # "PyQt5",
+    "spglib",
+    "pymatgen",
     "Dans_Diffraction",
     "stomp.py",
+    "numba",
     "gql",
     "ipywidgets",
 

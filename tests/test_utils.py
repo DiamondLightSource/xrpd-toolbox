@@ -3,8 +3,8 @@ import os
 import numpy as np
 import scipy.integrate as integrate
 
-from xrpd_toolbox.utils.energy import beam_energy_to_wavelength, tth_to_q
 from xrpd_toolbox.utils.peaks import find_and_fit_peaks, gaussian
+from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength, two_theta_to_q
 from xrpd_toolbox.utils.utils import (
     get_filenumber_from_nxs,
     get_folder_paths,
@@ -47,7 +47,7 @@ def test_gaussian():
 
 def test_tth_to_q():
     tth = 30
-    q_in_angstrom = tth_to_q(tth, 1)
+    q_in_angstrom = two_theta_to_q(tth, 1)
     assert np.round(q_in_angstrom, 2) == 3.25
 
 

@@ -181,7 +181,10 @@ def copy_datapath_to_nexus(
         src.copy(source_path, dst, destination_path)
 
 
-def normalise_to(data: Iterable[float | int], minval: float | int = 0) -> np.ndarray:
+def normalise_to(
+    data: Iterable[float | int],
+    minval: float | int = 0,
+) -> np.ndarray:
     """
     normalises an array
     minval is  the minimum value that the

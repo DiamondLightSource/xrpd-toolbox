@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.peaks import closest_indices, fit_peaks
+from xrpd_toolbox.utils.profile_calculation import Structure
 from xrpd_toolbox.utils.settings import SettingsBase
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
@@ -657,13 +658,22 @@ class MythenDetector:
         )
 
         if calibrant is not None:
-            si_tth = get_calibrant_peaks("Si", 0.828783)
+            # si_tth = get_calibrant_peaks("Si", 0.828783)
+
+            si = Structure.load_from_cif("/workspaces/XRPD-Toolbox/cifs/si.cif")
+            si_tth, _ = si.calculate_peaks(0.828783)
+
+            minpeak, maxpeak = np.amin(tth), np.amax(tth)
+
+            indices = np.where((si_tth >= minpeak) & (si_tth <= maxpeak))[0]
+            si_tth = si_tth[indices]
+
             indx = closest_indices(si_tth, tth)
             peak_heights = counts[indx]
-            plt.scatter(si_tth, peak_heights, color="red")
+            plt.scatter(si_tth, peak_heights, label="calibrant positions", color="red")
 
-        plt.errorbar(tth, counts, error, label=self.settings.error_calc)
-        plt.legend()
+        plt.errorbar(tth, counts, error, label="data")
+        plt.legend(ncols=2)
         plt.xlabel("tth")
         plt.ylabel("Intensity (arb. units)")
 
@@ -678,7 +688,10 @@ class MythenDetector:
     def plot_diffraction_by_mod(self, filepath: str | Path | None = None):
         plt.figure(figsize=(10, 7))
 
+        print(self.good_modules)
+
         for module in self.good_modules:
+            print(module)
             sort_index = np.argsort(self.modules[module].tth)
             tth = (self.modules[module].tth)[sort_index]
             counts = (self.modules[module].counts)[sort_index]
@@ -688,15 +701,15 @@ class MythenDetector:
                 counts,
                 label=str(self.modules[module].module_id),
             )
-            plt.text(
-                np.mean(tth),
-                np.amin(counts),
-                str(self.modules[module].module_id),
-            )  # type: ignore
+            # plt.text(
+            #     np.mean(tth),
+            #     np.amin(counts),
+            #     str(self.modules[module].module_id),
+            # )  # type: ignore
 
         plt.xlabel("tth")
         plt.ylabel("Intensity (arb. units)")
-        plt.legend()
+        plt.legend(ncols=2)
 
         if filepath:
             plt.savefig(filepath)
@@ -771,7 +784,7 @@ if __name__ == "__main__":
     ANG_CAL = "/host-home/projects/outputs/mythen_calibration/processed/ang_cal_020426_cen_639.5_leastsq_[11, 17, 27]_new.json"  # noqa
 
     settings = MythenSettings.load_from_toml(CONFIG_FILE)
-    settings.bad_modules = list(range(27))
+    # settings.bad_modules = list(range(27))
     print("Loaded settings:", settings)
 
     # print(DATA_FILE)
@@ -787,6 +800,20 @@ if __name__ == "__main__":
 
     # DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1414223.nxs"
     DATA_FILE = "/host-home/projects/outputs/angular_calibration/1410289.nxs"
+
+    mythen3 = MythenDetector(
+        filepath=DATA_FILE,
+        settings=settings,
+        angular_calibration=angular_calibration,
+    )
+
+    tth, counts, error = mythen3.plot_diffraction(
+        filepath="/host-home/projects/outputs/diff.png", calibrant=None
+    )
+
+    mythen3.plot_diffraction_by_mod()
+
+    quit()
 
     active_modules = list(range(28))
 
