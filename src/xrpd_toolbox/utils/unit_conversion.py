@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from typing import Literal
 
 import numpy as np
+from numba import njit
 
 # constants
 ev_to_j = 1.602176634e-19  # electron volt to joule factor
@@ -96,6 +97,11 @@ def d_to_two_theta(
     return two_theta
 
 
+@njit()
+def q_space_to_theta(q: np.ndarray | float | int, wavelength: int | float):
+    return np.arcsin(q * wavelength / (4 * np.pi))
+
+
 def q_space_to_d(q: np.ndarray | float | int):
     return 2 * np.pi / q
 
@@ -119,3 +125,9 @@ def d_to_tof(d: float | np.ndarray, difa: float, difc: float, tzero: float = 0.0
     tof = difc * d + difa * d**2 + tzero
 
     return tof
+
+
+@njit()
+def q_space_to_s(q: np.ndarray) -> np.ndarray:
+    s = q / (4 * np.pi)
+    return s

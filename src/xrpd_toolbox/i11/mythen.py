@@ -15,11 +15,11 @@ import numpy as np
 from h5py import Dataset, File
 from pydantic import BaseModel, Field
 
+from xrpd_toolbox.utils.core import XRPDBaseModel
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
-from xrpd_toolbox.utils.peaks import closest_indices, fit_peaks
+from xrpd_toolbox.utils.peaks import fit_peaks
 from xrpd_toolbox.utils.profile_calculation import Structure
-from xrpd_toolbox.utils.settings import SettingsBase
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
     get_calibrant_peaks,
@@ -68,7 +68,7 @@ class ModuleConversion(BaseModel):
         return raw_tth
 
 
-class AngularCalibration(SettingsBase):
+class AngularCalibration(XRPDBaseModel):
     beamline_offset: float | int
     module_0: ModuleConversion
     module_1: ModuleConversion
@@ -100,7 +100,7 @@ class AngularCalibration(SettingsBase):
     module_27: ModuleConversion
 
 
-class MythenSettings(SettingsBase):
+class MythenSettings(XRPDBaseModel):
     active_modules: list[int] = list(range(MODULES_IN_DETECTOR))
     bad_modules: list[int] = []
     bad_channel_masking: bool = True
@@ -651,6 +651,8 @@ class MythenDetector:
     ):
         plt.figure(figsize=(10, 7))
 
+        zero_offset = -0.01
+
         tth, counts, error = self.generate_binned_xye(
             masked=self.settings.bad_channel_masking,
             rebin_step=self.settings.rebin_step,
@@ -661,16 +663,25 @@ class MythenDetector:
             # si_tth = get_calibrant_peaks("Si", 0.828783)
 
             si = Structure.load_from_cif("/workspaces/XRPD-Toolbox/cifs/si.cif")
-            si_tth, _ = si.calculate_peaks(0.828783)
+            _, _, si_tth, si_intensity = si.calculate_peaks(0.828783)
 
-            minpeak, maxpeak = np.amin(tth), np.amax(tth)
+            background = np.amin(counts)
 
-            indices = np.where((si_tth >= minpeak) & (si_tth <= maxpeak))[0]
-            si_tth = si_tth[indices]
+            phase_scale = (np.amax(counts) - background) / np.amax(si_intensity)
 
-            indx = closest_indices(si_tth, tth)
-            peak_heights = counts[indx]
-            plt.scatter(si_tth, peak_heights, label="calibrant positions", color="red")
+            print(phase_scale)
+
+            for t, i in zip(si_tth, si_intensity, strict=True):
+                print(t, i)
+
+            si_intensity = phase_scale * si_intensity + background
+
+            plt.scatter(
+                si_tth + zero_offset,
+                si_intensity,
+                label="calibrant positions",
+                color="red",
+            )
 
         plt.errorbar(tth, counts, error, label="data")
         plt.legend(ncols=2)
@@ -808,10 +819,10 @@ if __name__ == "__main__":
     )
 
     tth, counts, error = mythen3.plot_diffraction(
-        filepath="/host-home/projects/outputs/diff.png", calibrant=None
+        filepath="/host-home/projects/outputs/diff.png", calibrant="Si"
     )
 
-    mythen3.plot_diffraction_by_mod()
+    # mythen3.plot_diffraction_by_mod()
 
     quit()
 

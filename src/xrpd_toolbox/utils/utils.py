@@ -2,9 +2,11 @@ import json
 import os
 import re
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
+from time import time
 
 import h5py
 import numpy as np
@@ -14,7 +16,7 @@ from scipy.interpolate import interp1d
 
 
 class AnalysisLogger:
-    def __init__(self, log_filepath, logging=False):
+    def __init__(self, log_filepath: str | Path, logging: bool = False):
         self.log_filepath = log_filepath
         self.logging = logging
 
@@ -43,8 +45,8 @@ class AnalysisLogger:
 
 
 class NexusDatasetMapper:
-    def __init__(self, filepath):
-        self.filepath = filepath
+    def __init__(self, filepath: str | Path):
+        self.filepath = str(filepath)
         self._mapping = defaultdict(list)
         self._build_mapping()
 
@@ -434,3 +436,49 @@ def rebin_together(x1, y1, x2, y2, num_points=None):
     y2_interp = f2(x_common)
 
     return x_common, y1_interp, y2_interp
+
+
+def timeit(f):
+    """use this as a decorator to time a function"""
+
+    @wraps(f)
+    def wrap(*args, **kw):
+        ts = time()
+        result = f(*args, **kw)
+        te = time()
+        duration = te - ts
+        print(f"{f.__name__} took {duration} seconds")
+        return result
+
+    return wrap
+
+
+def parse_numbers_with_error(
+    data: Sequence[str] | str | np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Takes a str or list of str in the format 1.234(5)
+    and returns two arrays: one with the numbers and one with the errors.
+    ie 1.234(5) -> 1.234, 0.005"""
+
+    arr = np.atleast_1d(np.array(data, dtype=str))
+    arr = np.char.replace(arr, " ", "")
+
+    # Split number and optional error
+    num_str = np.char.partition(arr, "(")[:, 0]
+    err_str = np.char.strip(np.char.partition(arr, "(")[:, 2], ")")
+    err_str[err_str == ""] = "0"
+
+    numbers = num_str.astype(float)
+
+    # Compute decimal places safely as float
+    decimals = np.where(
+        np.char.find(num_str, ".") == -1,
+        0,
+        np.char.str_len(num_str) - np.char.find(num_str, ".") - 1,
+    )
+    errors = err_str.astype(float) * 10.0 ** (-decimals.astype(float))
+
+    if isinstance(data, str):
+        return numbers[0], errors[0]
+    else:
+        return numbers, errors

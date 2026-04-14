@@ -17,7 +17,7 @@ from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
-from xrpd_toolbox.utils.settings import SettingsBase
+from xrpd_toolbox.utils.settings import XRPDBaseModel
 from xrpd_toolbox.utils.utils import (
     get_entry,
     h5_to_array,
@@ -43,7 +43,7 @@ def calibrate_single_geometry_from_rings(
     return geometry
 
 
-class EigerSettings(SettingsBase):
+class EigerSettings(XRPDBaseModel):
     bad_channels_filepath: str | Path = "/dls_sw/i15-1/software/bad_channel_mask.hdf5"
     bad_channel_masking: bool = True
     flatfield_filepath: str | Path | None = None

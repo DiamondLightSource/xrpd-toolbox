@@ -1,30 +1,43 @@
 import math
+from abc import abstractmethod
 from collections.abc import Collection
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import numpy as np
 import peakutils
-from pydantic import BaseModel, Field, model_validator
+from numba import njit
+from pydantic import Field
 from scipy.optimize import curve_fit
 from scipy.special import erf
 
+from xrpd_toolbox.utils.settings import XRPDBaseModel
 
+IMPLEMENTED_PEAK_FUNCTONS: TypeAlias = Literal[
+    "gaussian", "lorentzian", "pseudo_voigt", "tophat"
+]
+
+
+@njit()
 def gaussian_sigma_to_fwhm(sigma: float | int) -> float:
     return float(sigma) * 2 * np.sqrt(2 * np.log(2))
 
 
+@njit()
 def gaussian_fwhm_to_sigma(fwhm: float | int) -> float:
     return float(fwhm) / (2 * np.sqrt(2 * np.log(2)))
 
 
+@njit()
 def lorentzian_gamma_to_fwhm(gamma: float | int) -> float:
     return 2 * float(gamma)
 
 
+@njit()
 def lorentzian_fwhm_to_gamma(fwhm: float | int) -> float:
     return float(fwhm) / 2
 
 
+@njit()
 def gaussian(
     x: np.ndarray,
     amplitude: float | int,
@@ -70,6 +83,7 @@ def gaussian(
     return prefactor * np.exp(-((x - centre) ** 2) / (2 * sigma**2)) + background
 
 
+@njit()
 def lorentzian(
     x: np.ndarray,
     amplitude: float | int,
@@ -90,6 +104,7 @@ def lorentzian(
     return prefactor * core + background
 
 
+@njit()
 def pseudo_voigt(
     x: np.ndarray,
     amplitude: float | int,
@@ -150,7 +165,9 @@ def pseudo_voigt(
         normalised=normalised,
     )
 
-    return amplitude * (eta * lorentz + (1 - eta) * gauss) + background
+    pv = eta * lorentz + (1.0 - eta) * gauss
+    pv = pv + background
+    return pv
 
 
 def smooth_tophat(
@@ -158,7 +175,7 @@ def smooth_tophat(
     amplitude: float | int,
     centre: float | int,
     fwhm: float | int,
-    eta: float | int,
+    epsilon: float | int,
     background: float | int | np.ndarray = 0,
     normalised: bool = True,
 ):
@@ -173,12 +190,12 @@ def smooth_tophat(
         Centre of the plateau
     fwhm : float
         Width of the plateau
-    eta : float
+    epsilon : float
         Edge smoothing parameter (0–1)
     """
 
-    # map eta → sigma (smoothing width)
-    sigma = max(eta * fwhm / 2, 1e-12)
+    # map epsilon - sigma (smoothing width)
+    sigma = max(epsilon * fwhm / 2, 1e-12)
 
     half_width = fwhm / 2
 
@@ -210,85 +227,77 @@ def closest_indices(arr1, arr2):
     return idx
 
 
-class Peak(BaseModel):
+class BasePeak(XRPDBaseModel):
     amplitude: float | int = Field(gt=0)
     centre: float | int
-    fwhm: float | int = Field(gt=0)
-
-    peak_type: Literal["gaussian", "lorentzian", "pseudo-voigt", "top-hat"] = "gaussian"
-
-    eta: float | int | None = None  # used for pseudo-voigt/tophat - mixing param
-
+    fwhm: float | int = Field(gt=0, default=0.1)
     background: float | int = 0
     normalised: bool = True  # if normalised the
-    # integral under peak is equal to amplitude. ie number of counts in peak
 
-    @model_validator(mode="after")
-    def validate_parameters(self):
-        # Allow NaNs to bypass strict validation
+    @abstractmethod
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        NotImplementedError("Must implement calculate method in peak subclass")
 
-        if self.peak_type in ["pseudo-voigt", "top-hat"]:
-            if self.eta is None:
-                raise ValueError("eta must be provided for pseudo-voigt")
-            if not (0 <= self.eta <= 1):
-                raise ValueError("eta must be between 0 and 1")
-        else:
-            if self.eta is not None:
-                raise ValueError("eta should only be set for pseudo-voigt")
 
-        return self
+class GaussianPeak(BasePeak):
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return gaussian(x, self.amplitude, self.centre, self.fwhm)
+
+
+class LorentzianPeak(BasePeak):
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return lorentzian(x, self.amplitude, self.centre, self.fwhm)
+
+
+class PseudoVoigtPeak(BasePeak):
+    eta: float | int = Field(
+        ge=0, le=1, default=0.5
+    )  # used for pseudo-voigt - mixing param
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
-        if self.peak_type == "gaussian":
-            return gaussian(
-                x=x,
-                amplitude=self.amplitude,
-                centre=self.centre,
-                fwhm=self.fwhm,
-                background=self.background,
-                normalised=self.normalised,
-            )
-        elif self.peak_type == "lorentzian":
-            return lorentzian(
-                x=x,
-                amplitude=self.amplitude,
-                centre=self.centre,
-                fwhm=self.fwhm,
-                background=self.background,
-                normalised=self.normalised,
-            )
-        elif self.peak_type == "pseudo-voigt":
-            assert self.eta is not None
+        return pseudo_voigt(
+            x,
+            self.amplitude,
+            self.centre,
+            self.fwhm,
+            self.eta,
+        )
 
-            return pseudo_voigt(
-                x=x,
-                amplitude=self.amplitude,
-                centre=self.centre,
-                fwhm=self.fwhm,
-                eta=self.eta,
-                background=self.background,
-                normalised=self.normalised,
+
+class TopHatPeak(BasePeak):
+    epsilon: float | int = Field(ge=0, le=1, default=0)  # used for tophat - smoothing
+
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return smooth_tophat(
+            x,
+            self.amplitude,
+            self.centre,
+            self.fwhm,
+            self.epsilon,
+        )
+
+
+def peak_factory(peak_type: str):
+    match peak_type:
+        case "gaussian":
+            return GaussianPeak
+        case "lorentzian":
+            return LorentzianPeak
+        case "pseudo_voigt":
+            return PseudoVoigtPeak
+        case "tophat":
+            return TopHatPeak
+        case _:
+            raise ValueError(
+                f"peak_type must be one of the following {IMPLEMENTED_PEAK_FUNCTONS}"
             )
-        elif self.peak_type == "top-hat":
-            assert self.eta is not None
-            return smooth_tophat(
-                x=x,
-                amplitude=self.amplitude,
-                centre=self.centre,
-                fwhm=self.fwhm,
-                eta=self.eta,
-                background=self.background,
-                normalised=self.normalised,
-            )
-        else:
-            raise ValueError(f"{self.peak_type} is not an allowed peak type")
 
 
 def caglioti_fwhm(
     two_theta: np.ndarray | float,
-    u,
-    v: float,
-    w: float,
+    u: float | int,
+    v: float | int,
+    w: float | int,
 ) -> np.ndarray | float:
     """
     Compute FWHM using the Caglioti function.
@@ -388,7 +397,7 @@ def estimate_fwhm(
 
 def fit_peaks(
     x: np.ndarray, y: np.ndarray, initial_x_pos: Collection[int | float]
-) -> list[Peak]:
+) -> list[BasePeak]:
     fitted_peaks = []
 
     for x_guess in initial_x_pos:
@@ -413,23 +422,25 @@ def fit_peaks(
 
             if len(y_fit) == 0:
                 fitted_peaks.append(
-                    Peak(amplitude=math.nan, centre=math.nan, fwhm=math.nan)
+                    GaussianPeak(amplitude=math.nan, centre=math.nan, fwhm=math.nan)
                 )
                 continue
 
             popt, _ = curve_fit(gaussian, x_fit, y_fit, p0=p0, maxfev=10000)  # type: ignore
 
-            fitted_peaks.append(Peak(amplitude=popt[0], centre=popt[1], fwhm=popt[2]))
+            fitted_peaks.append(
+                GaussianPeak(amplitude=popt[0], centre=popt[1], fwhm=popt[2])
+            )
 
         except RuntimeError:
             fitted_peaks.append(
-                Peak(amplitude=math.nan, centre=math.nan, fwhm=math.nan)
+                GaussianPeak(amplitude=math.nan, centre=math.nan, fwhm=math.nan)
             )
 
     return fitted_peaks
 
 
-def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[Peak]:
+def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[BasePeak]:
     """function to get the centre peaks given without guessing"""
 
     y_smoothed = np.convolve(
@@ -443,3 +454,7 @@ def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[Peak]:
     fitted_peaks = fit_peaks(x, y_smoothed, initial_x_pos=initial_x_pos)
 
     return fitted_peaks
+
+
+if __name__ == "__main__":
+    pass

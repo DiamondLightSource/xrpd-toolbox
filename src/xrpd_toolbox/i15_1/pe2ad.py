@@ -72,7 +72,7 @@ class PE2AD(BaseDataLoader):
             print(peak)
             plt.plot(indices, peak.calculate(indices))
 
-            tophat = smooth_tophat(indices, peak.amplitude, peak.centre, peak.fwhm, 0.5)
+            tophat = smooth_tophat(indices, peak.amplitude, peak.centre, peak.fwhm, 0.1)
 
             plt.plot(indices, tophat)
 
