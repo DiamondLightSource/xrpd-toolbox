@@ -15,11 +15,11 @@ import numpy as np
 from h5py import Dataset, File
 from pydantic import BaseModel, Field
 
-from xrpd_toolbox.utils.core import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.fit_engine.peaks import fit_peaks
+from xrpd_toolbox.fit_engine.profile_calculation import Structure
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
-from xrpd_toolbox.utils.peaks import fit_peaks
-from xrpd_toolbox.utils.profile_calculation import Structure
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
     get_calibrant_peaks,
