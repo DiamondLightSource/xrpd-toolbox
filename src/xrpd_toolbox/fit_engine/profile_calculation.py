@@ -831,31 +831,12 @@ class Structure(XRPDBaseModel):
 
         shifts = np.array(
             [
-                [-1, -1, -1],
-                [-1, -1, 0],
-                [-1, -1, 1],
-                [-1, 0, -1],
-                [-1, 0, 0],
-                [-1, 0, 1],
-                [-1, 1, -1],
-                [-1, 1, 0],
-                [-1, 1, 1],
-                [0, -1, -1],
-                [0, -1, 0],
-                [0, -1, 1],
-                [0, 0, -1],
                 [0, 0, 0],
                 [0, 0, 1],
-                [0, 1, -1],
                 [0, 1, 0],
                 [0, 1, 1],
-                [1, -1, -1],
-                [1, -1, 0],
-                [1, -1, 1],
-                [1, 0, -1],
                 [1, 0, 0],
                 [1, 0, 1],
-                [1, 1, -1],
                 [1, 1, 0],
                 [1, 1, 1],
             ],
@@ -1338,6 +1319,7 @@ if __name__ == "__main__":
     radiation = Radiation(radiation="xray", energy=beam_energy)
 
     si_structure = Structure.load_from_cif(cif_filepath)
+    si_structure.plot_unit_cell()
 
     print(si_structure.model_dump_json())
 
@@ -1360,8 +1342,6 @@ if __name__ == "__main__":
     # print(data.model_dump_json())
 
     peaks = si_structure.to_peaks(wavelength=wavelength)
-
-    # si_structure.plot_unit_cell()
 
     profile = CalculatedProfile(
         x=data.x, peaks=peaks, background=background, phase_scale=1000
