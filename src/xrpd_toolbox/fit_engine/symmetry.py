@@ -6,8 +6,8 @@ from pathlib import Path
 import numpy as np
 from yaml import safe_load
 
-from xrpd_toolbox.utils.constants import get_spacegroup_symbol
-from xrpd_toolbox.utils.core import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.fit_engine.constants import get_spacegroup_symbol
 
 _FRAC_RE = re.compile(r"([+-]?\d+)/(\d+)")
 
