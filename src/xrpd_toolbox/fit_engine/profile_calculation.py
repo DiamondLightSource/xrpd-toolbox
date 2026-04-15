@@ -10,16 +10,16 @@ from CifFile import ReadCif
 from numba import njit, prange
 from pydantic import model_validator
 
-from xrpd_toolbox.utils.atom import Atoms
-from xrpd_toolbox.utils.background import Background
-from xrpd_toolbox.utils.constants import (
+from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.fit_engine.atom import Atoms
+from xrpd_toolbox.fit_engine.background import Background
+from xrpd_toolbox.fit_engine.constants import (
     ELEMENT_ATOMIC_NUMBER,
 )
-from xrpd_toolbox.utils.core import XRPDBaseModel
-from xrpd_toolbox.utils.form_factors import X_RAY_FORM_FACTORS
-from xrpd_toolbox.utils.lattice import Lattice
-from xrpd_toolbox.utils.peaks import BasePeak, peak_factory
-from xrpd_toolbox.utils.symmetry import (
+from xrpd_toolbox.fit_engine.form_factors import X_RAY_FORM_FACTORS
+from xrpd_toolbox.fit_engine.lattice import Lattice
+from xrpd_toolbox.fit_engine.peaks import BasePeak, peak_factory
+from xrpd_toolbox.fit_engine.symmetry import (
     SpaceGroup,
     format_space_group_name,
     get_symmetry_tables,
