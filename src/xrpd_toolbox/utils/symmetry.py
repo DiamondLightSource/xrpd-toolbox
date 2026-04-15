@@ -7,7 +7,7 @@ import numpy as np
 from yaml import safe_load
 
 from xrpd_toolbox.utils.constants import get_spacegroup_symbol
-from xrpd_toolbox.utils.settings import XRPDBaseModel
+from xrpd_toolbox.utils.core import XRPDBaseModel
 
 _FRAC_RE = re.compile(r"([+-]?\d+)/(\d+)")
 

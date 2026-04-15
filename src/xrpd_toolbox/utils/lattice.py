@@ -1,6 +1,6 @@
 import numpy as np
 
-from xrpd_toolbox.utils.settings import XRPDBaseModel
+from xrpd_toolbox.utils.core import XRPDBaseModel
 
 
 class Lattice(XRPDBaseModel):
