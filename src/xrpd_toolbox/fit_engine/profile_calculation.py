@@ -61,6 +61,20 @@ def b_iso_to_u_iso(b_iso: np.ndarray) -> np.ndarray:
     return b_iso / (8 * np.pi**2)
 
 
+def calculate_chi_squared(
+    ycalc: np.ndarray, yobs: np.ndarray, y_err: np.ndarray | None
+):
+    if y_err is not None:
+        wi = 1 / (y_err**2)
+    else:
+        wi = 1 / ycalc
+
+    residual = wi * ((yobs - ycalc) ** 2)
+    chi_squared = np.sum(residual)
+
+    return chi_squared
+
+
 def merge_peaks(
     two_theta, intensity, hkl, tol=1e-5
 ) -> tuple[np.ndarray, np.ndarray, list]:
@@ -868,19 +882,10 @@ class Structure(XRPDBaseModel):
         for el, pos in zip(elements, positions, strict=True):
             print(f"{el}: {pos}")
 
-        # ----------------------------
-        # Coordinate transform
-        # ----------------------------
-        # if cartesian:
-        #     coords = positions @ self.lattice.matrix.T
-        #     xlabel, ylabel, zlabel = "x (Å)", "y (Å)", "z (Å)"
-        # else:
         coords = positions
         xlabel, ylabel, zlabel = "a", "b", "c"
 
-        # ----------------------------
         # Colors
-        # ----------------------------
         unique_elements = np.unique(elements)
         cmap = plt.cm.get_cmap("tab10", len(unique_elements))
 
@@ -888,14 +893,10 @@ class Structure(XRPDBaseModel):
 
         colors = np.array([element_to_color[el] for el in elements])
 
-        # ----------------------------
         # Sizes
-        # ----------------------------
         sizes = 100 * np.array([ELEMENT_ATOMIC_NUMBER[el] for el in elements])
 
-        # ----------------------------
         # Plot
-        # ----------------------------
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         ax.set_aspect("equal")
@@ -911,9 +912,7 @@ class Structure(XRPDBaseModel):
             # label=unique_elements,
         )
 
-        # ----------------------------
         # Formatting
-        # ----------------------------
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_zlabel(zlabel)
@@ -1021,17 +1020,6 @@ def read_cif(cif_filepath: str | Path, block_number: int = 0) -> tuple:
         "b_iso": b_iso,
         "occupancies": occupancies,
     }
-
-    # atoms = [
-    #     Atom(
-    #         label=atom_labels[i],
-    #         element=elements[i],
-    #         xyz=np.array([x[i], y[i], z[i]], dtype=float),
-    #         b_iso=float(b_iso[i]),
-    #         occupancy=float(occupancies[i]),
-    #     )
-    #     for i in range(len(x))
-    # ]
 
     a, a_e = parse_numbers_with_error(block["_cell_length_a"])
     b, b_e = parse_numbers_with_error(block["_cell_length_b"])
@@ -1230,8 +1218,6 @@ class ScatteringData(XYEData):
 
 
 ##### more complex pydantic models to do whole profiles
-
-
 class CalculatedProfile(XRPDBaseModel):
     x: np.ndarray
     peaks: Collection[BasePeak]
@@ -1271,6 +1257,7 @@ class CalculatedProfile(XRPDBaseModel):
 class ProfileRefinement(XRPDBaseModel):
     data: ScatteringData  # | list[ScatteringData]
     refinement: Literal["Pawley", "Rietveld"] = "Pawley"
+    background: np.ndarray | float | int | Background = 0
     structure: Structure | Collection[Structure] | None = None
 
     """How can we divide down a reitveld refinement -
@@ -1298,33 +1285,29 @@ class ProfileRefinement(XRPDBaseModel):
             else:
                 raise Exception("Unknown structure")
 
-    def residual(self):
+    def chi_squared(self):
+        # http://pd.chem.ucl.ac.uk/pdnn/refine1/practice.htm
+
         peaks = self.calculate_peaks()
+
         assert peaks is not None
         hkl, f_abs, two_theta_degrees, intensity = peaks
-        residual = np.sum((self.data.y - intensity) ** 2)
-        return residual
+
+        return calculate_chi_squared(intensity, self.data.y, self.data.e)
 
 
 if __name__ == "__main__":
     cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
-    two_theta_degrees = np.linspace(2, 150, 10000)
-
-    # # elements = ["Si", "H", "O"]
-    # # plot_form_factors(elements)
+    si_structure = Structure.load_from_cif(cif_filepath)
+    si_structure.plot_unit_cell()
+    print(si_structure)
 
     beam_energy = 15
     wavelength = beam_energy_to_wavelength(beam_energy)
-
     radiation = Radiation(radiation="xray", energy=beam_energy)
 
-    si_structure = Structure.load_from_cif(cif_filepath)
-    si_structure.plot_unit_cell()
-
-    print(si_structure.model_dump_json())
-
     data = ScatteringData.from_xye(
-        "/workspaces/outputs/step_scan/1414223.nxs_summed_mythen3.xye",
+        "/workspaces/outputs/1429744_summed_mythen3.xye",
         x_unit="tth",
         data_type="xray",
         wavelength=wavelength,
@@ -1336,8 +1319,8 @@ if __name__ == "__main__":
 
     background = ChebyshevBackground.estimate(data.x, data.y)
 
-    # data.plot(False)
-    # background.plot()
+    data.plot(False)
+    background.plot()
 
     # print(data.model_dump_json())
 

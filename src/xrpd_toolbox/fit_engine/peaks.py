@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from abc import abstractmethod
 from collections.abc import Collection
@@ -227,56 +229,6 @@ def closest_indices(arr1, arr2):
     return idx
 
 
-class BasePeak(XRPDBaseModel):
-    amplitude: float | int = Field(gt=0)
-    centre: float | int
-    fwhm: float | int = Field(gt=0, default=0.1)
-    background: float | int = 0
-    normalised: bool = True  # if normalised the
-
-    @abstractmethod
-    def calculate(self, x: np.ndarray) -> np.ndarray:
-        NotImplementedError("Must implement calculate method in peak subclass")
-
-
-class GaussianPeak(BasePeak):
-    def calculate(self, x: np.ndarray) -> np.ndarray:
-        return gaussian(x, self.amplitude, self.centre, self.fwhm)
-
-
-class LorentzianPeak(BasePeak):
-    def calculate(self, x: np.ndarray) -> np.ndarray:
-        return lorentzian(x, self.amplitude, self.centre, self.fwhm)
-
-
-class PseudoVoigtPeak(BasePeak):
-    eta: float | int = Field(
-        ge=0, le=1, default=0.5
-    )  # used for pseudo-voigt - mixing param
-
-    def calculate(self, x: np.ndarray) -> np.ndarray:
-        return pseudo_voigt(
-            x,
-            self.amplitude,
-            self.centre,
-            self.fwhm,
-            self.eta,
-        )
-
-
-class TopHatPeak(BasePeak):
-    epsilon: float | int = Field(ge=0, le=1, default=0)  # used for tophat - smoothing
-
-    def calculate(self, x: np.ndarray) -> np.ndarray:
-        return smooth_tophat(
-            x,
-            self.amplitude,
-            self.centre,
-            self.fwhm,
-            self.epsilon,
-        )
-
-
 def peak_factory(peak_type: str):
     match peak_type:
         case "gaussian":
@@ -454,6 +406,62 @@ def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[BasePeak]:
     fitted_peaks = fit_peaks(x, y_smoothed, initial_x_pos=initial_x_pos)
 
     return fitted_peaks
+
+
+class BasePeak(XRPDBaseModel):
+    amplitude: float | int = Field(gt=0)
+    centre: float | int
+    fwhm: float | int = Field(gt=0, default=0.1)
+    background: float | int = 0
+    normalised: bool = True  # if normalised the
+
+    @abstractmethod
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        NotImplementedError("Must implement calculate method in peak subclass")
+
+
+class GaussianPeak(BasePeak):
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return gaussian(x, self.amplitude, self.centre, self.fwhm)
+
+
+class LorentzianPeak(BasePeak):
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return lorentzian(x, self.amplitude, self.centre, self.fwhm)
+
+
+class PseudoVoigtPeak(BasePeak):
+    eta: float | int = Field(
+        ge=0, le=1, default=0.5
+    )  # used for pseudo-voigt - mixing param
+
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return pseudo_voigt(
+            x,
+            self.amplitude,
+            self.centre,
+            self.fwhm,
+            self.eta,
+        )
+
+
+class TopHatPeak(BasePeak):
+    epsilon: float | int = Field(ge=0, le=1, default=0)  # used for tophat - smoothing
+
+    def calculate(self, x: np.ndarray) -> np.ndarray:
+        return smooth_tophat(
+            x,
+            self.amplitude,
+            self.centre,
+            self.fwhm,
+            self.epsilon,
+        )
+
+
+class PeakShapeFunction(XRPDBaseModel):
+    @abstractmethod
+    def calculate(self):
+        pass
 
 
 if __name__ == "__main__":

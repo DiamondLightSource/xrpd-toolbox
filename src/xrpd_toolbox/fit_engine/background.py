@@ -32,13 +32,13 @@ class Background(XRPDBaseModel):
         if isinstance(other, "Background"):
             other = other.calculate()
 
-        return np.asarray(other) + self.calculate(self.x)
+        return self.calculate(self.x) + np.asarray(other)
 
     def __radd__(self, other):
         return np.asarray(other) + self.calculate(self.x)
 
-    def __array__(self):
-        return self.calculate()
+    def __array__(self, other):
+        return other + self.calculate()
 
     def plot(self, show: bool = True):
         plt.plot(self.x, self.calculate(), label=f"{type(self).__name__}")
@@ -107,7 +107,7 @@ class ChebyshevBackground(Background):
         y: np.ndarray,
         degree: int = 8,
         mask: bool = True,
-        mask_step: int = 20,
+        mask_step: int = 50,
     ) -> "ChebyshevBackground":
         # this is a very simple estimation method that fits
         # a Chebyshev polynomial to the data

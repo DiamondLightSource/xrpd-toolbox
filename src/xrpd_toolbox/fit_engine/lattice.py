@@ -120,3 +120,7 @@ class CubicLattice(Lattice):
 
     def __init__(self, a: float, **kwargs):
         super().__init__(a=a, b=a, c=a, alpha=90.0, beta=90.0, gamma=90.0)
+
+
+if __name__ == "__main__":
+    pass

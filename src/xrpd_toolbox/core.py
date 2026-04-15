@@ -114,8 +114,6 @@ class Parameter(XRPDBaseModel):
     value: int | float
     refine: bool = True
 
-    __array_priority__ = 1000  # ensures numpy uses this class first
-
     # Conversions
     def __float__(self) -> float:
         return float(self.value)
@@ -174,9 +172,7 @@ class Parameter(XRPDBaseModel):
     def __rpow__(self, other: int | float | Parameter) -> Parameter:
         return Parameter(value=self._get_value(other) ** self.value)
 
-    # ------------------------
     # In-place operations
-    # ------------------------
     def __iadd__(self, other: int | float | Parameter):
         self.value += self._get_value(other)
         return self
@@ -223,6 +219,10 @@ class Parameter(XRPDBaseModel):
 
 
 if __name__ == "__main__":
-    x = Parameter(value=3)
+    import numpy as np
 
-    print(x)
+    x = np.array([1, 1, 1]) + Parameter(value=3)
+
+    g = XRPDBaseModel()
+
+    print(x, g)
