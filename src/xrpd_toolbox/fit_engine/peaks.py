@@ -10,7 +10,7 @@ from pydantic import Field
 from scipy.optimize import curve_fit
 from scipy.special import erf
 
-from xrpd_toolbox.utils.core import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel
 
 IMPLEMENTED_PEAK_FUNCTONS: TypeAlias = Literal[
     "gaussian", "lorentzian", "pseudo_voigt", "tophat"

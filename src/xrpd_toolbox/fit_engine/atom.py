@@ -2,7 +2,7 @@ import numpy as np
 import numpy.typing as npt
 from pydantic import computed_field
 
-from xrpd_toolbox.utils.core import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel
 
 
 class Atom(XRPDBaseModel):

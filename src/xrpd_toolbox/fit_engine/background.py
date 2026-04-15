@@ -3,7 +3,7 @@ from abc import abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from xrpd_toolbox.utils.core import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel
 
 
 class Background(XRPDBaseModel):
