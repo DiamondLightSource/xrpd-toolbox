@@ -1307,7 +1307,8 @@ if __name__ == "__main__":
     radiation = Radiation(radiation="xray", energy=beam_energy)
 
     data = ScatteringData.from_xye(
-        "/workspaces/outputs/1429744_summed_mythen3.xye",
+        "/workspaces/outputs/step_scan/1410696.nxs_summed_mythen3.xye",
+        #  "/workspaces/outputs/1429744_summed_mythen3.xye",
         x_unit="tth",
         data_type="xray",
         wavelength=wavelength,
@@ -1318,6 +1319,10 @@ if __name__ == "__main__":
     )
 
     background = ChebyshevBackground.estimate(data.x, data.y)
+    background.add_coefficient()
+    print(background.coefficients)
+    background.remove_coefficient()
+    print(background.coefficients)
 
     data.plot(False)
     background.plot()

@@ -37,8 +37,8 @@ class Background(XRPDBaseModel):
     def __radd__(self, other):
         return np.asarray(other) + self.calculate(self.x)
 
-    def __array__(self, other):
-        return other + self.calculate()
+    def __array__(self):
+        return self.calculate()
 
     def plot(self, show: bool = True):
         plt.plot(self.x, self.calculate(), label=f"{type(self).__name__}")
@@ -100,6 +100,12 @@ class ChebyshevBackground(Background):
             x = self.x
         return np.polynomial.chebyshev.chebval(x, self.coefficients)
 
+    def add_coefficient(self, new_value: int | float = 0):
+        self.coefficients = np.append(self.coefficients, new_value)
+
+    def remove_coefficient(self):
+        self.coefficients = self.coefficients[0:-1]
+
     @classmethod
     def estimate(
         cls,
@@ -134,21 +140,13 @@ class ChebyshevBackground(Background):
 
 
 class LinearInterpolationBackground(Background):
-    y: np.ndarray
-    indices: np.ndarray
+    x_sample: np.ndarray
+    y_sample: np.ndarray
 
     def calculate(self, x: np.ndarray | None = None) -> np.ndarray:
         if x is None:
             x = self.x
         return np.interp(x, self.x_sample, self.y_sample)
-
-    @property
-    def x_sample(self):
-        return self.x[self.indices]
-
-    @property
-    def y_sample(self):
-        return self.y[self.indices]
 
     @classmethod
     def estimate(
@@ -164,4 +162,7 @@ class LinearInterpolationBackground(Background):
             0, len(x), len(x) // points
         )  # select every mask_step points (20 by default)
 
-        return cls(x=x, y=y, indices=indices)
+        x_sample = x[indices]
+        y_sample = y[indices]
+
+        return cls(x=x, x_sample=x_sample, y_sample=y_sample)
