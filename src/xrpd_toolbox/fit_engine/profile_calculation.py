@@ -1348,7 +1348,7 @@ if __name__ == "__main__":
         wavelength=wavelength,
     )
 
-    from xrpd_toolbox.utils.background import (
+    from xrpd_toolbox.fit_engine.background import (
         ChebyshevBackground,
     )
 
