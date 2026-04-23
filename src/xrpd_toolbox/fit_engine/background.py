@@ -1,26 +1,27 @@
-from abc import abstractmethod
-
 import matplotlib.pyplot as plt
 import numpy as np
 
 from xrpd_toolbox.core import XRPDBaseModel
 
 
+# TODO: Should we store x here too?; it adds a lot of data to the serialisation
 class Background(XRPDBaseModel):
     """This describes the background of a profile"""
 
     x: np.ndarray  # x values to evaluate the background at
 
-    @abstractmethod
     def calculate(self, x: np.ndarray | None = None) -> np.ndarray:
         """Evaluate the background at the given x values"""
-        NotImplementedError("Must implement calculate method in Background subclass")
+        raise NotImplementedError(
+            "Must implement calculate method in Background subclass"
+        )
 
     @classmethod
-    @abstractmethod
     def estimate(cls, x: np.ndarray, y: np.ndarray) -> "Background":
         """Estimate the background from a profile by taking the minimum value of y"""
-        NotImplementedError("Must implement estimate method in Background subclass")
+        raise NotImplementedError(
+            "Must implement estimate method in Background subclass"
+        )
 
     def __call__(self, x: np.ndarray | None = None) -> np.ndarray:
         return self.calculate(x)
@@ -157,6 +158,10 @@ class LinearInterpolationBackground(Background):
     ) -> "LinearInterpolationBackground":
         """simple estimate that takes a number of points equal to points,
         spaced evenly across x"""
+
+        # gradient = np.gradient(y, x)
+        # plt.plot(x, gradient)
+        # plt.show()
 
         indices = np.arange(
             0, len(x), len(x) // points

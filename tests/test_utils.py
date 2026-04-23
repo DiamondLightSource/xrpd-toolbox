@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 import scipy.integrate as integrate
-
 from xrpd_toolbox.utils.peaks import find_and_fit_peaks, gaussian
+
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength, two_theta_to_q
 from xrpd_toolbox.utils.utils import (
     get_filenumber_from_nxs,

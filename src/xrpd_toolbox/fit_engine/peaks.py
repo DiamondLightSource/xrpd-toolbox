@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import abstractmethod
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from typing import Literal, TypeAlias
 
 import numpy as np
@@ -12,7 +12,8 @@ from pydantic import Field
 from scipy.optimize import curve_fit
 from scipy.special import erf
 
-from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.core import Parameter, RefinementBaseModel, XRPDBaseModel
+from xrpd_toolbox.fit_engine.background import Background
 
 IMPLEMENTED_PEAK_FUNCTONS: TypeAlias = Literal[
     "gaussian", "lorentzian", "pseudo_voigt", "tophat"
@@ -408,11 +409,10 @@ def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[BasePeak]:
     return fitted_peaks
 
 
-class BasePeak(XRPDBaseModel):
-    amplitude: float | int = Field(gt=0)
-    centre: float | int
-    fwhm: float | int = Field(gt=0, default=0.1)
-    background: float | int = 0
+class BasePeak(RefinementBaseModel):
+    amplitude: Parameter | float = Field(gt=0)
+    centre: Parameter | float
+    fwhm: Parameter | float = Field(gt=0, default=Parameter(value=0.02))
     normalised: bool = True  # if normalised the
 
     @abstractmethod
@@ -422,39 +422,43 @@ class BasePeak(XRPDBaseModel):
 
 class GaussianPeak(BasePeak):
     def calculate(self, x: np.ndarray) -> np.ndarray:
-        return gaussian(x, self.amplitude, self.centre, self.fwhm)
+        return gaussian(x, float(self.amplitude), float(self.centre), float(self.fwhm))
 
 
 class LorentzianPeak(BasePeak):
     def calculate(self, x: np.ndarray) -> np.ndarray:
-        return lorentzian(x, self.amplitude, self.centre, self.fwhm)
+        return lorentzian(
+            x, float(self.amplitude), float(self.centre), float(self.fwhm)
+        )
 
 
 class PseudoVoigtPeak(BasePeak):
-    eta: float | int = Field(
+    eta: Parameter | float | int = Field(
         ge=0, le=1, default=0.5
     )  # used for pseudo-voigt - mixing param
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
         return pseudo_voigt(
             x,
-            self.amplitude,
-            self.centre,
-            self.fwhm,
-            self.eta,
+            float(self.amplitude),
+            float(self.centre),
+            float(self.fwhm),
+            float(self.eta),
         )
 
 
 class TopHatPeak(BasePeak):
-    epsilon: float | int = Field(ge=0, le=1, default=0)  # used for tophat - smoothing
+    epsilon: Parameter | float | int = Field(
+        ge=0, le=1, default=0
+    )  # used for tophat - smoothing
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
         return smooth_tophat(
             x,
-            self.amplitude,
-            self.centre,
-            self.fwhm,
-            self.epsilon,
+            float(self.amplitude),
+            float(self.centre),
+            float(self.fwhm),
+            float(self.epsilon),
         )
 
 
@@ -464,5 +468,89 @@ class PeakShapeFunction(XRPDBaseModel):
         pass
 
 
+def calculate_profile(
+    x: np.ndarray,
+    peaks: Sequence[BasePeak],
+    background: int | float | np.ndarray | Background = 0,
+    phase_scale: int | float = 1,
+    wdt: int | float = 5,
+):
+    """wdt (range) of calculated profile of a single Bragg reflection in units of FWHM
+    (typically 4 for Gaussian and 20-30 for Lorentzian, 4-5 for TOF).
+
+    peaks: list of class: Peak which contain (cen, amp, fwhm)
+
+    background: scalar or array, if array must be same shape as x
+    """
+
+    if isinstance(background, np.ndarray):
+        assert len(x) == len(background)
+
+    intensity = np.zeros_like(x)
+
+    for peak in peaks:
+        start_idx = np.searchsorted(x, peak.centre - (wdt * peak.fwhm))
+        end_idx = np.searchsorted(x, peak.centre + (wdt * peak.fwhm), side="right")
+
+        xi = x[start_idx:end_idx]
+        peak_intensity = peak.calculate(xi)
+        intensity[start_idx:end_idx] += peak_intensity
+
+    intensity = (intensity * phase_scale) + background
+
+    return intensity
+
+
+@njit(parallel=True)
+def calculate_profile_parallel(
+    x: np.ndarray,
+    peaks: Sequence[BasePeak],
+    background: int | float | np.ndarray | Background = 0,
+    phase_scale: int | float = 1,
+    wdt: int | float = 5,
+):
+    """wdt (range) of calculated profile of a single Bragg reflection in units of FWHM
+    (typically 4 for Gaussian and 20-30 for Lorentzian, 4-5 for TOF).
+
+    peaks: list of class: Peak which contain (cen, amp, fwhm)
+
+    background: scalar or array, if array must be same shape as x
+    """
+
+    raise NotImplementedError("Not implemented well yet")
+
+    if isinstance(background, np.ndarray):
+        assert len(x) == len(background)
+
+    intensity = np.zeros_like(x)
+
+    for peak_index in range(len(peaks)):
+        peak = peaks[peak_index]
+
+        assert peak.background == 0
+
+        start_idx = np.searchsorted(x, peak.centre - (wdt * peak.fwhm))
+        end_idx = np.searchsorted(x, peak.centre + (wdt * peak.fwhm), side="right")
+
+        xi = x[start_idx:end_idx]
+        peak_intensity = peak.calculate(xi)
+
+        intensity[start_idx:end_idx] += peak_intensity
+
+    intensity = (intensity * phase_scale) + background
+
+    return intensity
+
+
 if __name__ == "__main__":
-    pass
+    gauss = PseudoVoigtPeak(amplitude=1, centre=1, fwhm=1)
+
+    print(gauss)
+
+    gauss.refine_none()
+
+    print(gauss)
+
+    gauss.refine_all()
+
+    print(gauss)

@@ -5,20 +5,23 @@ from typing import Literal, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.typing as npt
 from CifFile import ReadCif
-from numba import njit, prange
-from pydantic import model_validator
+from numba import njit
+from pydantic import Field, computed_field, model_validator
+from scipy import optimize
 
-from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.core import Parameter, RefinementBaseModel, XRPDBaseModel
 from xrpd_toolbox.fit_engine.atom import Atoms
 from xrpd_toolbox.fit_engine.background import Background
 from xrpd_toolbox.fit_engine.constants import (
     ELEMENT_ATOMIC_NUMBER,
 )
 from xrpd_toolbox.fit_engine.form_factors import X_RAY_FORM_FACTORS
-from xrpd_toolbox.fit_engine.lattice import Lattice
-from xrpd_toolbox.fit_engine.peaks import BasePeak, peak_factory
+from xrpd_toolbox.fit_engine.lattice import (
+    Lattice,
+    crystal_lattice_factory,
+)
+from xrpd_toolbox.fit_engine.peaks import BasePeak, calculate_profile, peak_factory
 from xrpd_toolbox.fit_engine.symmetry import (
     SpaceGroup,
     format_space_group_name,
@@ -49,6 +52,9 @@ CrystalType: TypeAlias = Literal["powder", "single-crystal"]
 
 # uiso- = direct measure of atomic displacement (mean-square displacement).
 # biso - debye waller factor
+
+
+ITC_TABLES = get_symmetry_tables()
 
 
 @njit()
@@ -194,7 +200,7 @@ def calculate_structure_factor(
     return f_hkl
 
 
-# @njit
+@njit
 @timeit
 def hkl_laue_reduction(
     hkl: np.ndarray, rotations: np.ndarray
@@ -392,7 +398,7 @@ def allowed_reflections_simple(hkl: np.ndarray, centering: str):
         raise ValueError(f"Unknown centering: {centering}")
 
 
-def generate_h_k_l(hkl_max: Sequence[int]) -> np.ndarray:
+def generate_h_k_l(hkl_max: np.ndarray) -> np.ndarray:
     """generate hkl and filter forbidden beam centre hkl = 0 0 0"""
 
     hmax = hkl_max[0]
@@ -414,7 +420,7 @@ def generate_hkl(reciprocal_lattice_matrix: np.ndarray, q_max: float) -> np.ndar
     kmax = int(np.ceil(q_max / norms[1]))
     lmax = int(np.ceil(q_max / norms[2]))
 
-    hkl = generate_h_k_l([hmax, kmax, lmax])
+    hkl = generate_h_k_l(np.array([hmax, kmax, lmax]))
 
     q_vec = hkl @ reciprocal_lattice_matrix
     q = np.linalg.norm(q_vec, axis=1)
@@ -516,7 +522,7 @@ def apply_symmetry_operations_to_atoms(
 # pydantic models to store the data
 
 
-class Radiation(XRPDBaseModel):
+class Radiation(RefinementBaseModel):
     """This defines the type of radiation that is diffracting"""
 
     radiation: DataType
@@ -535,7 +541,7 @@ class Radiation(XRPDBaseModel):
         return self
 
 
-class Structure(XRPDBaseModel):
+class Structure(RefinementBaseModel):
     """This should contain everything needed to calculate the structure factor,
     peak intensities and peak position of the diffraction peeaks
     lattice: Lattice
@@ -544,42 +550,24 @@ class Structure(XRPDBaseModel):
     symmetry_operations: np.ndarray
     """
 
-    spacegroup_symbol: str = "P1"
+    spacegroup: str = "P1"
     lattice: Lattice
     atoms: Atoms
     source: str | None = None
     # symmetry_operations: npt.NDArray[np.str_] | None = None
 
     @classmethod
-    def load_from_cif(
-        cls, cif_filepath: str | Path, enforce_symmetry: bool = True
-    ) -> "Structure":
-        spacegroup_symbol, lattice, atoms, symmetry_operations = read_cif(cif_filepath)
-
-        structure = cls(
-            spacegroup_symbol=spacegroup_symbol,
-            lattice=lattice,
-            atoms=atoms,
-            source=str(cif_filepath),
-            # symmetry_operations=symmetry_operations,
-        )
-
-        return structure
-
-    @cached_property
-    def spacegroup(self):
-        return format_space_group_name(self.spacegroup_symbol)
+    def load_from_cif(cls, cif_filepath: str | Path) -> "Structure":
+        return cif_to_structure(cif_filepath)
 
     @cached_property
     def spacegroup_class(self) -> SpaceGroup:
-        itc = get_symmetry_tables()
-        sg = itc[self.spacegroup]
+        sg = ITC_TABLES[self.spacegroup]
         return sg
 
     @cached_property
     def spacegroup_number(self) -> int:
-        itc = get_symmetry_tables()
-        sg = itc[self.spacegroup]
+        sg = ITC_TABLES[self.spacegroup]
         return int(sg["number"])
 
     # @cached_property
@@ -619,32 +607,30 @@ class Structure(XRPDBaseModel):
 
     def reciprocal_lattice_matrix(self):
         return reciprocal_lattice_matrix(
-            a=self.lattice.a,
-            b=self.lattice.b,
-            c=self.lattice.c,
-            alpha=self.lattice.alpha_radians,
-            beta=self.lattice.beta_radians,
-            gamma=self.lattice.gamma_radians,
+            a=float(self.lattice.a),
+            b=float(self.lattice.b),
+            c=float(self.lattice.c),
+            alpha=float(self.lattice.alpha_radians),
+            beta=float(self.lattice.beta_radians),
+            gamma=float(self.lattice.gamma_radians),
         )
 
     @property
     def volume(self):
         return unit_cell_volume(
-            a=self.lattice.a,
-            b=self.lattice.b,
-            c=self.lattice.c,
-            alpha=self.lattice.alpha,
-            beta=self.lattice.beta,
-            gamma=self.lattice.gamma,
+            a=float(self.lattice.a),
+            b=float(self.lattice.b),
+            c=float(self.lattice.c),
+            alpha=float(self.lattice.alpha_radians),
+            beta=float(self.lattice.beta_radians),
+            gamma=float(self.lattice.gamma_radians),
             degrees=True,
         )
 
     # TODO: Make this read from the cif file if provided
-    @timeit
     def get_symmetry_operations(self):
         # if self.symmetry_operations is None:
-        itc = get_symmetry_tables()
-        sg = itc[self.spacegroup]
+        sg = ITC_TABLES[self.spacegroup]
         sym_ops = sg.get_rotations_and_translations()
 
         # else:
@@ -652,7 +638,6 @@ class Structure(XRPDBaseModel):
 
         return sym_ops
 
-    @timeit
     def generate_structure_hkls(
         self,
         reciprocal_lattice_matrix: np.ndarray,
@@ -671,7 +656,7 @@ class Structure(XRPDBaseModel):
         return hkl[mask]
 
     @timeit
-    def calculate_peaks(
+    def calculate_reflections(
         self,
         wavelength: float | int = 1.5406,
         mode: CrystalType = "powder",
@@ -783,7 +768,7 @@ class Structure(XRPDBaseModel):
         peak_type: str = "gaussian",
         radiation: DataType = "xray",
     ):
-        hkl, f_abs, two_theta_degrees, intensity = self.calculate_peaks(
+        hkl, f_abs, two_theta_degrees, intensity = self.calculate_reflections(
             wavelength=wavelength, mode=mode, radiation=radiation
         )
 
@@ -807,7 +792,7 @@ class Structure(XRPDBaseModel):
         wdt: int | float = 5,
         radiation: DataType = "xray",
     ) -> np.ndarray:
-        hkl, f_abs, two_theta_degrees, intensity = self.calculate_peaks(
+        hkl, f_abs, two_theta_degrees, intensity = self.calculate_reflections(
             wavelength=wavelength, mode=mode, radiation=radiation
         )
 
@@ -1040,86 +1025,32 @@ def read_cif(cif_filepath: str | Path, block_number: int = 0) -> tuple:
     return spacegroup_symbol, lattice, atoms, symmetry_operations
 
 
-def calculate_profile(
-    x: np.ndarray,
-    peaks: Sequence[BasePeak],
-    background: int | float | np.ndarray | Background = 0,
-    phase_scale: int | float = 1,
-    wdt: int | float = 5,
-):
-    """wdt (range) of calculated profile of a single Bragg reflection in units of FWHM
-    (typically 4 for Gaussian and 20-30 for Lorentzian, 4-5 for TOF).
+def cif_to_structure(cif_filepath: str | Path) -> Structure:
+    spacegroup_symbol, lattice, atoms, symmetry_operations = read_cif(str(cif_filepath))
 
-    peaks: list of class: Peak which contain (cen, amp, fwhm)
+    spacegroup = format_space_group_name(spacegroup_symbol)
 
-    background: scalar or array, if array must be same shape as x
-    """
+    sg = ITC_TABLES[spacegroup]
+    crystal_class = sg["crystal_class"]
 
-    if isinstance(background, np.ndarray):
-        assert len(x) == len(background)
+    latticecls = crystal_lattice_factory(crystal_class)
+    lattice = latticecls.model_validate(lattice)
 
-    intensity = np.zeros_like(x)
+    structure = Structure(
+        spacegroup=spacegroup,
+        lattice=lattice,
+        atoms=atoms,
+        source=str(cif_filepath),
+        # symmetry_operations=symmetry_operations,
+    )
 
-    for peak in peaks:
-        assert peak.background == 0
-
-        start_idx = np.searchsorted(x, peak.centre - (wdt * peak.fwhm))
-        end_idx = np.searchsorted(x, peak.centre + (wdt * peak.fwhm), side="right")
-
-        xi = x[start_idx:end_idx]
-        peak_intensity = peak.calculate(xi)
-        intensity[start_idx:end_idx] += peak_intensity
-
-    intensity = (intensity * phase_scale) + background
-
-    return intensity
-
-
-@njit(parallel=True)
-def calculate_profile_parallel(
-    x: np.ndarray,
-    peaks: Sequence[BasePeak],
-    background: int | float | np.ndarray | Background = 0,
-    phase_scale: int | float = 1,
-    wdt: int | float = 5,
-):
-    """wdt (range) of calculated profile of a single Bragg reflection in units of FWHM
-    (typically 4 for Gaussian and 20-30 for Lorentzian, 4-5 for TOF).
-
-    peaks: list of class: Peak which contain (cen, amp, fwhm)
-
-    background: scalar or array, if array must be same shape as x
-    """
-
-    raise NotImplementedError("Not implemented well yet")
-
-    if isinstance(background, np.ndarray):
-        assert len(x) == len(background)
-
-    intensity = np.zeros_like(x)
-
-    for peak_index in prange(len(peaks)):
-        peak = peaks[peak_index]
-
-        assert peak.background == 0
-
-        start_idx = np.searchsorted(x, peak.centre - (wdt * peak.fwhm))
-        end_idx = np.searchsorted(x, peak.centre + (wdt * peak.fwhm), side="right")
-
-        xi = x[start_idx:end_idx]
-        peak_intensity = peak.calculate(xi)
-
-        intensity[start_idx:end_idx] += peak_intensity
-
-    intensity = (intensity * phase_scale) + background
-
-    return intensity
+    return structure
 
 
 class XYEData(XRPDBaseModel):
-    x: npt.NDArray[np.float64]
-    y: npt.NDArray[np.float64]
-    e: npt.NDArray[np.float64] | None = None
+    x: np.ndarray
+    y: np.ndarray
+    e: np.ndarray | None = None
 
     @model_validator(mode="after")
     def validate_data(self):
@@ -1133,8 +1064,7 @@ class XYEData(XRPDBaseModel):
 class ScatteringData(XYEData):
     x_unit: XUnit = "tth"
     data_type: DataType = "xray"
-    wavelength: int | float | None = None  # for x-ray or CW neutron data
-    bank: int | None = None  # for multi bank data ie neutron tof
+    wavelength: int | float  # for x-ray or CW neutron data
     source: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")
@@ -1162,7 +1092,7 @@ class ScatteringData(XYEData):
         filename: str | Path,
         x_unit: XUnit,
         data_type: DataType,
-        wavelength: float | None = None,
+        wavelength: float,
     ) -> "ScatteringData":
         """Loads scattering data from a CSV file. The file should have 3 (or 2) columns:
         x, y and optionally e (error)
@@ -1191,7 +1121,7 @@ class ScatteringData(XYEData):
         filename: str | Path,
         x_unit: XUnit,
         data_type: DataType,
-        wavelength: float | None = None,
+        wavelength: float,
     ) -> "ScatteringData":
         """Loads scattering data from a .xy or .dat file.
         The file should have 3 columns x, y and error
@@ -1218,11 +1148,11 @@ class ScatteringData(XYEData):
 
 
 ##### more complex pydantic models to do whole profiles
-class CalculatedProfile(XRPDBaseModel):
+class CalculatedProfile(RefinementBaseModel):
     x: np.ndarray
     peaks: Collection[BasePeak]
     background: np.ndarray | int | float | Background = 0.0
-    phase_scale: int | float = 1.0
+    phase_scale: int | float | Parameter = Parameter(value=1, bounds=[0, np.inf])
     wdt: int | float = 5
 
     @model_validator(mode="after")
@@ -1243,31 +1173,30 @@ class CalculatedProfile(XRPDBaseModel):
             x=self.x,
             peaks=self.sorted_peaks,
             background=self.background,
-            phase_scale=self.phase_scale,
+            phase_scale=float(self.phase_scale),
             wdt=self.wdt,
         )
 
-    def refine(
-        self,
-        data: ScatteringData | XYEData | np.ndarray,
-    ):
-        """refine the profile against the data using the specified method"""
 
-
-class ProfileRefinement(XRPDBaseModel):
-    data: ScatteringData  # | list[ScatteringData]
+class ProfileRefinement(RefinementBaseModel):
+    phase_scale: int | float | Parameter = Parameter(value=1)
     refinement: Literal["Pawley", "Rietveld"] = "Pawley"
-    background: np.ndarray | float | int | Background = 0
     structure: Structure | Collection[Structure] | None = None
+    background: np.ndarray | float | int | Background | Parameter = 0
+    zero_offset: int | float | Parameter = Parameter(
+        value=0,
+    )
+    data: ScatteringData  # | list[ScatteringData]
+    calculated_intensity: np.ndarray | None = Field(default=None, exclude=True)
 
     """How can we divide down a reitveld refinement -
     peaks pos/intensity, peak width function, background, detecor parameters
     """
 
     def load_cif(self, cif_filepath: str | Path) -> Structure:
-        structure = Structure.load_from_cif(cif_filepath)
+        self.structure = Structure.load_from_cif(cif_filepath)
 
-        return structure
+        return self.structure
 
     def save_cif(self, output_path: str | Path):
         """Saves the structure to a CIF file."""
@@ -1277,7 +1206,7 @@ class ProfileRefinement(XRPDBaseModel):
     def calculate_peaks(self):
         if self.structure is not None:
             if isinstance(self.structure, Structure):
-                return self.structure.calculate_peaks()
+                return self.structure.calculate_reflections()
             elif isinstance(self.structure, Collection):
                 raise NotImplementedError(
                     "Multiple phase calculation not implemented yet"
@@ -1285,21 +1214,143 @@ class ProfileRefinement(XRPDBaseModel):
             else:
                 raise Exception("Unknown structure")
 
-    def chi_squared(self):
+    def calculate_profile(self) -> np.ndarray:
+        if isinstance(self.structure, Structure):
+            peaks = self.structure.to_peaks(self.data.wavelength)
+        elif isinstance(self.structure, list):
+            peaks = []
+
+            for struct in self.structure:
+                peaks.append(struct.to_peaks(self.data.wavelength))
+        else:
+            raise ValueError("Structure is of unknown type")
+
+        if isinstance(self.background, Parameter):
+            background = float(self.background)
+        else:
+            background = self.background
+
+        self.calculated_intensity = calculate_profile(
+            x=self.data.x,
+            peaks=peaks,
+            background=background,
+            phase_scale=float(self.phase_scale),
+        )
+
+        return self.calculated_intensity
+
+    @computed_field
+    @property
+    def chi_squared(self) -> float:
+        if self.calculated_intensity is not None:
+            chi_squared = calculate_chi_squared(
+                self.calculated_intensity, self.data.y, self.data.e
+            )
+
+            return chi_squared
+
+        else:
+            return np.inf
+
+    def calculate_residual(self) -> np.ndarray:
         # http://pd.chem.ucl.ac.uk/pdnn/refine1/practice.htm
 
-        peaks = self.calculate_peaks()
+        self.calculated_intensity = self.calculate_profile()
 
-        assert peaks is not None
-        hkl, f_abs, two_theta_degrees, intensity = peaks
+        print(f"Chi Squared = {self.chi_squared}")
 
-        return calculate_chi_squared(intensity, self.data.y, self.data.e)
+        return self.data.y - self.calculated_intensity
+
+    def plot(self):
+        if self.calculated_intensity is None:
+            self.calculated_intensity = self.calculate_profile()
+
+        plt.scatter(self.data.x, self.data.y, label="Obs", color="black", s=2)
+        plt.plot(self.data.x, self.calculated_intensity, label="Calc", color="red")
+        plt.plot(
+            self.data.x,
+            self.data.y - self.calculated_intensity,
+            label="Obs-Calc",
+            color="blue",
+        )
+        plt.xlabel(f"{self.data.x_unit}")
+        plt.ylabel("Intensity (a.u.)")
+        plt.legend()
+        plt.show()
+
+
+def optimise_model(
+    model: ProfileRefinement, method="least_squares", bounds=None, **kwargs
+):
+    params = []
+    seen = set()
+
+    for _, p in model.iter_parameters():
+        if not p.refine:
+            continue
+
+        pid = id(p)
+        if pid in seen:
+            continue
+
+        seen.add(pid)
+        params.append(p)
+
+    if not params:
+        raise ValueError("No refinable parameters")
+
+    n = len(params)
+
+    # initial vector
+    x0 = np.empty(n, dtype=float)
+    lower = np.empty(n, dtype=float)
+    upper = np.empty(n, dtype=float)
+
+    for i, p in enumerate(params):
+        x0[i] = float(p.value)
+        lower[i], upper[i] = p.bounds
+
+    # tight update loop (this is the only unavoidable cost)
+    def update(x):
+        for i in range(n):
+            params[i].value = float(x[i])
+
+    def residual(x):
+        update(x)
+        return np.asarray(model.calculate_residual(), dtype=float)
+
+    if method == "least_squares":
+        result = optimize.least_squares(
+            residual,
+            x0,
+            bounds=(lower, upper),
+            **kwargs,
+        )
+    else:
+
+        def objective(x):
+            r = residual(x)
+            return float(r @ r)
+
+        result = optimize.minimize(
+            objective,
+            x0,
+            bounds=list(zip(lower, upper, strict=True)) if bounds is None else bounds,
+            **kwargs,
+        )
+
+    # final update
+    update(result.x)
+
+    updated = {i: float(result.x[i]) for i in range(n)}
+
+    return updated, model, result
 
 
 if __name__ == "__main__":
     cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
     si_structure = Structure.load_from_cif(cif_filepath)
-    si_structure.plot_unit_cell()
+    # si_structure.plot_unit_cell()
     print(si_structure)
 
     beam_energy = 15
@@ -1316,28 +1367,48 @@ if __name__ == "__main__":
 
     from xrpd_toolbox.fit_engine.background import (
         ChebyshevBackground,
+        # LinearInterpolationBackground,
     )
 
     background = ChebyshevBackground.estimate(data.x, data.y)
-    background.add_coefficient()
-    print(background.coefficients)
-    background.remove_coefficient()
-    print(background.coefficients)
+    # background.add_coefficient()
+    # print(background.coefficients)
+    # background.remove_coefficient()
+    # print(background.coefficients)
 
-    data.plot(False)
-    background.plot()
+    # data.plot(False)
+    # background.plot()
 
     # print(data.model_dump_json())
 
-    peaks = si_structure.to_peaks(wavelength=wavelength)
+    # peaks = si_structure.to_peaks(wavelength=wavelength)
+    # profile = CalculatedProfile(
+    #     x=data.x,
+    #     peaks=peaks,
+    #     background=background,
+    # )
 
-    profile = CalculatedProfile(
-        x=data.x, peaks=peaks, background=background, phase_scale=1000
+    refinment = ProfileRefinement(
+        data=data, background=background, structure=si_structure, phase_scale=2e-5
     )
 
-    calculated_profile1 = profile.calculate_profile()
+    # refinment.plot()
 
-    print(si_structure.model_dump())
+    updated, new_model, result = optimise_model(refinment)
+
+    # new_model.plot()
+
+    # print(refinment.calculate_residual())
+
+    # calculated_profile1 = profile.calculate_profile()
+
+    output_name = "/workspaces/outputs/test.toml"
+
+    print(refinment.save(output_name))
+
+    ProfileRefinement.load(output_name)
+
+    # print(profile.get_refinement_parameters())
 
     # print(si_structure.spacegroup)
 
@@ -1359,9 +1430,9 @@ if __name__ == "__main__":
     #     peak_type="gaussian",
     # )
 
-    plt.plot(data.x, calculated_profile1, label="original lattice")
-    # plt.plot(two_theta_degrees, calculated_profile2, label="modified lattice")
-    plt.xlabel("2θ (degrees)")
-    plt.ylabel("Intensity (a.u.)")
-    plt.legend()
-    plt.show()
+    # plt.plot(data.x, calculated_profile1, label="original lattice")
+    # # plt.plot(two_theta_degrees, calculated_profile2, label="modified lattice")
+    # plt.xlabel("2θ (degrees)")
+    # plt.ylabel("Intensity (a.u.)")
+    # plt.legend()
+    # plt.show()

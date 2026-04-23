@@ -1,19 +1,27 @@
 import numpy as np
 
-from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.core import Parameter, RefinementBaseModel
+
+MIN_POSSIBLE_LATTICE = (
+    0.53  # Single hydrogen atom is 0.53 angstroms so it can never be smaller than this
+)
 
 
-class Lattice(XRPDBaseModel):
+class LatticeParameter(Parameter):
+    bounds: list[float] = [MIN_POSSIBLE_LATTICE, np.inf]
+
+
+class Lattice(RefinementBaseModel):
     """This decribes the assymetric unit cell lattice -
     a, b, c refer to the length of the unit cell in Angstrom
     alpha, beta, gamma are the angles of the unit cell in degreee"""
 
-    a: float  # in Angstrom
-    b: float
-    c: float
-    alpha: float  # in degrees
-    beta: float  # in degrees
-    gamma: float  # in degrees
+    a: Parameter | float  # in Angstrom
+    b: Parameter | float
+    c: Parameter | float
+    alpha: Parameter | float  # in degrees
+    beta: Parameter | float  # in degrees
+    gamma: Parameter | float  # in degrees
 
     @property
     def alpha_radians(self):
@@ -62,65 +70,215 @@ class TriclinicLattice(Lattice):
         alpha: float,
         beta: float,
         gamma: float,
+        parameterise: bool = True,
         **kwargs,
     ):
-        super().__init__(a=a, b=b, c=c, alpha=alpha, beta=beta, gamma=gamma)
+        a_param = LatticeParameter(value=a, refine=True)
+        b_param = LatticeParameter(value=b, refine=True)
+        c_param = LatticeParameter(value=c, refine=True)
+
+        alpha_param = Parameter(value=alpha, refine=True)
+        beta_param = Parameter(value=beta, refine=True)
+        gamma_param = Parameter(value=gamma, refine=True)
+
+        super().__init__(
+            a=a_param,
+            b=b_param,
+            c=c_param,
+            alpha=alpha_param,
+            beta=beta_param,
+            gamma=gamma_param,
+        )
 
 
 class MonoclinicLattice(Lattice):
     """This is a special case of the lattice where alpha = gamma = 90"""
 
-    def __init__(self, a: float, b: float, c: float, beta: float, **kwargs):
-        super().__init__(a=a, b=b, c=c, alpha=90.0, beta=beta, gamma=90.0)
+    def __init__(
+        self,
+        a: float,
+        b: float,
+        c: float,
+        beta: float,
+        parameterise: bool = True,
+        **kwargs,
+    ):
+        a_param = LatticeParameter(value=a, refine=True)
+        b_param = LatticeParameter(value=b, refine=True)
+        c_param = LatticeParameter(value=c, refine=True)
+
+        beta_param = Parameter(value=beta, refine=True)
+
+        # right_angle = Parameter(value=90, refine=False)
+
+        super().__init__(
+            a=a_param,
+            b=b_param,
+            c=c_param,
+            alpha=90,
+            beta=beta_param,
+            gamma=90,
+        )
 
 
 class OrthorhombicLattice(Lattice):
     """This is a special case of the lattice
     where alpha = beta = gamma = 90"""
 
-    def __init__(self, a: float, b: float, c: float, **kwargs):
-        super().__init__(a=a, b=b, c=c, alpha=90.0, beta=90.0, gamma=90.0)
+    def __init__(
+        self, a: float, b: float, c: float, parameterise: bool = True, **kwargs
+    ):
+        a_param = LatticeParameter(value=a, refine=True)
+        b_param = LatticeParameter(value=b, refine=True)
+        c_param = LatticeParameter(value=c, refine=True)
+
+        # right_angle = Parameter(value=90, refine=False)
+
+        super().__init__(
+            a=a_param,
+            b=b_param,
+            c=c_param,
+            alpha=90,
+            beta=90,
+            gamma=90,
+        )
 
 
 class TetragonalLattice(Lattice):
     """This is a special case of the lattice
     where a = b and alpha = beta = gamma = 90"""
 
-    def __init__(self, a: float, c: float, **kwargs):
-        super().__init__(a=a, b=a, c=c, alpha=90.0, beta=90.0, gamma=90.0)
+    def __init__(self, a: float, c: float, parameterise: bool = True, **kwargs):
+        a_param = LatticeParameter(value=a, refine=True)
+        c_param = LatticeParameter(value=c, refine=True)
+
+        # right_angle = Parameter(value=90, refine=False)
+
+        super().__init__(
+            a=a_param,
+            b=a_param,
+            c=c_param,
+            alpha=90,
+            beta=90,
+            gamma=90,
+        )
 
 
 class TrigonalLattice(Lattice):
     """This is a special case of the lattice
     where a = b and alpha = beta = 90 and gamma = 120"""
 
-    def __init__(self, a: float, c: float, **kwargs):
-        super().__init__(a=a, b=a, c=c, alpha=90.0, beta=90.0, gamma=120.0)
+    def __init__(self, a: float, c: float, parameterise: bool = True, **kwargs):
+        a_param = LatticeParameter(value=a, refine=True)
+        c_param = LatticeParameter(value=c, refine=True)
+        # right_angle = Parameter(value=90, refine=False)
+        # one_twenty_angle = Parameter(value=120, refine=False)
+
+        super().__init__(
+            a=a_param,
+            b=a_param,
+            c=c_param,
+            alpha=90,
+            beta=90,
+            gamma=120,
+        )
 
 
 class HexagonalLattice(Lattice):
     """This is a special case of the lattice
     where a = b and gamma = 120 and alpha = beta = 90"""
 
-    def __init__(self, a: float, c: float, **kwargs):
-        super().__init__(a=a, b=a, c=c, alpha=90.0, beta=90.0, gamma=120.0)
+    def __init__(self, a: float, c: float, parameterise: bool = True, **kwargs):
+        a_param = LatticeParameter(value=a, refine=True)
+        c_param = LatticeParameter(value=c, refine=True)
+        # right_angle = Parameter(value=90, refine=False)
+        # one_twenty_angle = Parameter(value=120, refine=False)
+
+        super().__init__(
+            a=a_param,
+            b=a_param,
+            c=c_param,
+            alpha=90,
+            beta=90,
+            gamma=120,
+        )
 
 
 class RhombohedralLattice(Lattice):
     """This is a special case of the lattice
     where a = b = c and alpha = beta = gamma"""
 
-    def __init__(self, a: float, alpha: float, **kwargs):
-        super().__init__(a=a, b=a, c=a, alpha=alpha, beta=alpha, gamma=alpha)
+    def __init__(self, a: float, alpha: float, parameterise: bool = True, **kwargs):
+        a_param = LatticeParameter(value=a, refine=True)
+        alpha_param = Parameter(value=alpha, refine=True)
+
+        super().__init__(
+            a=a_param,
+            b=a_param,
+            c=a_param,
+            alpha=alpha_param,
+            beta=alpha_param,
+            gamma=alpha_param,
+        )
 
 
 class CubicLattice(Lattice):
-    """This is a special case of the lattice
-    where a = b = c and alpha = beta = gamma = 90"""
+    def __init__(self, a: float, parameterise: bool = True, **kwargs):
+        a_param = LatticeParameter(value=a, refine=True)
 
-    def __init__(self, a: float, **kwargs):
-        super().__init__(a=a, b=a, c=a, alpha=90.0, beta=90.0, gamma=90.0)
+        super().__init__(
+            a=a_param,
+            b=a_param,
+            c=a_param,
+            alpha=90,
+            beta=90,
+            gamma=90,
+        )
+
+
+def crystal_lattice_factory(crystal_class: str):
+    class_str = str(crystal_class).lower()
+
+    if class_str == "cubic":
+        return CubicLattice
+    elif class_str == "hexagonal":
+        return HexagonalLattice
+    elif class_str == "monoclinic":
+        return MonoclinicLattice
+    elif class_str == "orthorhombic":
+        return OrthorhombicLattice
+    elif class_str == "rhombohedral":
+        return RhombohedralLattice
+    elif class_str == "tetragonal":
+        return TetragonalLattice
+    elif class_str == "trigonal":
+        return TrigonalLattice
+    elif class_str == "triclinic":
+        return TriclinicLattice
+    else:
+        raise ValueError(f"{crystal_class} unknown")
 
 
 if __name__ == "__main__":
-    pass
+    cl = CubicLattice(a=5)
+    # cl.parameterise()
+
+    print(cl)
+
+    params = cl.get_refinement_parameters()
+
+    print(params)
+
+    params["a"] = 5.5
+
+    cl.set_refinement_parameters(params)
+
+    print(cl)
+
+    model_dict = cl.model_dump()
+
+    # print(cl.get_refinable_parameters())
+
+    cl2 = Lattice.model_validate(model_dict)
+
+    print(cl2)

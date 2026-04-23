@@ -1,6 +1,5 @@
 import numpy as np
 import numpy.typing as npt
-from pydantic import computed_field
 
 from xrpd_toolbox.core import XRPDBaseModel
 
@@ -14,17 +13,14 @@ class Atom(XRPDBaseModel):
     b_iso: float
     occupancy: float = 1.0
 
-    @computed_field
     @property
     def x(self) -> float:
         return float(self.xyz[0])
 
-    @computed_field
     @property
     def y(self) -> float:
         return float(self.xyz[1])
 
-    @computed_field
     @property
     def z(self) -> float:
         return float(self.xyz[2])
@@ -32,8 +28,6 @@ class Atom(XRPDBaseModel):
 
 class Atoms(XRPDBaseModel):
     """This is the array version of atoms"""
-
-    model_config = {"arbitrary_types_allowed": True}
 
     labels: npt.NDArray[np.str_]  # element label ie Si1 Si2
     elements: npt.NDArray[np.str_]  # element name eg Si
