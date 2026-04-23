@@ -6,7 +6,8 @@ from typing import Literal, TypeAlias
 import matplotlib.pyplot as plt
 import numpy as np
 from CifFile import ReadCif
-from numba import njit
+
+# from numba import njit
 from pydantic import Field, computed_field, model_validator
 from scipy import optimize
 
@@ -57,12 +58,12 @@ CrystalType: TypeAlias = Literal["powder", "single-crystal"]
 ITC_TABLES = get_symmetry_tables()
 
 
-@njit()
+# @njit()
 def u_iso_to_b_iso(u_iso: np.ndarray) -> np.ndarray:
     return 8 * np.pi**2 * u_iso
 
 
-@njit()
+# @njit()
 def b_iso_to_u_iso(b_iso: np.ndarray) -> np.ndarray:
     return b_iso / (8 * np.pi**2)
 
@@ -115,7 +116,7 @@ def merge_peaks(
     return merged_tth, merged_intensity, merged_hkl
 
 
-@njit()
+# @njit()
 def absorption_correction(
     theta: np.ndarray,
     mu: float,
@@ -161,7 +162,7 @@ def calculate_form_factor(elements: Collection[str], s: np.ndarray) -> np.ndarra
     return ff  # (n_atoms, s)
 
 
-@njit()
+# @njit()
 def calculate_debye_waller_factor(b_iso: np.ndarray, s: np.ndarray):
     """s is scattering vector in radians"""
     # (n_hkl, n_atoms)
@@ -200,7 +201,7 @@ def calculate_structure_factor(
     return f_hkl
 
 
-@njit
+# @njit
 @timeit
 def hkl_laue_reduction(
     hkl: np.ndarray, rotations: np.ndarray
@@ -244,7 +245,7 @@ def q_magnitude(q_vectors: np.ndarray) -> np.ndarray:
     return np.linalg.norm(q_vectors, axis=1)
 
 
-@njit
+# @njit
 def lorentz_polarisation(
     theta: np.ndarray,
     polarisation: float | int = 0.0,
@@ -285,7 +286,7 @@ def lorentz_polarisation(
         ) / (sin2theta * cos2theta)
 
 
-@njit
+# @njit
 def unit_cell_volume(
     a: float | np.ndarray,
     b: float | np.ndarray,
@@ -1396,7 +1397,7 @@ if __name__ == "__main__":
 
     updated, new_model, result = optimise_model(refinment)
 
-    # new_model.plot()
+    new_model.plot()
 
     # print(refinment.calculate_residual())
 
