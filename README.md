@@ -10,8 +10,9 @@ A repository for useful python data analysis tools for the X-ray powder diffract
 This is where you should write a short paragraph that describes what your module does,
 how it does it, and why people should use it.
 
-Source          | <https://github.com/DiamondLightSource/XRPD-Toolbox>
+What            | Where
 :---:           | :---:
+Source          | <https://github.com/DiamondLightSource/XRPD-Toolbox>
 PyPI            | `pip install XRPD-Toolbox`
 Docker          | `docker run ghcr.io/diamondlightsource/XRPD-Toolbox:latest`
 Releases        | <https://github.com/DiamondLightSource/XRPD-Toolbox/releases>
