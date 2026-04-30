@@ -5,15 +5,22 @@ from typing import Literal, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
-from CifFile import ReadCif
 
 # from numba import njit
 from pydantic import Field, computed_field, model_validator
-from scipy import optimize
 
-from xrpd_toolbox.core import Parameter, RefinementBaseModel, XRPDBaseModel
+from xrpd_toolbox.core import (
+    Model,
+    Parameter,
+    RefinementBaseModel,
+    SerialisableNDArray,
+    XRPDBaseModel,
+)
 from xrpd_toolbox.fit_engine.atom import Atoms
-from xrpd_toolbox.fit_engine.background import Background
+from xrpd_toolbox.fit_engine.background import (
+    Background,
+    BackgroundType,
+)
 from xrpd_toolbox.fit_engine.constants import (
     ELEMENT_ATOMIC_NUMBER,
 )
@@ -22,18 +29,27 @@ from xrpd_toolbox.fit_engine.lattice import (
     Lattice,
     crystal_lattice_factory,
 )
-from xrpd_toolbox.fit_engine.peaks import BasePeak, calculate_profile, peak_factory
+from xrpd_toolbox.fit_engine.peak_shape_functions import (
+    FCJPseudoVoigt,
+    IntrumentResolutionFunction,
+)
+from xrpd_toolbox.fit_engine.peaks import (
+    PeakType,
+    calculate_profile,
+    peak_factory,
+)
+from xrpd_toolbox.fit_engine.refiner import refine_model
 from xrpd_toolbox.fit_engine.symmetry import (
     SpaceGroup,
     format_space_group_name,
     get_symmetry_tables,
 )
+from xrpd_toolbox.utils.cif_reader import read_cif
 from xrpd_toolbox.utils.unit_conversion import (
     beam_energy_to_wavelength,
     q_space_to_s,
     q_space_to_theta,
 )
-from xrpd_toolbox.utils.utils import parse_numbers_with_error, timeit
 
 XUnit: TypeAlias = Literal["tth", "tof", "q", "d"]
 
@@ -47,37 +63,19 @@ DataType: TypeAlias = Literal[
 CrystalType: TypeAlias = Literal["powder", "single-crystal"]
 
 
-# TODO: do the comment below
-# Use U_iso for computation / modeling
-# Accept B_iso when reading external data
-
-# uiso- = direct measure of atomic displacement (mean-square displacement).
-# biso - debye waller factor
-
-
 ITC_TABLES = get_symmetry_tables()
-
-
-# @njit()
-def u_iso_to_b_iso(u_iso: np.ndarray) -> np.ndarray:
-    return 8 * np.pi**2 * u_iso
-
-
-# @njit()
-def b_iso_to_u_iso(b_iso: np.ndarray) -> np.ndarray:
-    return b_iso / (8 * np.pi**2)
 
 
 def calculate_chi_squared(
     ycalc: np.ndarray, yobs: np.ndarray, y_err: np.ndarray | None
-):
+) -> float:
     if y_err is not None:
-        wi = 1 / (y_err**2)
+        wi = 1 / y_err**2
     else:
-        wi = 1 / ycalc
+        wi = 1 / yobs
 
-    residual = wi * ((yobs - ycalc) ** 2)
-    chi_squared = np.sum(residual)
+    residual = (wi * (yobs - ycalc)) ** 2
+    chi_squared = float(np.sum(residual))
 
     return chi_squared
 
@@ -202,7 +200,7 @@ def calculate_structure_factor(
 
 
 # @njit
-@timeit
+# @timeit
 def hkl_laue_reduction(
     hkl: np.ndarray, rotations: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -480,6 +478,8 @@ def plot_form_factors(elements: Sequence[str], q_space: np.ndarray | None = None
 
     form_factors = calculate_form_factor(elements, scatter_vec).T
 
+    plt.figure(figsize=(16, 10))
+
     for element, ff in zip(elements, form_factors, strict=True):
         plt.plot(q_space, ff, label=element)
     plt.legend()
@@ -554,6 +554,7 @@ class Structure(RefinementBaseModel):
     spacegroup: str = "P1"
     lattice: Lattice
     atoms: Atoms
+    name: str | None = None
     source: str | None = None
     # symmetry_operations: npt.NDArray[np.str_] | None = None
 
@@ -656,7 +657,7 @@ class Structure(RefinementBaseModel):
         mask = allowed_reflections(hkl, rotations, translations)
         return hkl[mask]
 
-    @timeit
+    # @timeit
     def calculate_reflections(
         self,
         wavelength: float | int = 1.5406,
@@ -717,7 +718,7 @@ class Structure(RefinementBaseModel):
 
         theta = q_space_to_theta(q, wavelength=wavelength)  # in radians still
         two_theta = 2 * theta
-        two_theta_degrees = np.degrees(two_theta)
+        peak_centres_tthdeg = np.degrees(two_theta)
 
         # positions = self.positions
         # occupancies = self.occupancies
@@ -756,11 +757,11 @@ class Structure(RefinementBaseModel):
             lp_factor = lorentz_polarisation(theta, 0.9)  # 0 for unpolarized
             intensity = intensity * lp_factor
 
-        two_theta_degrees, intensity, hkl = merge_peaks(
-            two_theta_degrees, intensity, hkl
+        peak_centres_tthdeg, intensity, hkl = merge_peaks(
+            peak_centres_tthdeg, intensity, hkl
         )
 
-        return hkl, f_abs, two_theta_degrees, intensity
+        return hkl, f_abs, peak_centres_tthdeg, intensity
 
     def to_peaks(
         self,
@@ -769,15 +770,15 @@ class Structure(RefinementBaseModel):
         peak_type: str = "gaussian",
         radiation: DataType = "xray",
     ):
-        hkl, f_abs, two_theta_degrees, intensity = self.calculate_reflections(
-            wavelength=wavelength, mode=mode, radiation=radiation
+        hkl, f_abs, peak_centres_two_theta_degrees, intensity = (
+            self.calculate_reflections(wavelength=wavelength, mode=mode)
         )
 
         peak_func = peak_factory(peak_type)
 
         peaks = []
 
-        for inten, tth in zip(intensity, two_theta_degrees, strict=True):
+        for inten, tth in zip(intensity, peak_centres_two_theta_degrees, strict=True):
             peaks.append(peak_func(amplitude=inten, centre=tth))
 
         return peaks
@@ -804,7 +805,7 @@ class Structure(RefinementBaseModel):
         for inten, tth in zip(intensity, two_theta_degrees, strict=True):
             peaks.append(peak_func(amplitude=inten, centre=tth))
 
-        profile = CalculatedProfile(
+        profile = PeakProfile(
             x=x, peaks=peaks, background=backround, phase_scale=phase_scale, wdt=wdt
         )
 
@@ -921,113 +922,10 @@ class Structure(RefinementBaseModel):
         plt.show()
 
 
-###cif reader
-
-
-def open_cif(cif_filepath: str | Path, block_number: int = 0) -> dict:
-    """opens the cif and returns a dict-like representation of the cif"""
-    cif = ReadCif(cif_filepath)
-    block_name = list(cif.keys())[block_number]
-    block = cif[block_name]
-
-    return block
-
-
-def get_symmetry_operation_from_cif(cif_filepath: str | Path, block_number: int = 0):
-    block = open_cif(cif_filepath=cif_filepath, block_number=block_number)
-    synmmetry_operations = np.array(block["_space_group_symop_operation_xyz"])
-
-    return synmmetry_operations
-
-
-def read_cif(cif_filepath: str | Path, block_number: int = 0) -> tuple:
-    """reads data from a cif and returns
-    list of Atom classes and a unit cell class"""
-
-    # TODO: make this use the errors
-
-    block = open_cif(cif_filepath=cif_filepath, block_number=block_number)
-
-    x = np.array(block["_atom_site_fract_x"], dtype=str)
-    x, x_e = parse_numbers_with_error(x)
-    y = np.array(block["_atom_site_fract_y"], dtype=str)
-    y, y_e = parse_numbers_with_error(y)
-
-    z = np.array(block["_atom_site_fract_z"], dtype=str)
-    z, z_e = parse_numbers_with_error(z)
-
-    atom_labels = np.array(block["_atom_site_label"])
-
-    if "_atom_site_type_symbol" in block:
-        elements = np.array(block["_atom_site_type_symbol"])
-    else:
-        elements = atom_labels.copy()
-
-    elements = np.array([el.capitalize() for el in elements])
-
-    occupancies = (
-        np.array(block["_atom_site_occupancy"], dtype=str)
-        if "_atom_site_occupancy" in block
-        else np.ones(len(x))
-    )
-
-    occupancies, occupancies_e = parse_numbers_with_error(occupancies)
-
-    # --- B_iso or U_iso handling ---
-    if "_atom_site_B_iso_or_equiv" in block:
-        b_iso = np.array(block["_atom_site_B_iso_or_equiv"], dtype=str)
-
-    elif "_atom_site_U_iso_or_equiv" in block:
-        u_iso = np.array(block["_atom_site_U_iso_or_equiv"], dtype=str)
-        b_iso = u_iso_to_b_iso(u_iso)
-    else:
-        b_iso = np.tile(0.5, len(x))  # fallback
-
-    b_iso, b_iso_e = parse_numbers_with_error(b_iso)
-
-    try:
-        spacegroup_symbol = block["_symmetry_space_group_name_H-M"]
-    except Exception:
-        print("_symmetry_space_group_name_H-M not in cif")
-        spacegroup_symbol = "P1"
-
-    if "_space_group_symop_operation_xyz" in block:
-        symmetry_operations = np.array(block["_space_group_symop_operation_xyz"])
-    elif "_symmetry_equiv_pos_as_xyz" in block:
-        symmetry_operations = np.array(block["_symmetry_equiv_pos_as_xyz"])
-    else:
-        print("No symmetry operation in cif")
-        symmetry_operations = np.array([])
-
-    atoms = {
-        "labels": atom_labels,
-        "elements": elements,
-        "xyz": np.column_stack((x, y, z)),
-        "b_iso": b_iso,
-        "occupancies": occupancies,
-    }
-
-    a, a_e = parse_numbers_with_error(block["_cell_length_a"])
-    b, b_e = parse_numbers_with_error(block["_cell_length_b"])
-    c, c_e = parse_numbers_with_error(block["_cell_length_c"])
-    alpha, alpha_e = parse_numbers_with_error(block["_cell_angle_alpha"])
-    beta, beta_e = parse_numbers_with_error(block["_cell_angle_beta"])
-    gamma, gamma_e = parse_numbers_with_error(block["_cell_angle_gamma"])
-
-    lattice = {
-        "a": float(a),
-        "b": float(b),
-        "c": float(c),
-        "alpha": float(alpha),
-        "beta": float(beta),
-        "gamma": float(gamma),
-    }
-
-    return spacegroup_symbol, lattice, atoms, symmetry_operations
-
-
 def cif_to_structure(cif_filepath: str | Path) -> Structure:
-    spacegroup_symbol, lattice, atoms, symmetry_operations = read_cif(str(cif_filepath))
+    spacegroup_symbol, lattice, atoms, symmetry_operations, name = read_cif(
+        str(cif_filepath)
+    )
 
     spacegroup = format_space_group_name(spacegroup_symbol)
 
@@ -1042,6 +940,7 @@ def cif_to_structure(cif_filepath: str | Path) -> Structure:
         lattice=lattice,
         atoms=atoms,
         source=str(cif_filepath),
+        name=name,
         # symmetry_operations=symmetry_operations,
     )
 
@@ -1049,9 +948,9 @@ def cif_to_structure(cif_filepath: str | Path) -> Structure:
 
 
 class XYEData(XRPDBaseModel):
-    x: np.ndarray
-    y: np.ndarray
-    e: np.ndarray | None = None
+    x: SerialisableNDArray = Field(repr=False)
+    y: SerialisableNDArray = Field(repr=False)
+    e: SerialisableNDArray | None = Field(default=None, repr=False)
 
     @model_validator(mode="after")
     def validate_data(self):
@@ -1065,7 +964,7 @@ class XYEData(XRPDBaseModel):
 class ScatteringData(XYEData):
     x_unit: XUnit = "tth"
     data_type: DataType = "xray"
-    wavelength: int | float  # for x-ray or CW neutron data
+    wavelength: Parameter  # for x-ray or CW neutron data
     source: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")
@@ -1076,6 +975,7 @@ class ScatteringData(XYEData):
         return self
 
     def plot(self, show: bool = True):
+        plt.figure(figsize=(16, 10))
         plt.errorbar(self.x, self.y, yerr=self.e, fmt="o", label="Data")
         plt.xlabel(f"{self.x_unit}")
         plt.ylabel("Intensity (a.u.)")
@@ -1093,12 +993,17 @@ class ScatteringData(XYEData):
         filename: str | Path,
         x_unit: XUnit,
         data_type: DataType,
-        wavelength: float,
+        wavelength: float | Parameter,
     ) -> "ScatteringData":
         """Loads scattering data from a CSV file. The file should have 3 (or 2) columns:
         x, y and optionally e (error)
         Equivalent the TOPAS xye format
         """
+
+        if isinstance(wavelength, Parameter):
+            wavelength = wavelength
+        else:
+            wavelength = Parameter(value=wavelength, refine=False)
 
         try:
             x, y, e = np.genfromtxt(str(filename), unpack=True, dtype=float)
@@ -1122,13 +1027,17 @@ class ScatteringData(XYEData):
         filename: str | Path,
         x_unit: XUnit,
         data_type: DataType,
-        wavelength: float,
+        wavelength: float | Parameter,
     ) -> "ScatteringData":
         """Loads scattering data from a .xy or .dat file.
         The file should have 3 columns x, y and error
         Equivalent the fullprof INSTRM=10 format
         """
 
+        if isinstance(wavelength, Parameter):
+            wavelength = wavelength
+        else:
+            wavelength = Parameter(value=wavelength, refine=False)
         x, y, e = np.genfromtxt(
             str(filename),
             skip_header=1,
@@ -1149,24 +1058,18 @@ class ScatteringData(XYEData):
 
 
 ##### more complex pydantic models to do whole profiles
-class CalculatedProfile(RefinementBaseModel):
-    x: np.ndarray
-    peaks: Collection[BasePeak]
+class PeakProfile(RefinementBaseModel):
+    phase_scale: int | float | Parameter = Parameter(value=1e-5, bounds=[0, np.inf])
+    x: SerialisableNDArray
+    peaks: list[PeakType]
     background: np.ndarray | int | float | Background = 0.0
-    phase_scale: int | float | Parameter = Parameter(value=1, bounds=[0, np.inf])
     wdt: int | float = 5
-
-    @model_validator(mode="after")
-    def validate_parameters(self):
-        if not isinstance(self.background, (int, float)):
-            assert len(self.x) == len(self.background)
-        return self
 
     @property
     def sorted_peaks(self):
         return sorted(self.peaks, key=lambda p: p.centre)
 
-    @timeit
+    # @timeit
     def calculate_profile(self):
         """calculates the profile with the parameters stored within self"""
 
@@ -1179,23 +1082,42 @@ class CalculatedProfile(RefinementBaseModel):
         )
 
 
-class ProfileRefinement(RefinementBaseModel):
-    phase_scale: int | float | Parameter = Parameter(value=1)
-    refinement: Literal["Pawley", "Rietveld"] = "Pawley"
-    structure: Structure | Collection[Structure] | None = None
-    background: np.ndarray | float | int | Background | Parameter = 0
-    zero_offset: int | float | Parameter = Parameter(
-        value=0,
-    )
+class CalculatedReflections(XRPDBaseModel):
+    peak_centres: list[float]
+    intensity: list[float]
+    structure_factor: list[float]
+    hkl: list[list[int]] | None = None
+
+
+class ReitveldRefinement(Model):
+    phase_scale: int | float | Parameter = Parameter(value=1e-2, bounds=[0, np.inf])
+    structure: Structure | list[Structure]
+    zero_offset: int | float | Parameter = Parameter(value=0, bounds=[-10, 10])
     data: ScatteringData  # | list[ScatteringData]
-    calculated_intensity: np.ndarray | None = Field(default=None, exclude=True)
+    irf: IntrumentResolutionFunction = Field(default=FCJPseudoVoigt())
+    background: np.ndarray | float | int | BackgroundType | Parameter = Parameter(
+        value=0
+    )
+    intensity_modifiers: Parameter | None = None
+    position_modifiers: Parameter | None = None
+    shape_modifiers: Parameter | None = None
+    calculated_intensity: SerialisableNDArray | None = Field(
+        default=None, repr=False
+    )  # this gets created the first time calc profile is run
 
     """How can we divide down a reitveld refinement -
     peaks pos/intensity, peak width function, background, detecor parameters
     """
 
-    def load_cif(self, cif_filepath: str | Path) -> Structure:
-        self.structure = Structure.load_from_cif(cif_filepath)
+    def load_cif(self, cif_filepath: str | Path) -> Structure | list[Structure]:
+        new_structure = Structure.load_from_cif(cif_filepath)
+
+        if isinstance(self.structure, Structure):
+            self.structure = [self.structure, new_structure]
+        elif isinstance(self.structure, list):
+            self.structure.append(new_structure)
+        else:
+            self.structure = new_structure
 
         return self.structure
 
@@ -1205,38 +1127,37 @@ class ProfileRefinement(RefinementBaseModel):
         raise NotImplementedError("CIF writing not implemented yet")
 
     def calculate_peaks(self):
-        if self.structure is not None:
-            if isinstance(self.structure, Structure):
-                return self.structure.calculate_reflections()
-            elif isinstance(self.structure, Collection):
-                raise NotImplementedError(
-                    "Multiple phase calculation not implemented yet"
-                )
-            else:
-                raise Exception("Unknown structure")
+        if isinstance(self.structure, Structure):
+            return self.structure.calculate_reflections()
+        elif isinstance(self.structure, Collection):
+            raise NotImplementedError("Multiple phase calculation not implemented yet")
+        else:
+            raise Exception("Unknown structure")
 
     def calculate_profile(self) -> np.ndarray:
-        if isinstance(self.structure, Structure):
-            peaks = self.structure.to_peaks(self.data.wavelength)
-        elif isinstance(self.structure, list):
-            peaks = []
+        if not isinstance(self.structure, Structure):
+            raise NotImplementedError("Not yet implemented for mullti-phase patterns")
 
-            for struct in self.structure:
-                peaks.append(struct.to_peaks(self.data.wavelength))
-        else:
-            raise ValueError("Structure is of unknown type")
+        hkl, f_abs, peak_centres_tthdeg, intensity = (
+            self.structure.calculate_reflections(float(self.data.wavelength))
+        )
 
-        if isinstance(self.background, Parameter):
-            background = float(self.background)
+        zero_offset_x = self.data.x - float(self.zero_offset)
+
+        calculated_intensity = self.irf.calculate_profile(
+            x=zero_offset_x,
+            peak_centres=peak_centres_tthdeg,
+            peak_intensities=intensity,
+        )
+
+        if isinstance(self.background, Background):
+            background = self.background.calculate(x=self.data.x)
         else:
             background = self.background
 
-        self.calculated_intensity = calculate_profile(
-            x=self.data.x,
-            peaks=peaks,
-            background=background,
-            phase_scale=float(self.phase_scale),
-        )
+        self.calculated_intensity = (
+            calculated_intensity * float(self.phase_scale)
+        ) + background
 
         return self.calculated_intensity
 
@@ -1248,6 +1169,8 @@ class ProfileRefinement(RefinementBaseModel):
                 self.calculated_intensity, self.data.y, self.data.e
             )
 
+            print(f"chi squared: {chi_squared:.3e}")
+
             return chi_squared
 
         else:
@@ -1258,19 +1181,23 @@ class ProfileRefinement(RefinementBaseModel):
 
         self.calculated_intensity = self.calculate_profile()
 
-        print(f"Chi Squared = {self.chi_squared}")
+        _ = self.chi_squared
 
         return self.data.y - self.calculated_intensity
 
     def plot(self):
-        if self.calculated_intensity is None:
-            self.calculated_intensity = self.calculate_profile()
+        # if self.calculated_intensity is None:
+        self.calculated_intensity = self.calculate_profile()
 
+        # print(self.data.y)
+        # print(self.calculated_intensity)
+
+        plt.figure(figsize=(16, 10))
         plt.scatter(self.data.x, self.data.y, label="Obs", color="black", s=2)
         plt.plot(self.data.x, self.calculated_intensity, label="Calc", color="red")
         plt.plot(
-            self.data.x,
-            self.data.y - self.calculated_intensity,
+            self.data.x - self.zero_offset,
+            (self.data.y - self.calculated_intensity) - np.amax(self.data.y) / 10,
             label="Obs-Calc",
             color="blue",
         )
@@ -1278,162 +1205,68 @@ class ProfileRefinement(RefinementBaseModel):
         plt.ylabel("Intensity (a.u.)")
         plt.legend()
         plt.show()
-
-
-def optimise_model(
-    model: ProfileRefinement, method="least_squares", bounds=None, **kwargs
-):
-    params = []
-    seen = set()
-
-    for _, p in model.iter_parameters():
-        if not p.refine:
-            continue
-
-        pid = id(p)
-        if pid in seen:
-            continue
-
-        seen.add(pid)
-        params.append(p)
-
-    if not params:
-        raise ValueError("No refinable parameters")
-
-    n = len(params)
-
-    # initial vector
-    x0 = np.empty(n, dtype=float)
-    lower = np.empty(n, dtype=float)
-    upper = np.empty(n, dtype=float)
-
-    for i, p in enumerate(params):
-        x0[i] = float(p.value)
-        lower[i], upper[i] = p.bounds
-
-    # tight update loop (this is the only unavoidable cost)
-    def update(x):
-        for i in range(n):
-            params[i].value = float(x[i])
-
-    def residual(x):
-        update(x)
-        return np.asarray(model.calculate_residual(), dtype=float)
-
-    if method == "least_squares":
-        result = optimize.least_squares(
-            residual,
-            x0,
-            bounds=(lower, upper),
-            **kwargs,
-        )
-    else:
-
-        def objective(x):
-            r = residual(x)
-            return float(r @ r)
-
-        result = optimize.minimize(
-            objective,
-            x0,
-            bounds=list(zip(lower, upper, strict=True)) if bounds is None else bounds,
-            **kwargs,
-        )
-
-    # final update
-    update(result.x)
-
-    updated = {i: float(result.x[i]) for i in range(n)}
-
-    return updated, model, result
+        plt.close()
 
 
 if __name__ == "__main__":
-    cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
-    si_structure = Structure.load_from_cif(cif_filepath)
-    # si_structure.plot_unit_cell()
-    print(si_structure)
-
-    beam_energy = 15
-    wavelength = beam_energy_to_wavelength(beam_energy)
-    radiation = Radiation(radiation="xray", energy=beam_energy)
-
-    data = ScatteringData.from_xye(
-        "/workspaces/outputs/step_scan/1410696.nxs_summed_mythen3.xye",
-        #  "/workspaces/outputs/1429744_summed_mythen3.xye",
-        x_unit="tth",
-        data_type="xray",
-        wavelength=wavelength,
-    )
-
-    from xrpd_toolbox.fit_engine.background import (
-        ChebyshevBackground,
-        # LinearInterpolationBackground,
-    )
-
-    background = ChebyshevBackground.estimate(data.x, data.y)
-    # background.add_coefficient()
-    # print(background.coefficients)
-    # background.remove_coefficient()
-    # print(background.coefficients)
-
-    # data.plot(False)
-    # background.plot()
-
-    # print(data.model_dump_json())
-
-    # peaks = si_structure.to_peaks(wavelength=wavelength)
-    # profile = CalculatedProfile(
-    #     x=data.x,
-    #     peaks=peaks,
-    #     background=background,
-    # )
-
-    refinment = ProfileRefinement(
-        data=data, background=background, structure=si_structure, phase_scale=2e-5
-    )
-
-    # refinment.plot()
-
-    updated, new_model, result = optimise_model(refinment)
-
-    new_model.plot()
-
-    # print(refinment.calculate_residual())
-
-    # calculated_profile1 = profile.calculate_profile()
-
     output_name = "/workspaces/outputs/test.toml"
 
-    print(refinment.save(output_name))
+    def test_refine_silicon():
+        cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
+        si_structure = Structure.load_from_cif(cif_filepath)
 
-    ProfileRefinement.load(output_name)
+        beam_energy = 15
+        wavelength = beam_energy_to_wavelength(beam_energy)
 
-    # print(profile.get_refinement_parameters())
+        data = ScatteringData.from_xye(
+            "/workspaces/outputs/step_scan/1410696.nxs_summed_mythen3.xye",
+            #  "/workspaces/outputs/1429744_summed_mythen3.xye",
+            x_unit="tth",
+            data_type="xray",
+            wavelength=Parameter(value=wavelength, refine=False),
+        )
 
-    # print(si_structure.spacegroup)
+        from xrpd_toolbox.fit_engine.background import (
+            # ChebyshevBackground,
+            LinearInterpolationBackground,
+        )
 
-    # calculated_profile1 = si_structure.calculate_profile(
-    #     x=two_theta_degrees,
-    #     wavelength=wavelength,
-    #     mode="powder",
-    #     peak_type="gaussian",
-    # )
+        background = LinearInterpolationBackground.estimate(data.x, data.y)
 
-    # si_structure.lattice.a += 0.2
-    # si_structure.lattice.b += 0.2
-    # si_structure.lattice.c += 0.2
+        model = ReitveldRefinement(
+            data=data, background=background, structure=si_structure
+        )
 
-    # calculated_profile2 = si_structure.calculate_profile(
-    #     x=two_theta_degrees,
-    #     wavelength=wavelength,
-    #     mode="powder",
-    #     peak_type="gaussian",
-    # )
+        assert isinstance(model.background, Background)
+        model.background.refine_none()
 
-    # plt.plot(data.x, calculated_profile1, label="original lattice")
-    # # plt.plot(two_theta_degrees, calculated_profile2, label="modified lattice")
-    # plt.xlabel("2θ (degrees)")
-    # plt.ylabel("Intensity (a.u.)")
-    # plt.legend()
-    # plt.show()
+        print(model.get_refinement_parameters())
+
+        model.irf.refine_none()
+
+        updated, model, result = refine_model(model, plot=False, plot_every=5)
+
+        model.irf.refine_all()
+        updated, model, result = refine_model(model, plot=False, plot_every=1)
+
+        model.save(output_name)
+
+        return model
+
+    def test_load_refinement_and_refine():
+        loaded_refinement = ReitveldRefinement.load(output_name)
+
+        loaded_refinement.calculate_profile()
+        loaded_refinement.plot()
+
+        # refine_model(loaded_refinement)
+
+    # model = test_refine_silicon()
+    test_load_refinement_and_refine()
+
+    two_theta = np.linspace(1, 70, 1000)
+
+    width = FCJPseudoVoigt().calculate_peak_widths(two_theta)[0]
+
+    plt.plot(two_theta, width)
+    plt.show()

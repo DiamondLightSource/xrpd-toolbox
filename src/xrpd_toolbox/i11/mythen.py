@@ -663,7 +663,7 @@ class MythenDetector:
             # si_tth = get_calibrant_peaks("Si", 0.828783)
 
             si = Structure.load_from_cif("/workspaces/XRPD-Toolbox/cifs/si.cif")
-            _, _, si_tth, si_intensity = si.calculate_peaks(0.828783)
+            _, _, si_tth, si_intensity = si.calculate_reflections(0.828783)
 
             background = np.amin(counts)
 

@@ -1,7 +1,6 @@
 import numpy as np
-import numpy.typing as npt
 
-from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.core import SerialisableNDArray, XRPDBaseModel
 
 
 class Atom(XRPDBaseModel):
@@ -9,7 +8,7 @@ class Atom(XRPDBaseModel):
 
     label: str  # elemnt label ie Si1 Si2
     element: str  # element name eg Si
-    xyz: npt.NDArray[np.float64]  # fractional coorindates of xyz #type: ignore
+    xyz: SerialisableNDArray  # fractional coorindates of xyz #type: ignore
     b_iso: float
     occupancy: float = 1.0
 
@@ -29,11 +28,11 @@ class Atom(XRPDBaseModel):
 class Atoms(XRPDBaseModel):
     """This is the array version of atoms"""
 
-    labels: npt.NDArray[np.str_]  # element label ie Si1 Si2
-    elements: npt.NDArray[np.str_]  # element name eg Si
-    xyz: npt.NDArray[np.float64]  # fractional coordinates of xyz
-    b_iso: npt.NDArray[np.float64]
-    occupancies: npt.NDArray[np.float64]
+    labels: SerialisableNDArray  # element label ie Si1 Si2
+    elements: SerialisableNDArray  # element name eg Si
+    xyz: SerialisableNDArray  # fractional coordinates of xyz
+    b_iso: SerialisableNDArray
+    occupancies: SerialisableNDArray
 
     def __getitem__(self, label_or_index: str | int) -> Atom:
         if isinstance(label_or_index, int):

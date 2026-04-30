@@ -83,5 +83,14 @@ class PE2AD(BaseDataLoader):
 if __name__ == "__main__":
     filepath = "/host-home/projects/data/i15-1-95016.nxs"
 
+    sample_alignment_scans = {
+        "carbon_black": 94519,
+        "water": 94520,
+        "GaIn": 94521,
+        "NIST_Si": 95016,
+        "NaCl": 95017,
+        "HKUST1": 95018,
+    }
+
     pe2ad = PE2AD(filepath)
     pe2ad.find_sample_centre()

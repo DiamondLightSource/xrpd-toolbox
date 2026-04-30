@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from abc import abstractmethod
 from collections.abc import Collection, Sequence
-from typing import Literal, TypeAlias
+from typing import Annotated, Literal, TypeAlias
 
 import numpy as np
 import peakutils
@@ -12,7 +12,7 @@ from pydantic import Field
 from scipy.optimize import curve_fit
 from scipy.special import erf
 
-from xrpd_toolbox.core import Parameter, RefinementBaseModel, XRPDBaseModel
+from xrpd_toolbox.core import Parameter, RefinementBaseModel
 from xrpd_toolbox.fit_engine.background import Background
 
 IMPLEMENTED_PEAK_FUNCTONS: TypeAlias = Literal[
@@ -246,29 +246,6 @@ def peak_factory(peak_type: str):
             )
 
 
-def caglioti_fwhm(
-    two_theta: np.ndarray | float,
-    u: float | int,
-    v: float | int,
-    w: float | int,
-) -> np.ndarray | float:
-    """
-    Compute FWHM using the Caglioti function.
-
-    Parameters
-    ----------
-    two_theta : float or array
-        2θ in degrees
-    u, v, w : float
-        Caglioti parameters
-
-    """
-    theta = np.radians(two_theta / 2.0)
-    tan_theta = np.tan(theta)
-
-    return np.sqrt(u * tan_theta**2 + v * tan_theta + w)
-
-
 def estimate_fwhm(
     x_values: np.ndarray,
     y_values: np.ndarray,
@@ -421,11 +398,15 @@ class BasePeak(RefinementBaseModel):
 
 
 class GaussianPeak(BasePeak):
+    peak_type: Literal["gaussian"] = "gaussian"
+
     def calculate(self, x: np.ndarray) -> np.ndarray:
         return gaussian(x, float(self.amplitude), float(self.centre), float(self.fwhm))
 
 
 class LorentzianPeak(BasePeak):
+    peak_type: Literal["lorentzian"] = "lorentzian"
+
     def calculate(self, x: np.ndarray) -> np.ndarray:
         return lorentzian(
             x, float(self.amplitude), float(self.centre), float(self.fwhm)
@@ -433,6 +414,8 @@ class LorentzianPeak(BasePeak):
 
 
 class PseudoVoigtPeak(BasePeak):
+    peak_type: Literal["pseudo_voigt"] = "pseudo_voigt"
+
     eta: Parameter | float | int = Field(
         ge=0, le=1, default=0.5
     )  # used for pseudo-voigt - mixing param
@@ -448,6 +431,8 @@ class PseudoVoigtPeak(BasePeak):
 
 
 class TopHatPeak(BasePeak):
+    peak_type: Literal["tophat"] = "tophat"
+
     epsilon: Parameter | float | int = Field(
         ge=0, le=1, default=0
     )  # used for tophat - smoothing
@@ -460,12 +445,6 @@ class TopHatPeak(BasePeak):
             float(self.fwhm),
             float(self.epsilon),
         )
-
-
-class PeakShapeFunction(XRPDBaseModel):
-    @abstractmethod
-    def calculate(self):
-        pass
 
 
 def calculate_profile(
@@ -492,9 +471,15 @@ def calculate_profile(
         start_idx = np.searchsorted(x, peak.centre - (wdt * peak.fwhm))
         end_idx = np.searchsorted(x, peak.centre + (wdt * peak.fwhm), side="right")
 
+        if end_idx <= start_idx:
+            continue
+
         xi = x[start_idx:end_idx]
         peak_intensity = peak.calculate(xi)
         intensity[start_idx:end_idx] += peak_intensity
+
+    if isinstance(background, Background):
+        background = background.calculate(x)
 
     intensity = (intensity * phase_scale) + background
 
@@ -540,6 +525,12 @@ def calculate_profile_parallel(
     intensity = (intensity * phase_scale) + background
 
     return intensity
+
+
+PeakType = Annotated[
+    GaussianPeak | LorentzianPeak | PseudoVoigtPeak | TopHatPeak,
+    Field(discriminator="peak_type"),
+]
 
 
 if __name__ == "__main__":
