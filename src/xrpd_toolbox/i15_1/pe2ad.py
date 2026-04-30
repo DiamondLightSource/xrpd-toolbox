@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from xrpd_toolbox.data_loader import BaseDataLoader
-from xrpd_toolbox.utils.peaks import fit_peaks, smooth_tophat
+from xrpd_toolbox.fit_engine.peaks import fit_peaks, smooth_tophat
 
 
 class PE2AD(BaseDataLoader):
@@ -72,7 +72,13 @@ class PE2AD(BaseDataLoader):
             print(peak)
             plt.plot(indices, peak.calculate(indices))
 
-            tophat = smooth_tophat(indices, peak.amplitude, peak.centre, peak.fwhm, 0.1)
+            tophat = smooth_tophat(
+                indices,
+                float(peak.amplitude),
+                float(peak.amplitude),
+                float(peak.amplitude),
+                0.1,
+            )
 
             plt.plot(indices, tophat)
 
@@ -81,7 +87,12 @@ class PE2AD(BaseDataLoader):
 
 
 if __name__ == "__main__":
-    filepath = "/host-home/projects/data/i15-1-95016.nxs"
+    import os
+
+    folder = "/dls/i15-1/data/2026/cm44163-1/"
+    file = "i15-1-95016.nxs"
+
+    prefix = "i15-1-"
 
     sample_alignment_scans = {
         "carbon_black": 94519,
@@ -92,5 +103,26 @@ if __name__ == "__main__":
         "HKUST1": 95018,
     }
 
-    pe2ad = PE2AD(filepath)
-    pe2ad.find_sample_centre()
+    for sample, number in sample_alignment_scans.items():
+        filepath = folder + prefix + str(number) + ".nxs"
+
+        output_file = f"/workspaces/outputs/i15-1/{sample}-{number}.csv"
+
+        print(filepath)
+
+        if not os.path.exists(filepath):
+            print("it doesn't exist")
+
+        pe2ad = PE2AD(filepath)
+        summed_images = pe2ad.sum_frames()
+
+        index = np.linspace(0, len(summed_images), len(summed_images))
+
+        csv_data = np.stack((index, summed_images), axis=-1)
+
+        np.savetxt(output_file, csv_data)
+
+        x, y = np.genfromtxt(output_file, unpack=True)
+
+        plt.plot(x, y)
+        plt.show()
