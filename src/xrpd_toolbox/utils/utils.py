@@ -482,3 +482,62 @@ def parse_numbers_with_error(
         return numbers[0], errors[0]
     else:
         return numbers, errors
+
+
+def cluster_points_auto(
+    x: np.ndarray,
+    y: np.ndarray,
+    y_tol: float | None = None,
+    x_gap: float | None = None,
+):
+    """
+    Groups points based on:
+    - Similar Y values (anchored to first point in group)
+    - Local continuity in X
+
+    Returns:
+        labels: continuous group labels ordered left → right by X
+        n_groups: number of groups
+    """
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    if y_tol is None:
+        y_tol = (y.max() - y.min()) / 20
+
+    if x_gap is None:
+        x_gap = (x.max() - x.min()) / 5
+
+    # IMPORTANT: sort by X first to enforce ordering consistency
+    order = np.argsort(x)
+    x_sorted = x[order]
+    y_sorted = y[order]
+
+    n = len(x)
+    labels_sorted = np.full(n, -1, dtype=int)
+
+    n_groups = 0
+    start = 0
+
+    while start < n:
+        end = start + 1
+
+        while end < n:
+            y_diff = abs(y_sorted[end] - y_sorted[start])
+            x_diff = abs(x_sorted[end] - x_sorted[end - 1])
+
+            if y_diff <= y_tol and x_diff <= x_gap:
+                end += 1
+            else:
+                break
+
+        labels_sorted[start:end] = n_groups
+        n_groups += 1
+        start = end
+
+    # map back to original order
+    labels = np.empty(n, dtype=int)
+    labels[order] = labels_sorted
+
+    return labels, n_groups

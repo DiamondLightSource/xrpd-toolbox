@@ -951,6 +951,7 @@ class XYEData(XRPDBaseModel):
     x: SerialisableNDArray = Field(repr=False)
     y: SerialisableNDArray = Field(repr=False)
     e: SerialisableNDArray | None = Field(default=None, repr=False)
+    source: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")
     def validate_data(self):
@@ -960,12 +961,21 @@ class XYEData(XRPDBaseModel):
 
         return self
 
+    @classmethod
+    def from_csv(cls, filepath: str | Path):
+        try:
+            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+        except ValueError:
+            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+            e = None
+
+        return cls(x=x, y=y, e=e, source=str(filepath))
+
 
 class ScatteringData(XYEData):
     x_unit: XUnit = "tth"
     data_type: DataType = "xray"
     wavelength: Parameter  # for x-ray or CW neutron data
-    source: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")
     def validate_data_units(self):
@@ -990,7 +1000,7 @@ class ScatteringData(XYEData):
     @classmethod
     def from_xye(
         cls,
-        filename: str | Path,
+        filepath: str | Path,
         x_unit: XUnit,
         data_type: DataType,
         wavelength: float | Parameter,
@@ -1006,9 +1016,9 @@ class ScatteringData(XYEData):
             wavelength = Parameter(value=wavelength, refine=False)
 
         try:
-            x, y, e = np.genfromtxt(str(filename), unpack=True, dtype=float)
+            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
         except ValueError:
-            x, y = np.genfromtxt(str(filename), unpack=True, dtype=float)
+            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
             e = None
 
         return cls(
@@ -1018,13 +1028,13 @@ class ScatteringData(XYEData):
             x_unit=x_unit,
             data_type=data_type,
             wavelength=wavelength,
-            source=str(filename),
+            source=str(filepath),
         )
 
     @classmethod
     def from_fullprof(
         cls,
-        filename: str | Path,
+        filepath: str | Path,
         x_unit: XUnit,
         data_type: DataType,
         wavelength: float | Parameter,
@@ -1039,7 +1049,7 @@ class ScatteringData(XYEData):
         else:
             wavelength = Parameter(value=wavelength, refine=False)
         x, y, e = np.genfromtxt(
-            str(filename),
+            str(filepath),
             skip_header=1,
             comments="!",
             unpack=True,
@@ -1053,7 +1063,7 @@ class ScatteringData(XYEData):
             x_unit=x_unit,
             data_type=data_type,
             wavelength=wavelength,
-            source=str(filename),
+            source=str(filepath),
         )
 
 
@@ -1159,6 +1169,8 @@ class ReitveldRefinement(Model):
             calculated_intensity * float(self.phase_scale)
         ) + background
 
+        _ = self.chi_squared
+
         return self.calculated_intensity
 
     @computed_field
@@ -1244,7 +1256,7 @@ if __name__ == "__main__":
 
         model.irf.refine_none()
 
-        updated, model, result = refine_model(model, plot=False, plot_every=5)
+        updated, model, result = refine_model(model, plot=True, plot_every=5)
 
         model.irf.refine_all()
         updated, model, result = refine_model(model, plot=False, plot_every=1)
@@ -1261,8 +1273,8 @@ if __name__ == "__main__":
 
         # refine_model(loaded_refinement)
 
-    # model = test_refine_silicon()
-    test_load_refinement_and_refine()
+    model = test_refine_silicon()
+    # test_load_refinement_and_refine()
 
     two_theta = np.linspace(1, 70, 1000)
 

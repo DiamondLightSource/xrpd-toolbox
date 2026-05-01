@@ -1,3 +1,4 @@
+import time
 from copy import deepcopy
 from typing import cast
 
@@ -37,7 +38,13 @@ def setup_plot(model):
     )
 
     ax.legend()
-    ax.set_xlabel(model.data.x_unit)
+
+    try:
+        x_unit = model.data.x_unit
+    except Exception:
+        x_unit = "index"
+
+    ax.set_xlabel(x_unit)
     ax.set_ylabel("Intensity")
 
     canvas = cast(FigureCanvasAgg, fig.canvas)
@@ -74,6 +81,8 @@ def refine_model(
     bounds=None,
     plot: bool = False,
     plot_every: int = 5,
+    step_time: int | float | None = None,
+    max_nfev: int = 1000,
     **kwargs,
 ):
     params = []
@@ -122,10 +131,13 @@ def refine_model(
     @timeit
     def residual(x):
         update(x)
+        if step_time is not None:
+            time.sleep(step_time)
 
         print(new_model.get_refinement_parameters())
+        print(new_model.background)
+
         y_calc = new_model.calculate_profile()
-        _ = new_model.chi_squared
         r = new_model.data.y - y_calc
 
         maybe_update_plot()
@@ -137,6 +149,7 @@ def refine_model(
             residual,
             x0,
             bounds=(lower, upper),
+            max_nfev=max_nfev,
             **kwargs,
         )
 

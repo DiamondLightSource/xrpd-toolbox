@@ -370,15 +370,18 @@ def fit_peaks(
     return fitted_peaks
 
 
-def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[BasePeak]:
+def find_and_fit_peaks(
+    x: np.ndarray, y: np.ndarray, smoothing: int = 5
+) -> list[BasePeak]:
     """function to get the centre peaks given without guessing"""
 
     y_smoothed = np.convolve(
-        y, np.ones(5), mode="same"
+        y, np.ones(smoothing), mode="same"
     )  # smooth the data to reduce noise
 
-    threshold = np.amax(y_smoothed) / 20
-    indexes = peakutils.indexes(y_smoothed, thres=threshold, min_dist=30)  # type: ignore
+    threshold = np.amax(y_smoothed) / smoothing
+
+    indexes = peakutils.indexes(y_smoothed, thres=threshold, min_dist=3)  # type: ignore
 
     initial_x_pos = x[indexes]
     fitted_peaks = fit_peaks(x, y_smoothed, initial_x_pos=initial_x_pos)
@@ -388,7 +391,7 @@ def find_and_fit_peaks(x: np.ndarray, y: np.ndarray) -> list[BasePeak]:
 
 class BasePeak(RefinementBaseModel):
     amplitude: Parameter | float = Field(gt=0)
-    centre: Parameter | float
+    centre: Parameter | float = Field(gt=0)
     fwhm: Parameter | float = Field(gt=0, default=Parameter(value=0.02))
     normalised: bool = True  # if normalised the
 
@@ -401,7 +404,13 @@ class GaussianPeak(BasePeak):
     peak_type: Literal["gaussian"] = "gaussian"
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
-        return gaussian(x, float(self.amplitude), float(self.centre), float(self.fwhm))
+        return gaussian(
+            x,
+            float(self.amplitude),
+            float(self.centre),
+            float(self.fwhm),
+            normalised=self.normalised,
+        )
 
 
 class LorentzianPeak(BasePeak):
@@ -409,7 +418,11 @@ class LorentzianPeak(BasePeak):
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
         return lorentzian(
-            x, float(self.amplitude), float(self.centre), float(self.fwhm)
+            x,
+            float(self.amplitude),
+            float(self.centre),
+            float(self.fwhm),
+            normalised=self.normalised,
         )
 
 
@@ -427,6 +440,7 @@ class PseudoVoigtPeak(BasePeak):
             float(self.centre),
             float(self.fwhm),
             float(self.eta),
+            normalised=self.normalised,
         )
 
 
@@ -434,7 +448,7 @@ class TopHatPeak(BasePeak):
     peak_type: Literal["tophat"] = "tophat"
 
     epsilon: Parameter | float | int = Field(
-        ge=0, le=1, default=0
+        ge=0, le=1, default=0.1
     )  # used for tophat - smoothing
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
@@ -444,7 +458,14 @@ class TopHatPeak(BasePeak):
             float(self.centre),
             float(self.fwhm),
             float(self.epsilon),
+            normalised=self.normalised,
         )
+
+
+# would it be useful to have a peak that can be any of of the other peaks
+# possibly useful if you don't know what type of peak shape you actually want?
+# class MutatablePeak(BasePeak):
+#     peak_type: Literal["mutatable"] = "mutatable"
 
 
 def calculate_profile(
@@ -468,8 +489,10 @@ def calculate_profile(
     intensity = np.zeros_like(x)
 
     for peak in peaks:
-        start_idx = np.searchsorted(x, peak.centre - (wdt * peak.fwhm))
-        end_idx = np.searchsorted(x, peak.centre + (wdt * peak.fwhm), side="right")
+        start_idx = np.searchsorted(x, float(peak.centre) - (wdt * float(peak.fwhm)))
+        end_idx = np.searchsorted(
+            x, float(peak.centre) + (wdt * float(peak.fwhm)), side="right"
+        )
 
         if end_idx <= start_idx:
             continue

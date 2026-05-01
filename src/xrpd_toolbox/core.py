@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import ast
 import json
 import math
-import operator as op
 import tomllib
 from abc import abstractmethod
 from numbers import Real
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, get_args
 
 import numpy as np
 import toml
@@ -39,62 +37,50 @@ SerialisableNDArray = Annotated[
     PlainSerializer(lambda x: x.tolist(), return_type=list),
 ]
 
-
-# ============================================================
-# SAFE AST EVALUATOR (NO eval)
-# ============================================================
-
-OPS = {
-    ast.Add: op.add,
-    ast.Sub: op.sub,
-    ast.Mult: op.mul,
-    ast.Div: op.truediv,
-    ast.Pow: op.pow,
-    ast.Mod: op.mod,
-    ast.FloorDiv: op.floordiv,
-    ast.USub: op.neg,
-    ast.UAdd: lambda x: x,
+SAFE_GLOBALS = {
+    "__builtins__": {},
+    "abs": abs,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "sqrt": math.sqrt,
+    "log": math.log,
+    "exp": math.exp,
 }
 
 
-def evaluate_binary_operation(
-    binary_operation: ast.AST, ctx: dict[str, float]
-) -> float:
-    if isinstance(binary_operation, ast.Constant):
-        value = binary_operation.value
+def safe_pow(a, b):
+    if abs(a) > 1e6 or abs(b) > 100:
+        raise ValueError("too large")
+    return a**b
 
-        if isinstance(value, (int, float)):
-            return float(value)
-        else:
-            raise TypeError(f"Unsupported constant type: {type(value)}")
 
-    elif isinstance(binary_operation, ast.Name):
-        return float(ctx[binary_operation.id])
+def safe_exp(x):
+    if x > 700:  # float overflow boundary
+        raise ValueError("exp too large")
+    return math.exp(x)
 
-    elif isinstance(binary_operation, ast.BinOp):
-        return OPS[type(binary_operation.op)](
-            evaluate_binary_operation(binary_operation.left, ctx),
-            evaluate_binary_operation(binary_operation.right, ctx),
-        )
 
-    elif isinstance(binary_operation, ast.UnaryOp):
-        return OPS[type(binary_operation.op)](
-            evaluate_binary_operation(binary_operation.operand, ctx)
-        )
-
-    else:
-        raise ValueError("Unsupported expression")
+# replace the power to use safe_pow which should protect against CPU heavy operations
+SAFE_GLOBALS["pow"] = safe_pow
+SAFE_GLOBALS["exp"] = safe_exp
 
 
 def evaluate_expression(expr: str, ctx: dict[str, float]) -> float:
-    ast_expression = ast.parse(expr, mode="eval")
+    """I realise this uses eval() which is discouraged,
+    but the other option is nasty, slower and adds bad complexity.
+    With the catches and by only using SAFE_GLOBALS and __builtins__
+    - the risk is basically 0"""
 
-    return evaluate_binary_operation(ast_expression.body, ctx)
+    # prevents access to sub classes that could be dangerous to introspection attack
+    if "__" in expr or "." in expr:
+        raise ValueError("Disallowed expression")
 
+    # prevents stupidly long expression which might take forever to parse
+    if len(expr) > 200:
+        raise ValueError("Expression too long")
 
-# ============================================================
-# PARAMETER (FULLY LAZY, NO GLOBAL METHODS)
-# ============================================================
+    return float(eval(expr, SAFE_GLOBALS, ctx))
 
 
 class Parameter(BaseModel, Real):
@@ -103,22 +89,31 @@ class Parameter(BaseModel, Real):
     bounds: list[float] = [-np.inf, np.inf]
 
     _name: str | None = None
-    _model: Any = None  # back-reference to model
+    _model: Any = None  # back reference to RefinementBaseModel
 
     def _ctx(self) -> dict[str, float]:
         """
         IMPORTANT:
         Only uses RAW values, never float(v), never recursion.
         """
-        return {k: v.value for k, v in self._model._params.items()}  # noqa
+        return {k: float(v.value) for k, v in self._model._params.items()}  # noqa
 
     def _compute_value(self) -> float:
+        # print(self, self.value, "\n\n")
+
         if isinstance(self.value, (float, int)):
             return float(self.value)
         elif isinstance(self.value, str):
             return evaluate_expression(self.value, self._ctx())
         else:
             raise Exception()
+
+    # helpers
+    def get_other_value(self, other: Parameter | int | float):
+        if isinstance(other, Parameter):
+            return other.value
+        else:
+            return other
 
     def __float__(self):
         return self._compute_value()
@@ -128,15 +123,21 @@ class Parameter(BaseModel, Real):
         a number or _name in the expression"""
         return self._name or str(self.value)
 
-    def _to_expression(self, other, op):
+    def _to_expression(self, other, op: str):
+        # if isinstance(self.value, (int, float)) and isinstance(other, (int, float)):
+        #     return Parameter(value=)
+
         if isinstance(other, Parameter):
             return Parameter(value=f"({self._expr()} {op} {other._expr()})")  # noqa
         else:
             return Parameter(value=f"({self._expr()} {op} {other})")
 
     # arithmetic
-    def __add__(self, other):
-        return self._to_expression(other, "+")
+    def __add__(self, other: int | float | Parameter):
+        if isinstance(self.value, (int, float)) and isinstance(other, (int, float)):
+            return self.value + other
+        else:
+            return self._to_expression(other, "+")
 
     def __radd__(self, other):
         return self._to_expression(other, "+")
@@ -379,9 +380,13 @@ class Parameter(BaseModel, Real):
 #         self.set_to = other.__name__
 
 
-ParameterLike = int | float | Parameter
-FloatParameterLike = float | Parameter
-IntParameterLike = int | Parameter
+# ParameterLike = int | float | Parameter
+# FloatParameterLike = float | Parameter
+# IntParameterLike = int | Parameter
+
+
+def is_parameter_like(annotation):
+    return Parameter in get_args(annotation)
 
 
 class ParameterArray(BaseModel):
@@ -567,17 +572,47 @@ class RefinementBaseModel(XRPDBaseModel, extra="allow"):
     This requires the user to know what they're doing.
     With great power comes great reposibility"""
 
+    def get_bounds_from_metadata(self, metadata):
+        lower = None
+        upper = None
+
+        for meta in metadata:
+            ge = getattr(meta, "ge", None)
+            gt = getattr(meta, "gt", None)
+            le = getattr(meta, "le", None)
+            lt = getattr(meta, "lt", None)
+
+            if gt is not None:
+                lower = float(gt)
+            elif ge is not None and lower is None:
+                lower = float(ge)
+
+            if lt is not None:
+                upper = float(lt)
+            elif le is not None and upper is None:
+                upper = float(le)
+
+        if lower is None:
+            lower = -np.inf
+        if upper is None:
+            upper = np.inf
+
+        bounds = [lower, upper]
+        return bounds
+
     def parameterise_all(self, refine: bool = False):
-        for name, val in type(self).model_fields.items():
-            if (
-                val.annotation is ParameterLike
-                or FloatParameterLike
-                or IntParameterLike
-            ):
+        for name, field_info in type(self).model_fields.items():
+            if is_parameter_like(annotation=field_info.annotation):
                 field = getattr(self, name)
 
                 if not isinstance(field, Parameter):
-                    setattr(self, name, Parameter(value=float(field), refine=refine))
+                    bounds = self.get_bounds_from_metadata(field_info.metadata)
+
+                    setattr(
+                        self,
+                        name,
+                        Parameter(value=float(field), refine=refine, bounds=bounds),
+                    )
 
     def path_to_string(self, path) -> str:
         out = []
@@ -626,8 +661,8 @@ class RefinementBaseModel(XRPDBaseModel, extra="allow"):
                         yield from v.iter_parameters(subpath)
 
     def model_post_init(self, __context: Any):
-        self._params = self._collect_parameters()
-        self._bind_parameters()
+        params = self._collect_parameters()
+        self._bind_parameters(params)
 
     def _collect_parameters(self) -> dict[str, Parameter]:
         params: dict[str, Parameter] = {}
@@ -638,8 +673,8 @@ class RefinementBaseModel(XRPDBaseModel, extra="allow"):
 
         return params
 
-    def _bind_parameters(self) -> None:
-        for name, param in self._params.items():
+    def _bind_parameters(self, params: dict) -> None:
+        for name, param in params.items():
             param._name = name  # noqa
             param._model = self  # noqa
 
@@ -764,7 +799,7 @@ class Model(RefinementBaseModel):
     calculate_residual"""
 
     @abstractmethod
-    def calculate_residual(self):
+    def calculate_profile(self):
         raise NotImplementedError(
             "Must implmenet calculate_residual for Model subclass"
         )

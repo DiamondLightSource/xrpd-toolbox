@@ -30,6 +30,7 @@ dependencies = [
     # "PyQt5",
     "spglib",
     "pymatgen",
+    "scikit-learn",
     "Dans_Diffraction",
     "stomp.py",
     "numba",
