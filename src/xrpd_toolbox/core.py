@@ -5,7 +5,7 @@ import math
 import tomllib
 from numbers import Real
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypeAlias, get_args
+from typing import Annotated, Any, Literal, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -395,10 +395,6 @@ class Parameter(BaseModel, Real):
 # IntParameterLike = int | Parameter
 
 
-def is_parameter_like(annotation):
-    return Parameter in get_args(annotation)
-
-
 class ParameterArray(BaseModel):
     """Parameter array should be use for things that contain an array of coeeficients
     see: Chebychev background"""
@@ -476,7 +472,7 @@ class XRPDBaseModel(BaseModel):
     serialised/deserialise from file but wont be used for a refinement."""
 
     model_config = ConfigDict(
-        from_attributes=False, arbitrary_types_allowed=True, validate_assignment=True
+        from_attributes=True, arbitrary_types_allowed=True, validate_assignment=True
     )
 
     @classmethod
@@ -578,6 +574,8 @@ class XYEData(XRPDBaseModel):
     x: SerialisableNDArray = Field(repr=False)
     y: SerialisableNDArray = Field(repr=False)
     e: SerialisableNDArray | None = Field(default=None, repr=False)
+    x_unit: str = "index"
+    y_unit: str = "Intensity (Arb. Units)"
     source: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")
@@ -603,14 +601,14 @@ class XYEData(XRPDBaseModel):
 # and then get data type from Radiation class -
 # but the type of radiation is inherently linked to data... so multi phase/radia stuff
 class ScatteringData(XYEData):
-    x_unit: XUnit = "tth"
+    x_unit: XUnit = "tth"  # type: ignore[override]
     data_type: DataType = "xray"
-    wavelength: Parameter  # for x-ray or CW neutron data
+    wavelength: float | Parameter  # for x-ray or CW neutron data
 
     @model_validator(mode="after")
     def validate_data_units(self):
-        if self.data_type == "x-ray":
-            assert self.x_unit != "tof"
+        if self.data_type == "xray":
+            assert self.x_unit != "tof", "x_unit cannot be 'tof' for xray data"
 
         return self
 

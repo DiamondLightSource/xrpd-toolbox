@@ -12,7 +12,17 @@ from abc import abstractmethod
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, Self, TypeVar, cast
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    Self,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,9 +36,9 @@ from xrpd_toolbox.core import (
     Parameter,
     ParameterArray,
     ScatteringData,
+    SerialisableNDArray,
     XRPDBaseModel,
     XYEData,
-    is_parameter_like,
 )
 from xrpd_toolbox.utils.utils import calculate_chi_squared
 
@@ -54,8 +64,29 @@ RefineMethod = Literal[
 ]
 
 
-class RefinementBaseModel(XRPDBaseModel, extra="allow"):
-    """In the RefinementBaseModel ANYTHING that is a Parameter can be refined.
+def is_parameter_like(annotation):
+    return Parameter in get_args(annotation)
+
+
+def is_number_like(annotation) -> bool:
+    origin = get_origin(annotation)
+
+    if annotation in (float, int):
+        return True
+
+    if origin is Union:
+        return any(is_number_like(arg) for arg in get_args(annotation))
+
+    return False
+
+
+# class RefinementBaseModel(XRPDBaseModel, extra="allow"):
+# ^ dont do this unless you want serualisation to get messy
+class RefinementBaseModel(XRPDBaseModel):
+    """
+    This class is use to contain Parameters, on it's own this class cannot be refined.
+
+    In the RefinementBaseModel ANYTHING that is a Parameter can be refined.
     eg. Therefore if you set cubic lattice angles to refine, you will break symmetry.
     This requires the user to know what they're doing.
     With great power comes great reposibility"""
@@ -101,6 +132,34 @@ class RefinementBaseModel(XRPDBaseModel, extra="allow"):
                         name,
                         Parameter(value=float(field), refine=refine, bounds=bounds),
                     )
+
+    def deparameterise(self, value, parent, key):
+        print(key, value, type(value))
+
+        if isinstance(value, Parameter):
+            setattr(parent, key, float(value.value))
+            return
+
+        if isinstance(value, RefinementBaseModel):
+            for sub_name in type(value).model_fields:
+                self.deparameterise(
+                    getattr(value, sub_name),
+                    value,
+                    sub_name,
+                )
+            return
+
+        if isinstance(value, (tuple, list)):
+            for i, obj in enumerate(value):
+                self.deparameterise(obj, value, i)
+            return
+
+    def deparameterise_all(self):
+        """Turns things that maybe a Parmaeter into a float,
+        such that it can be more easily serialised"""
+
+        for name in type(self).model_fields:
+            self.deparameterise(getattr(self, name), self, name)
 
     def path_to_string(self, path) -> str:
         out = []
@@ -287,7 +346,10 @@ ModelDataVar = TypeVar("ModelDataVar", XYEData, ScatteringData)
 
 class Model(RefinementBaseModel, Generic[ModelDataVar]):
     """A model can be refined by the refiner. It must contain:
-    data and a way to calculate_profile"""
+    data and a way to calculate_profile
+
+    This class should contain RefinementBaseModel classes or Parameters/Parameter arrays
+    """
 
     data: ModelDataVar
 
@@ -310,6 +372,8 @@ class Model(RefinementBaseModel, Generic[ModelDataVar]):
         verbose: bool = True,
         **kwargs: Any,
     ) -> tuple[dict[str, float], Self, optimize.OptimizeResult]:
+        """This optimises the model"""
+
         return refine_model(
             self,
             method=method,
@@ -603,6 +667,51 @@ def refine_model(
         plt.close(plot_state.fig)
 
     return updated, optimized_model, result
+
+
+class PlotData(XRPDBaseModel):
+    data: XYEData
+    calc: SerialisableNDArray
+    diff: SerialisableNDArray
+    background: SerialisableNDArray | float | None = None
+    markers: SerialisableNDArray | None = None
+    title: str | None = None
+
+    def plot(self):
+        if isinstance(self.background, float):
+            background = [self.background] * len(self.data.x)
+        elif isinstance(self.background, np.ndarray):
+            background = self.background
+        else:
+            background = self.background
+
+        offset = -0.1 * self.data.y.max()
+        if self.title is not None:
+            plt.title(self.title)
+        plt.scatter(self.data.x, self.data.y, label="Obs", color="black", s=5)
+        plt.plot(self.data.x, self.calc, label="Calc", color="red")
+        if background is not None:
+            plt.plot(self.data.x, background, label="Background")
+        plt.plot(
+            self.data.x,
+            self.data.y - self.calc + offset,
+            label="Obs-Calc",
+            color="blue",
+        )
+
+        if self.markers is not None:
+            plt.vlines(
+                self.markers,
+                0,
+                self.data.y.max() / 10,
+                color="magenta",
+                label="Marker",
+            )
+
+        plt.xlabel(self.data.x_unit)
+        plt.ylabel(self.data.y_unit)
+        plt.legend()
+        plt.show()
 
 
 if __name__ == "__main__":

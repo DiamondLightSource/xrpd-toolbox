@@ -6,6 +6,18 @@ from time import sleep
 
 import stomp
 
+from xrpd_toolbox.fit_engine.fitting_core import PlotData
+
+DEFAULT_BROKER = "rabbitmq"
+DEFAULT_DESTINATIONS = [
+    "/topic/public.worker.event",
+    "/topic/gda.messages.scan",
+]
+
+DEFAULT_DII_UI_PLOT_DESTINATION = (
+    "/topic/public.data.plot"  # Currently prone to change as of 07/05/26
+)
+
 
 class MessageUnpacker:
     messages = deque()
@@ -42,7 +54,7 @@ class Messenger:
         port: int = 61613,
         username: str | None = None,
         password: str | None = None,
-        destination: Path | list[Path] | str | list[str] | None = None,
+        destinations: Path | list[Path] | str | list[str] | None = None,
         auto_connect: bool = True,
         **kwargs,
     ):
@@ -55,28 +67,22 @@ class Messenger:
         self.username = username
         self.password = password
         self.auto_connect = auto_connect
-        self.destination = destination
+        self.destinations = destinations
 
-        self.default_destination = [
-            "/topic/public.worker.event",
-            "/topic/gda.messages.scan",
-        ]
         # /topic/public.worker.event blueapi
         # defined here https://github.com/DiamondLightSource/blueapi/blob/77129d132d5481b9d6adad3fe15c02d581aff9f7/docs/reference/asyncapi.yaml#L4
 
         # "/topic/gda.messages.scan"  # nexus file converter
         # defined here: https://gitlab.diamond.ac.uk/daq/d2acq/services/nexus-file-converter/-/blob/master/src/main/resources/application.yaml
 
-        if not self.destination:
-            print(f"No destination specified, defaulting to {self.default_destination}")
-            self.destination = self.default_destination
+        if not self.destinations:
+            print(f"No destination specified, defaulting to {DEFAULT_DESTINATIONS}")
+            self.destinations = DEFAULT_DESTINATIONS
 
-        if (
-            not self.host
-            and self.beamline
-            and (self.broker == "rabbitmq")
-            or (self.broker is None)
-        ):
+        if not self.broker:
+            self.broker = DEFAULT_BROKER
+
+        if not self.host and self.beamline:
             print("Host not specified, constructing from beamline name")
             self.host = f"{self.beamline}-{self.broker}-daq.diamond.ac.uk"
             self.broker = "rabbitmq"
@@ -117,25 +123,25 @@ class Messenger:
         self.conn.disconnect()
 
     def subscribe(self):
-        if isinstance(self.destination, list):
-            for i, dest in enumerate(self.destination):
+        if isinstance(self.destinations, list):
+            for i, dest in enumerate(self.destinations):
                 self.conn.subscribe(destination=dest, id=i + 1, ack="auto")
         else:
-            self.conn.subscribe(destination=self.destination, id=1, ack="auto")
+            self.conn.subscribe(destination=self.destinations, id=1, ack="auto")
 
-    def send_file(self, path):
+    def send_file(self, path: str):
         """Use this when you want dawn to open and plot a file"""
         message = json.dumps({"filePath": path})
         destination = "/topic/org.dawnsci.file.topic"
-        self._send_message(destination, message)
+        self.send_message(destination, message)
 
-    def send_start(self, path):
+    def send_start(self, path: str):
         """use this in when doing live processing and it has started"""
         message = json.dumps(
             {"filePath": path, "status": "STARTED", "swmrStatus": "ENABLED"}
         )
         destination = "/topic/gda.messages.processing"
-        self._send_message(destination, message)
+        self.send_message(destination, message)
 
     def send_update(self, path):
         """use this in when doing live processing and it has started"""
@@ -144,26 +150,34 @@ class Messenger:
             {"filePath": path, "status": "UPDATED", "swmrStatus": "ACTIVE"}
         )
         destination = "/topic/gda.messages.processing"
-        self._send_message(destination, message)
+        self.send_message(destination, message)
 
     def send_finished(self, path):
         message = json.dumps(
             {"filePath": path, "status": "FINISHED", "swmrStatus": "ACTIVE"}
         )
         destination = "/topic/gda.messages.processing"
-        self._send_message(destination, message)
+        self.send_message(destination, message)
 
-    def _send_message(self, destination, message):
+    def send_message(self, destination: str, message: str):
         self.conn.send(destination=destination, body=message, ack="auto")
+        print(f"Message sent to: {destination}")
 
     def stop(self):
+        """Stop listening to destinations"""
         self.run = False
 
     def get_message(self):
         return self.scan_listener.messages.popleft()
 
+    def send_plot_data(self, plot_data: PlotData):
+        """Pass this a PlotData object and it will serialise it
+        and send it to RabbitMQ telling the UI to plot it"""
+        self.send_message(DEFAULT_DII_UI_PLOT_DESTINATION, plot_data.model_dump_json())
+
     def listen(self, max_iter: int = 50, interval: float | int = 1.0):
         c = 0
+        self.run = True
 
         while (self.run is True) and (c < max_iter):
             if self.scan_listener.messages:

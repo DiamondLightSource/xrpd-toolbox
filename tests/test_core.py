@@ -2,7 +2,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from xrpd_toolbox.fit_engine.refiner import RefinementBaseModel
 
 from xrpd_toolbox.core import (
     Parameter,
@@ -11,11 +10,11 @@ from xrpd_toolbox.core import (
     XRPDBaseModel,
     XYEData,
     evaluate_expression,
-    is_parameter_like,
     safe_exp,
     safe_pow,
     to_ndarray,
 )
+from xrpd_toolbox.fit_engine.fitting_core import RefinementBaseModel, is_parameter_like
 
 
 def test_to_ndarray_converts_lists_and_preserves_ndarrays():

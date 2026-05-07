@@ -25,6 +25,7 @@ from xrpd_toolbox.fit_engine.constants import (
 )
 from xrpd_toolbox.fit_engine.fitting_core import (
     Model,
+    PlotData,
     RefinementBaseModel,
     refine_model,
 )
@@ -1050,23 +1051,18 @@ class ReitveldRefinement(Model[ScatteringData]):
         # if self.calculated_intensity is None:
         self.calculated_intensity = self.calculate_profile()
 
-        # print(self.data.y)
-        # print(self.calculated_intensity)
+        if isinstance(self.background, Background):
+            background = self.background.calculate(self.data.x)
+        else:
+            background = float(self.background)
 
-        plt.figure(figsize=(16, 10))
-        plt.scatter(self.data.x, self.data.y, label="Obs", color="black", s=2)
-        plt.plot(self.data.x, self.calculated_intensity, label="Calc", color="red")
-        plt.plot(
-            self.data.x - self.zero_offset,
-            (self.data.y - self.calculated_intensity) - np.amax(self.data.y) / 10,
-            label="Obs-Calc",
-            color="blue",
+        plot_data = PlotData(
+            data=self.data,
+            calc=self.calculated_intensity,
+            diff=self.data.y - self.calculated_intensity,
+            background=background,
         )
-        plt.xlabel(f"{self.data.x_unit}")
-        plt.ylabel("Intensity (a.u.)")
-        plt.legend()
-        plt.show()
-        plt.close()
+        plot_data.plot()
 
 
 if __name__ == "__main__":
@@ -1105,9 +1101,6 @@ if __name__ == "__main__":
 
         model.irf.refine_none()
 
-        updated, model, result = refine_model(model, plot=True)
-
-        model.irf.refine_all()
         updated, model, result = refine_model(model, plot=True)
 
         model.save(output_name)

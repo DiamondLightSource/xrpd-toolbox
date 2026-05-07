@@ -7,26 +7,26 @@ including peak detection, peak profile construction, and plotting.
 import math
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from xrpd_toolbox.core import Parameter, XRPDBaseModel, XYEData
+from xrpd_toolbox.core import Parameter, XYEData
 from xrpd_toolbox.fit_engine.background import (
     BackgroundType,
     ConstantBackground,
 )
-from xrpd_toolbox.fit_engine.fitting_core import Model
+from xrpd_toolbox.fit_engine.fitting_core import Model, PlotData, RefinementBaseModel
 from xrpd_toolbox.fit_engine.peaks import (
     Peak,
     PeakType,
     calculate_profile,
     peak_factory,
 )
+from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.utils import cluster_points_auto
 
 
-class SampleCenteringResult(XRPDBaseModel):
+class SampleCenteringResult(RefinementBaseModel):
     """This is what contains the results and can
     be serisalised and sent back to the bluesky plan"""
 
@@ -45,6 +45,7 @@ class SampleAligner(Model[XYEData]):
 
     background: BackgroundType
     sample_and_capillary: list[PeakType] = []
+    centre: float | None = None
 
     def get_peak_info(self, labels, peak_position, peak_intensity):
         """Summarize grouped peak detections into peak initialization data.
@@ -164,19 +165,24 @@ class SampleAligner(Model[XYEData]):
         the background model, and the residual (observed minus calculated).
         """
         if self.data.source is not None:
-            plt.title(os.path.basename(self.data.source))
+            title = os.path.basename(self.data.source)
+        else:
+            title = None
 
         profile = calculate_profile(self.data.x, self.sample_and_capillary)
-
         profile = profile + self.background.calculate(self.data.x)
 
-        plt.scatter(self.data.x, self.data.y, label="Obs", color="black", s=5)
-        plt.plot(self.data.x, profile, label="Calc", color="red")
-        plt.plot(
-            self.data.x, self.background.calculate(self.data.x), label="background"
+        plot_data = PlotData(
+            data=self.data,
+            calc=profile,
+            diff=self.data.y - profile,
+            background=self.background.calculate(self.data.x),
+            title=title,
+            markers=np.array(self.centre),
         )
-        plt.plot(self.data.x, self.data.y - profile, label="Obs-Calc", color="blue")
-        plt.show()
+        plot_data.plot()
+
+        return plot_data
 
     def peaks_to_arrays(
         self, peaks: list[PeakType]
@@ -238,6 +244,8 @@ class SampleAligner(Model[XYEData]):
         max_index = np.argmax(scores)
 
         sample_centre = centres[max_index]
+
+        self.centre = sample_centre
 
         return SampleCenteringResult(
             centre=sample_centre, peaks=middle_peaks, scores=scores.tolist()
@@ -315,6 +323,9 @@ if __name__ == "__main__":
     folder = "/workspaces/XRPD-Toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
 
     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
+    messenger = Messenger("i15-1")
+
+    listener = Messenger("i15-1", destinations=["/topic/public.data.plot"])
 
     for filepath in sample_alignment_files:
         best_model = run_sample_alignment(data=filepath)
@@ -324,8 +335,14 @@ if __name__ == "__main__":
 
         print(sample_centre_result.model_dump_json())
 
-        plt.vlines(sample_centre_result.centre, 0, best_model.data.y.max())
+        sample_centre_result.deparameterise_all()
 
-        best_model.plot_data()
+        print(sample_centre_result.model_dump_json())
+
+        # plot_data = best_model.plot_data()
+
+        # messenger.send_plot_data(plot_data)
+        # listener.listen(max_iter=5)
+        # listener.stop()
 
         print("-----")
