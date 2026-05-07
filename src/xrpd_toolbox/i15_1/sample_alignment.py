@@ -320,7 +320,7 @@ if __name__ == "__main__":
         best_model = run_sample_alignment(data=filepath)
 
         sample_centre_result = best_model.get_sample_centre()
-        _ = best_model.get_best_peaks()
+        # _ = best_model.get_best_peaks()
 
         print(sample_centre_result.model_dump_json())
 
