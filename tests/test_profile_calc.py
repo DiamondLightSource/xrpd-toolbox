@@ -47,14 +47,9 @@ def test_refine_silicon():
     model.background.refine_none()
 
     print(model.get_refinement_parameters())
-
     model.irf.refine_none()
-
     model.refine(plot=False)
-
     model.save(OUTPUT_NAME)
-
-    return None
 
 
 @pytest.mark.skipif(

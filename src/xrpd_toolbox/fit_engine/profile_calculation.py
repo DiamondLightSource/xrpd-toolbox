@@ -25,7 +25,6 @@ from xrpd_toolbox.fit_engine.constants import (
 )
 from xrpd_toolbox.fit_engine.fitting_core import (
     Model,
-    PlotData,
     RefinementBaseModel,
     refine_model,
 )
@@ -48,6 +47,7 @@ from xrpd_toolbox.fit_engine.symmetry import (
     format_space_group_name,
     get_symmetry_tables,
 )
+from xrpd_toolbox.plotting import PlotData
 from xrpd_toolbox.utils.cif_reader import read_cif
 from xrpd_toolbox.utils.unit_conversion import (
     beam_energy_to_wavelength,

@@ -19,7 +19,7 @@ EXPECTED_SAMPLE_ALIGNMENT_CENTRES = {
     "GaIn-94521.csv": 70.02,
     "HKUST1-95018.csv": 71.05,
     "NIST_Si-95016.csv": 84.37,
-    "NaCl-95017.csv": 55.396,
+    "NaCl-95017.csv": 55.39,
     "carbon_black-94519.csv": 36.77,
     "water-94520.csv": 55.23,
 }

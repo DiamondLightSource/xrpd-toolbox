@@ -6,7 +6,7 @@ from time import sleep
 
 import stomp
 
-from xrpd_toolbox.fit_engine.fitting_core import PlotData
+from xrpd_toolbox.core import XRPDBaseModel
 
 DEFAULT_BROKER = "rabbitmq"
 DEFAULT_DESTINATIONS = [
@@ -170,7 +170,7 @@ class Messenger:
     def get_message(self):
         return self.scan_listener.messages.popleft()
 
-    def send_plot_data(self, plot_data: PlotData):
+    def send_plot_data(self, plot_data: XRPDBaseModel):
         """Pass this a PlotData object and it will serialise it
         and send it to RabbitMQ telling the UI to plot it"""
         self.send_message(DEFAULT_DII_UI_PLOT_DESTINATION, plot_data.model_dump_json())

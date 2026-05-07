@@ -15,13 +15,14 @@ from xrpd_toolbox.fit_engine.background import (
     BackgroundType,
     ConstantBackground,
 )
-from xrpd_toolbox.fit_engine.fitting_core import Model, PlotData, RefinementBaseModel
+from xrpd_toolbox.fit_engine.fitting_core import Model, RefinementBaseModel
 from xrpd_toolbox.fit_engine.peaks import (
     Peak,
     PeakType,
     calculate_profile,
     peak_factory,
 )
+from xrpd_toolbox.plotting import PlotData
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.utils import cluster_points_auto
 
@@ -320,10 +321,11 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
 
 
 if __name__ == "__main__":
+    BEAMLINE = "i15-1"
+
     folder = "/workspaces/XRPD-Toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
 
     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
-    messenger = Messenger("i15-1")
 
     listener = Messenger("i15-1", destinations=["/topic/public.data.plot"])
 
@@ -339,7 +341,8 @@ if __name__ == "__main__":
 
         print(sample_centre_result.model_dump_json())
 
-        # plot_data = best_model.plot_data()
+        plot_data = best_model.plot_data()
+        plot_data.publish(BEAMLINE)
 
         # messenger.send_plot_data(plot_data)
         # listener.listen(max_iter=5)
