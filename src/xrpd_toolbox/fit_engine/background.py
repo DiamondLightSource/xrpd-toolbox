@@ -8,9 +8,9 @@ from pydantic import Field
 from xrpd_toolbox.core import (
     Parameter,
     ParameterArray,
-    RefinementBaseModel,
     SerialisableNDArray,
 )
+from xrpd_toolbox.fit_engine.fitting_core import RefinementBaseModel
 
 
 # TODO: Should we store x here too?; If so store it as private
@@ -186,10 +186,72 @@ class LinearInterpolationBackground(Background):
         return cls(x_sample=x_sample, y_sample=y_sample_parameter)
 
 
+class SplitBackground(Background):
+    """This background is basically two linear backgrounds,
+    that are split at some point. Before that point is use one background
+    and after that point it uses another"""
+
+    background_type: Literal["SplitBackground"] = "SplitBackground"
+    split_index: int
+    value1: float | Parameter
+    value2: float | Parameter
+
+    @classmethod
+    def estimate(
+        cls,
+        x: np.ndarray,
+        y: np.ndarray,
+        rtol: float = 0.1,
+        **kwargs,
+    ) -> SplitBackground:
+        y_min = float(np.min(y))
+        threshold = 2.0 * np.abs(y_min)
+
+        mask1 = np.isclose(y, y_min, rtol=rtol)
+        idx1 = np.flatnonzero(mask1)
+
+        if idx1.size == 0:
+            # fallback: nearest to min
+            idx1 = np.argsort(np.abs(y - y_min))[:10]
+
+        split_index = int(np.max(idx1)) + 1
+
+        value1 = float(np.mean(y[idx1]))
+
+        valid = y >= threshold
+
+        if np.any(valid):
+            candidates = y[valid]
+            min2 = float(np.min(candidates))
+
+            mask2 = np.isclose(y, min2, rtol=rtol)
+            idx2 = np.flatnonzero(mask2)
+
+            if idx2.size == 0:
+                idx2 = np.argsort(np.abs(y - min2))[:10]
+
+            value2 = float(np.mean(y[idx2]))
+        else:
+            # fallback: no values above threshold
+            value2 = value1
+
+        value1 = Parameter(value=value1)
+        value2 = Parameter(value=value2)
+
+        return cls(split_index=split_index, value1=value1, value2=value2)
+
+    def calculate(self, x: np.ndarray):
+        bg = np.empty_like(x, dtype=float)
+        bg[: self.split_index] = float(self.value1)
+        bg[self.split_index :] = float(self.value2)
+        return bg
+
+
 BackgroundType = Annotated[
     ConstantBackground
     | LinearBackground
     | LinearInterpolationBackground
-    | ChebyshevBackground,
+    | ChebyshevBackground
+    | SplitBackground,
     Field(discriminator="background_type"),
 ]

@@ -15,7 +15,28 @@ from pyFAI.calibrant import get_calibrant
 from scipy.interpolate import interp1d
 
 
+def calculate_chi_squared(
+    ycalc: np.ndarray, yobs: np.ndarray, y_err: np.ndarray | None
+) -> float:
+    """calculates chi_squared (the minimisation cost function) that is familiar to
+    those who do retiveld refinements"""
+
+    if y_err is not None:
+        wi = 1 / y_err**2
+    else:
+        wi = 1 / yobs
+
+    residual = (wi * (yobs - ycalc)) ** 2
+    chi_squared = float(np.sum(residual))
+
+    return chi_squared
+
+
+# TODO: Decide whether we can just use the normal logging within python
 class AnalysisLogger:
+    """A class that can be use as a logger to log data to a
+    filepath and print at the same time - possibly superfluous"""
+
     def __init__(self, log_filepath: str | Path, logging: bool = False):
         self.log_filepath = log_filepath
         self.logging = logging
@@ -34,7 +55,7 @@ class AnalysisLogger:
             f.write(f"Datetime: {datetime.now()}\n")
             f.write("================================\n")
 
-    def log(self, *args, print_to_console=True):
+    def log(self, *args, print_to_console: bool = True):
         if print_to_console:
             print(*args)
 
@@ -189,7 +210,7 @@ def normalise_to(
 ) -> np.ndarray:
     """
     normalises an array
-    minval is  the minimum value that the
+    minval is the minimum value that the
     processed array is scaled to.
     """
 
@@ -198,8 +219,17 @@ def normalise_to(
     return (data_array - minval) / (np.amax(data_array) - minval)
 
 
-def normalise(data: np.ndarray | list) -> np.ndarray:
-    return (data - np.min(data)) / (np.max(data) - np.min(data))
+def normalise(data: np.ndarray | list, default_min: float = 1e-12) -> np.ndarray:
+    """Normalises an array between 0 and 1, a specific version of normalise_to
+    where minval is min(data)"""
+
+    # Do not make this use normalise_to it keeps breaking for some reason
+
+    array_min = float(np.amin(data))
+    if array_min == 0.0:
+        array_min = default_min
+
+    return (data - np.min(data)) / (np.max(data) - array_min)
 
 
 def load_int_array_from_file(filepath: str | Path) -> np.ndarray:
@@ -439,7 +469,19 @@ def rebin_together(x1, y1, x2, y2, num_points=None):
 
 
 def timeit(f):
-    """use this as a decorator to time a function"""
+    """use this as a decorator to time a function
+
+    eg:
+
+    @timeit
+    def my_func()
+        time.sleep(1)
+
+    myfunc()
+
+    - my_func took 1 seconds
+
+    """
 
     @wraps(f)
     def wrap(*args, **kw):

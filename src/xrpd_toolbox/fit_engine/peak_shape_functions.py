@@ -5,7 +5,8 @@ import numpy as np
 from numba import njit
 from pydantic import Field
 
-from xrpd_toolbox.core import Parameter, RefinementBaseModel
+from xrpd_toolbox.core import Parameter
+from xrpd_toolbox.fit_engine.fitting_core import RefinementBaseModel
 
 
 def caglioti_fwhm(

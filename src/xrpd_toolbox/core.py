@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 import math
 import tomllib
-from abc import abstractmethod
 from numbers import Real
 from pathlib import Path
-from typing import Annotated, Any, get_args
+from typing import Annotated, Any, Literal, TypeAlias, get_args
 
+import matplotlib.pyplot as plt
 import numpy as np
 import toml
 import yaml
@@ -15,12 +15,22 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    Field,
     PlainSerializer,
     model_serializer,
     model_validator,
 )
 
 SUPPORTED_FILE_TYPES = [".json", ".toml", ".yaml"]
+
+XUnit: TypeAlias = Literal["tth", "tof", "q", "d"]
+
+DataType: TypeAlias = Literal[
+    "xray",
+    "lab-xray",
+    "tof-neutron",
+    "cw-neutron",
+]
 
 
 def to_ndarray(v):
@@ -445,10 +455,8 @@ class ParameterArray(BaseModel):
 
         return data
 
-    def __getitem__(self, key: str | int | slice):
-        if isinstance(key, str) and key in type(self).model_fields:
-            return getattr(self, key)
-        elif isinstance(key, int):
+    def __getitem__(self, key: int | slice) -> Parameter | ParameterArray:
+        if isinstance(key, int):
             return self.parameter_array[key]
         elif isinstance(key, slice):
             return ParameterArray(parameter_array=self.parameter_array[key])
@@ -566,242 +574,126 @@ class XRPDBaseModel(BaseModel):
         setattr(self, name, value)
 
 
-class RefinementBaseModel(XRPDBaseModel, extra="allow"):
-    """In the RefinementBaseModel ANYTHING that is a Parameter can be refined.
-    eg. Therefore if you set cubic lattice angles to refine, you will break symmetry.
-    This requires the user to know what they're doing.
-    With great power comes great reposibility"""
+class XYEData(XRPDBaseModel):
+    x: SerialisableNDArray = Field(repr=False)
+    y: SerialisableNDArray = Field(repr=False)
+    e: SerialisableNDArray | None = Field(default=None, repr=False)
+    source: str | None = None  # for tracking where the data came from
 
-    def get_bounds_from_metadata(self, metadata):
-        lower = None
-        upper = None
+    @model_validator(mode="after")
+    def validate_data(self):
+        assert len(self.x) == len(self.y)
+        if self.e is not None:
+            assert len(self.x) == len(self.e)
 
-        for meta in metadata:
-            ge = getattr(meta, "ge", None)
-            gt = getattr(meta, "gt", None)
-            le = getattr(meta, "le", None)
-            lt = getattr(meta, "lt", None)
+        return self
 
-            if gt is not None:
-                lower = float(gt)
-            elif ge is not None and lower is None:
-                lower = float(ge)
+    @classmethod
+    def from_csv(cls, filepath: str | Path):
+        try:
+            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+        except ValueError:
+            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+            e = None
 
-            if lt is not None:
-                upper = float(lt)
-            elif le is not None and upper is None:
-                upper = float(le)
-
-        if lower is None:
-            lower = -np.inf
-        if upper is None:
-            upper = np.inf
-
-        bounds = [lower, upper]
-        return bounds
-
-    def parameterise_all(self, refine: bool = False):
-        for name, field_info in type(self).model_fields.items():
-            if is_parameter_like(annotation=field_info.annotation):
-                field = getattr(self, name)
-
-                if not isinstance(field, Parameter):
-                    bounds = self.get_bounds_from_metadata(field_info.metadata)
-
-                    setattr(
-                        self,
-                        name,
-                        Parameter(value=float(field), refine=refine, bounds=bounds),
-                    )
-
-    def path_to_string(self, path) -> str:
-        out = []
-        for p in path:
-            if isinstance(p, int):
-                out[-1] = f"{out[-1]}[{p}]"
-            else:
-                out.append(p)
-        return ".".join(out)
-
-    def iter_parameters(self, prefix=()):
-        fields = type(self).model_fields
-
-        for name in fields:
-            value = getattr(self, name)
-            path = prefix + (name,)
-
-            if isinstance(value, Parameter):
-                yield path, value
-                continue
-
-            elif isinstance(value, ParameterArray):
-                for i, p in enumerate(value.parameter_array):
-                    subpath = path + (i,)
-                    yield subpath, p
-
-            elif isinstance(value, RefinementBaseModel):
-                yield from value.iter_parameters(path)
-
-            elif isinstance(value, (list, tuple)):
-                for i, v in enumerate(value):
-                    subpath = path + (i,)
-
-                    if isinstance(v, Parameter):
-                        yield subpath, v
-                    elif isinstance(v, RefinementBaseModel):
-                        yield from v.iter_parameters(subpath)
-
-            elif isinstance(value, dict):
-                for k, v in value.items():
-                    subpath = path + (k,)
-
-                    if isinstance(v, Parameter):
-                        yield subpath, v
-                    elif isinstance(v, RefinementBaseModel):
-                        yield from v.iter_parameters(subpath)
-
-    def model_post_init(self, __context: Any):
-        params = self._collect_parameters()
-        self._bind_parameters(params)
-
-    def _collect_parameters(self) -> dict[str, Parameter]:
-        params: dict[str, Parameter] = {}
-
-        for name, value in self.__dict__.items():
-            if isinstance(value, Parameter):
-                params[name] = value
-
-        return params
-
-    def _bind_parameters(self, params: dict) -> None:
-        for name, param in params.items():
-            param._name = name  # noqa
-            param._model = self  # noqa
-
-    # def iter_parameters(self, prefix=()):
-    #     """this version is better - but breaks if Paramater aren't fixed"""
-
-    #     stack = deque([(prefix, self)])
-
-    #     while stack:
-    #         path, value = stack.pop()
-
-    #         # --- Parameter (fast path, most important) ---
-    #         if isinstance(value, Parameter):
-    #             yield path, value
-    #             continue
-
-    #         # --- Model ---
-    #         if isinstance(value, RefinementBaseModel):
-    #             for name in value.model_fields:
-    #                 stack.append((path + (name,), getattr(value, name)))
-    #             continue
-
-    #         # --- Mapping ---
-    #         if isinstance(value, dict):
-    #             for k, v in value.items():  # type: ignore - this is impossible to not have items # noqa
-    #                 stack.append((path + (k,), v))
-    #             continue
-
-    #         # --- Iterable containers (lists, tuples, ParameterArray, etc.) ---
-    #         if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
-    #             # special-case: ParameterArray exposes internal list
-    #             if hasattr(value, "parameter_array"):
-    #                 value = value.parameter_array
-
-    #             for i, v in enumerate(value):
-    #                 stack.append((path + (i,), v))
-
-    def get_refinement_parameters(self) -> dict:
-        result = {}
-        seen = set()
-
-        for path, p in self.iter_parameters():
-            if not p.refine:
-                continue
-
-            pid = id(p)
-
-            # this bit can be removed after I have fixed how parameter stores equiv vals
-            if pid in seen:
-                continue
-
-            seen.add(pid)
-
-            # Only build string here (once)
-            key = self.path_to_string(path)
-            result[key] = p.value
-
-        return result
-
-    def get_param_by_path(self, path: str) -> Parameter:
-        obj = self
-        tokens = path.split(".")
-
-        for token in tokens:
-            if "[" in token:
-                name, rest = token.split("[", 1)
-                obj = getattr(obj, name)
-                obj = obj[int(rest[:-1])]  # strip trailing ']'
-            else:
-                obj = getattr(obj, token)
-
-        if not isinstance(obj, Parameter):
-            raise TypeError(f"{path} does not resolve to Parameter")
-
-        return obj
-
-    def set_refinement_parameters(self, values: dict[str, float]):
-        # Build mapping once
-        path_map = {}
-        seen = set()
-
-        add_seen = seen.add
-
-        for path, p in self.iter_parameters():
-            if not p.refine:
-                continue
-
-            pid = id(p)
-            if pid in seen:
-                continue
-
-            add_seen(pid)
-            path_map[self.path_to_string(path)] = p
-
-        # Apply updates
-        for key, val in values.items():
-            path_map[key].value = float(val)
-
-    def refine_none(self, keep_refined: list[str] | None = None):
-        if keep_refined is None:
-            keep_refined = []
-
-        for name, param in self.iter_parameters():
-            if name[-1] in keep_refined:
-                continue
-            else:
-                param.refine = False
-
-    def refine_all(self, keep_fixed: list[str] | None = None):
-        if keep_fixed is None:
-            keep_fixed = []
-
-        for name, param in self.iter_parameters():
-            if name[-1] in keep_fixed:
-                continue
-            else:
-                param.refine = True
+        return cls(x=x, y=y, e=e, source=str(filepath))
 
 
-class Model(RefinementBaseModel):
-    """A model can be refined by the refiner. It must contain:
-    calculate_residual"""
+# TODO: Decide whether better to put x_unit into XYEData, remove generic ModelDataVar
+# and then get data type from Radiation class -
+# but the type of radiation is inherently linked to data... so multi phase/radia stuff
+class ScatteringData(XYEData):
+    x_unit: XUnit = "tth"
+    data_type: DataType = "xray"
+    wavelength: Parameter  # for x-ray or CW neutron data
 
-    @abstractmethod
-    def calculate_profile(self):
-        raise NotImplementedError(
-            "Must implmenet calculate_residual for Model subclass"
+    @model_validator(mode="after")
+    def validate_data_units(self):
+        if self.data_type == "x-ray":
+            assert self.x_unit != "tof"
+
+        return self
+
+    def plot(self, show: bool = True):
+        plt.figure(figsize=(16, 10))
+        plt.errorbar(self.x, self.y, yerr=self.e, fmt="o", label="Data")
+        plt.xlabel(f"{self.x_unit}")
+        plt.ylabel("Intensity (a.u.)")
+        plt.title(f"Scattering Data ({self.data_type})")
+
+        if show:
+            plt.legend()
+            plt.show()
+
+    # If this doesn't accept the data format:
+    # I recommend using POWDLL to convert data to TOPAS style .xye format
+    @classmethod
+    def from_xye(
+        cls,
+        filepath: str | Path,
+        x_unit: XUnit,
+        data_type: DataType,
+        wavelength: float | Parameter,
+    ) -> ScatteringData:
+        """Loads scattering data from a CSV file. The file should have 3 (or 2) columns:
+        x, y and optionally e (error)
+        Equivalent the TOPAS xye format
+        """
+
+        if isinstance(wavelength, Parameter):
+            wavelength = wavelength
+        else:
+            wavelength = Parameter(value=wavelength, refine=False)
+
+        try:
+            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+        except ValueError:
+            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+            e = None
+
+        return cls(
+            x=x,
+            y=y,
+            e=e,
+            x_unit=x_unit,
+            data_type=data_type,
+            wavelength=wavelength,
+            source=str(filepath),
+        )
+
+    @classmethod
+    def from_fullprof(
+        cls,
+        filepath: str | Path,
+        x_unit: XUnit,
+        data_type: DataType,
+        wavelength: float | Parameter,
+    ) -> ScatteringData:
+        """Loads scattering data from a .xy or .dat file.
+        The file should have 3 columns x, y and error
+        Equivalent the fullprof INSTRM=10 format
+        """
+
+        if isinstance(wavelength, Parameter):
+            wavelength = wavelength
+        else:
+            wavelength = Parameter(value=wavelength, refine=False)
+        x, y, e = np.genfromtxt(
+            str(filepath),
+            skip_header=1,
+            comments="!",
+            unpack=True,
+            dtype=float,
+        )
+
+        return cls(
+            x=x,
+            y=y,
+            e=e,
+            x_unit=x_unit,
+            data_type=data_type,
+            wavelength=wavelength,
+            source=str(filepath),
         )
 
 
@@ -810,16 +702,8 @@ if __name__ == "__main__":
 
     a = Parameter(value=3, refine=True)
 
-    rf = RefinementBaseModel()
-
     print(a)
 
     x = 1.0 + Parameter(value=3)
 
     print(x)
-
-    rf["a"] = 1
-
-    print(rf.model_dump_json())
-
-    print(rf)

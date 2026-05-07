@@ -10,11 +10,10 @@ import numpy as np
 from pydantic import Field, computed_field, model_validator
 
 from xrpd_toolbox.core import (
-    Model,
+    DataType,
     Parameter,
-    RefinementBaseModel,
+    ScatteringData,
     SerialisableNDArray,
-    XRPDBaseModel,
 )
 from xrpd_toolbox.fit_engine.atom import Atoms
 from xrpd_toolbox.fit_engine.background import (
@@ -23,6 +22,11 @@ from xrpd_toolbox.fit_engine.background import (
 )
 from xrpd_toolbox.fit_engine.constants import (
     ELEMENT_ATOMIC_NUMBER,
+)
+from xrpd_toolbox.fit_engine.fitting_core import (
+    Model,
+    RefinementBaseModel,
+    refine_model,
 )
 from xrpd_toolbox.fit_engine.form_factors import X_RAY_FORM_FACTORS
 from xrpd_toolbox.fit_engine.lattice import (
@@ -38,7 +42,6 @@ from xrpd_toolbox.fit_engine.peaks import (
     calculate_profile,
     peak_factory,
 )
-from xrpd_toolbox.fit_engine.refiner import refine_model
 from xrpd_toolbox.fit_engine.symmetry import (
     SpaceGroup,
     format_space_group_name,
@@ -50,34 +53,12 @@ from xrpd_toolbox.utils.unit_conversion import (
     q_space_to_s,
     q_space_to_theta,
 )
-
-XUnit: TypeAlias = Literal["tth", "tof", "q", "d"]
-
-DataType: TypeAlias = Literal[
-    "xray",
-    "lab-xray",
-    "tof-neutron",
-    "cw-neutron",
-]
+from xrpd_toolbox.utils.utils import calculate_chi_squared
 
 CrystalType: TypeAlias = Literal["powder", "single-crystal"]
 
 
 ITC_TABLES = get_symmetry_tables()
-
-
-def calculate_chi_squared(
-    ycalc: np.ndarray, yobs: np.ndarray, y_err: np.ndarray | None
-) -> float:
-    if y_err is not None:
-        wi = 1 / y_err**2
-    else:
-        wi = 1 / yobs
-
-    residual = (wi * (yobs - ycalc)) ** 2
-    chi_squared = float(np.sum(residual))
-
-    return chi_squared
 
 
 def merge_peaks(
@@ -947,126 +928,6 @@ def cif_to_structure(cif_filepath: str | Path) -> Structure:
     return structure
 
 
-class XYEData(XRPDBaseModel):
-    x: SerialisableNDArray = Field(repr=False)
-    y: SerialisableNDArray = Field(repr=False)
-    e: SerialisableNDArray | None = Field(default=None, repr=False)
-    source: str | None = None  # for tracking where the data came from
-
-    @model_validator(mode="after")
-    def validate_data(self):
-        assert len(self.x) == len(self.y)
-        if self.e is not None:
-            assert len(self.x) == len(self.e)
-
-        return self
-
-    @classmethod
-    def from_csv(cls, filepath: str | Path):
-        try:
-            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
-        except ValueError:
-            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
-            e = None
-
-        return cls(x=x, y=y, e=e, source=str(filepath))
-
-
-class ScatteringData(XYEData):
-    x_unit: XUnit = "tth"
-    data_type: DataType = "xray"
-    wavelength: Parameter  # for x-ray or CW neutron data
-
-    @model_validator(mode="after")
-    def validate_data_units(self):
-        if self.data_type == "x-ray":
-            assert self.x_unit != "tof"
-
-        return self
-
-    def plot(self, show: bool = True):
-        plt.figure(figsize=(16, 10))
-        plt.errorbar(self.x, self.y, yerr=self.e, fmt="o", label="Data")
-        plt.xlabel(f"{self.x_unit}")
-        plt.ylabel("Intensity (a.u.)")
-        plt.title(f"Scattering Data ({self.data_type})")
-
-        if show:
-            plt.legend()
-            plt.show()
-
-    # If this doesn't accept the data format:
-    # I recommend using POWDLL to convert data to TOPAS style .xye format
-    @classmethod
-    def from_xye(
-        cls,
-        filepath: str | Path,
-        x_unit: XUnit,
-        data_type: DataType,
-        wavelength: float | Parameter,
-    ) -> "ScatteringData":
-        """Loads scattering data from a CSV file. The file should have 3 (or 2) columns:
-        x, y and optionally e (error)
-        Equivalent the TOPAS xye format
-        """
-
-        if isinstance(wavelength, Parameter):
-            wavelength = wavelength
-        else:
-            wavelength = Parameter(value=wavelength, refine=False)
-
-        try:
-            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
-        except ValueError:
-            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
-            e = None
-
-        return cls(
-            x=x,
-            y=y,
-            e=e,
-            x_unit=x_unit,
-            data_type=data_type,
-            wavelength=wavelength,
-            source=str(filepath),
-        )
-
-    @classmethod
-    def from_fullprof(
-        cls,
-        filepath: str | Path,
-        x_unit: XUnit,
-        data_type: DataType,
-        wavelength: float | Parameter,
-    ) -> "ScatteringData":
-        """Loads scattering data from a .xy or .dat file.
-        The file should have 3 columns x, y and error
-        Equivalent the fullprof INSTRM=10 format
-        """
-
-        if isinstance(wavelength, Parameter):
-            wavelength = wavelength
-        else:
-            wavelength = Parameter(value=wavelength, refine=False)
-        x, y, e = np.genfromtxt(
-            str(filepath),
-            skip_header=1,
-            comments="!",
-            unpack=True,
-            dtype=float,
-        )
-
-        return cls(
-            x=x,
-            y=y,
-            e=e,
-            x_unit=x_unit,
-            data_type=data_type,
-            wavelength=wavelength,
-            source=str(filepath),
-        )
-
-
 ##### more complex pydantic models to do whole profiles
 class PeakProfile(RefinementBaseModel):
     phase_scale: int | float | Parameter = Parameter(value=1e-5, bounds=[0, np.inf])
@@ -1092,18 +953,10 @@ class PeakProfile(RefinementBaseModel):
         )
 
 
-class CalculatedReflections(XRPDBaseModel):
-    peak_centres: list[float]
-    intensity: list[float]
-    structure_factor: list[float]
-    hkl: list[list[int]] | None = None
-
-
-class ReitveldRefinement(Model):
+class ReitveldRefinement(Model[ScatteringData]):
     phase_scale: int | float | Parameter = Parameter(value=1e-2, bounds=[0, np.inf])
     structure: Structure | list[Structure]
     zero_offset: int | float | Parameter = Parameter(value=0, bounds=[-10, 10])
-    data: ScatteringData  # | list[ScatteringData]
     irf: IntrumentResolutionFunction = Field(default=FCJPseudoVoigt())
     background: np.ndarray | float | int | BackgroundType | Parameter = Parameter(
         value=0
@@ -1169,8 +1022,6 @@ class ReitveldRefinement(Model):
             calculated_intensity * float(self.phase_scale)
         ) + background
 
-        _ = self.chi_squared
-
         return self.calculated_intensity
 
     @computed_field
@@ -1180,8 +1031,6 @@ class ReitveldRefinement(Model):
             chi_squared = calculate_chi_squared(
                 self.calculated_intensity, self.data.y, self.data.e
             )
-
-            print(f"chi squared: {chi_squared:.3e}")
 
             return chi_squared
 
@@ -1256,10 +1105,10 @@ if __name__ == "__main__":
 
         model.irf.refine_none()
 
-        updated, model, result = refine_model(model, plot=True, plot_every=5)
+        updated, model, result = refine_model(model, plot=True)
 
         model.irf.refine_all()
-        updated, model, result = refine_model(model, plot=False, plot_every=1)
+        updated, model, result = refine_model(model, plot=True)
 
         model.save(output_name)
 

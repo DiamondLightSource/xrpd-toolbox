@@ -1,3 +1,9 @@
+"""Peak shape definitions, peak fitting utilities, and profile calculation.
+
+This module defines analytical peak functions, Pydantic peak models, and
+utility routines for XRPD profile generation and peak detection.
+"""
+
 from __future__ import annotations
 
 import math
@@ -12,8 +18,9 @@ from pydantic import Field
 from scipy.optimize import curve_fit
 from scipy.special import erf
 
-from xrpd_toolbox.core import Parameter, RefinementBaseModel
+from xrpd_toolbox.core import Parameter
 from xrpd_toolbox.fit_engine.background import Background
+from xrpd_toolbox.fit_engine.fitting_core import RefinementBaseModel
 
 IMPLEMENTED_PEAK_FUNCTONS: TypeAlias = Literal[
     "gaussian", "lorentzian", "pseudo_voigt", "tophat"
@@ -22,21 +29,25 @@ IMPLEMENTED_PEAK_FUNCTONS: TypeAlias = Literal[
 
 @njit()
 def gaussian_sigma_to_fwhm(sigma: float | int) -> float:
+    """Convert a Gaussian standard deviation to full width at half maximum."""
     return float(sigma) * 2 * np.sqrt(2 * np.log(2))
 
 
 @njit()
 def gaussian_fwhm_to_sigma(fwhm: float | int) -> float:
+    """Convert a Gaussian full width at half maximum to standard deviation."""
     return float(fwhm) / (2 * np.sqrt(2 * np.log(2)))
 
 
 @njit()
 def lorentzian_gamma_to_fwhm(gamma: float | int) -> float:
+    """Convert Lorentzian half width at half maximum to FWHM."""
     return 2 * float(gamma)
 
 
 @njit()
 def lorentzian_fwhm_to_gamma(fwhm: float | int) -> float:
+    """Convert Lorentzian FWHM to half width at half maximum."""
     return float(fwhm) / 2
 
 
@@ -95,6 +106,30 @@ def lorentzian(
     background: float | int | np.ndarray = 0,
     normalised: bool = True,
 ) -> np.ndarray:
+    """Lorentzian peak function.
+
+    Parameters
+    ----------
+    x : array-like
+        Input coordinate(s).
+    amplitude : float | int
+        Amplitude parameter:
+        - If normalised=True: total area under the curve.
+        - If normalised=False: peak height.
+    centre : float | int
+        Peak centre.
+    fwhm : float | int
+        Full width at half maximum.
+    background : float | int | array-like, optional
+        Additive background term. Default is 0.
+    normalised : bool, optional
+        If True, returns an area-normalised Lorentzian.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Evaluated Lorentzian function.
+    """
     gamma = float(fwhm) / 2
 
     if normalised:
@@ -182,25 +217,33 @@ def smooth_tophat(
     background: float | int | np.ndarray = 0,
     normalised: bool = True,
 ):
-    """
-    Gaussian-smoothed top-hat (fast, analytic normalization).
+    """Return a Gaussian-smoothed top-hat profile.
 
     Parameters
     ----------
-    amplitude : float
-        Area (if normalized=True) or height (if normalized=False)
-    centre : float
-        Centre of the plateau
-    fwhm : float
-        Width of the plateau
-    epsilon : float
-        Edge smoothing parameter (0–1)
+    x : array-like
+        Input coordinate(s).
+    amplitude : float | int
+        Plateau area if normalised=True, otherwise plateau height.
+    centre : float | int
+        Centre of the plateau.
+    fwhm : float | int
+        Width of the plateau.
+    epsilon : float | int
+        Smoothing parameter for edge softening.
+    background : float | int | array-like, optional
+        Additive background. Default is 0.
+    normalised : bool, optional
+        If True, returns an area-normalised shape.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Evaluated smooth top-hat function.
     """
 
-    # map epsilon - sigma (smoothing width)
-    sigma = max(epsilon * fwhm / 2, 1e-12)
-
-    half_width = fwhm / 2
+    sigma = max(epsilon * fwhm / 2.0, 1e-12)
+    half_width = fwhm / 2.0
 
     left = (x - (centre - half_width)) / (np.sqrt(2) * sigma)
     right = (x - (centre + half_width)) / (np.sqrt(2) * sigma)
@@ -208,7 +251,8 @@ def smooth_tophat(
     profile = 0.5 * (erf(left) - erf(right))
 
     if normalised:
-        # analytic area = fwhm
+        # area is already fwhm * 1.0 (plateau height = 1)
+        # so amplitude is converted to height
         scale = amplitude / fwhm
     else:
         scale = amplitude
@@ -216,10 +260,20 @@ def smooth_tophat(
     return scale * profile + background
 
 
-def closest_indices(arr1, arr2):
-    """
-    For each value in arr1, find the index of the closest value in arr2.
-    Returns an array of indices with the same shape as arr1.
+def closest_indices(arr1: np.ndarray, arr2: np.ndarray):
+    """Find the closest index in `arr2` for each value in `arr1`.
+
+    Parameters
+    ----------
+    arr1 : array-like
+        Values whose closest matches are sought.
+    arr2 : array-like
+        Reference values for matching.
+
+    Returns
+    -------
+    numpy.ndarray
+        Indices into `arr2` corresponding to the closest values.
     """
     arr1 = np.asarray(arr1)
     arr2 = np.asarray(arr2)
@@ -231,6 +285,23 @@ def closest_indices(arr1, arr2):
 
 
 def peak_factory(peak_type: str):
+    """Return the peak model class for a given peak type name.
+
+    Parameters
+    ----------
+    peak_type : str
+        Supported values: 'gaussian', 'lorentzian', 'pseudo_voigt', 'tophat'.
+
+    Returns
+    -------
+    type[Peak]
+        The peak model class corresponding to `peak_type`.
+
+    Raises
+    ------
+    ValueError
+        If `peak_type` is not in the implemented peak types.
+    """
     match peak_type:
         case "gaussian":
             return GaussianPeak
@@ -327,7 +398,23 @@ def estimate_fwhm(
 
 def fit_peaks(
     x: np.ndarray, y: np.ndarray, initial_x_pos: Collection[int | float]
-) -> list[BasePeak]:
+) -> list[Peak]:
+    """Fit Gaussian peaks to observed data using initial position guesses.
+
+    Parameters
+    ----------
+    x : NDArray[np.float64]
+        Coordinate values.
+    y : NDArray[np.float64]
+        Observed intensity values.
+    initial_x_pos : Collection[int | float]
+        Initial guesses for the peak positions.
+
+    Returns
+    -------
+    list[Peak]
+        Fitted Gaussian peak models.
+    """
     fitted_peaks = []
 
     for x_guess in initial_x_pos:
@@ -370,10 +457,23 @@ def fit_peaks(
     return fitted_peaks
 
 
-def find_and_fit_peaks(
-    x: np.ndarray, y: np.ndarray, smoothing: int = 5
-) -> list[BasePeak]:
-    """function to get the centre peaks given without guessing"""
+def find_and_fit_peaks(x: np.ndarray, y: np.ndarray, smoothing: int = 5) -> list[Peak]:
+    """Detect peaks in a signal and fit Gaussian models automatically.
+
+    Parameters
+    ----------
+    x : NDArray[np.float64]
+        Coordinate values.
+    y : NDArray[np.float64]
+        Observed signal intensities.
+    smoothing : int, optional
+        Width of the moving-average filter used to reduce noise.
+
+    Returns
+    -------
+    list[Peak]
+        Gaussian peak models fit to the detected peak positions.
+    """
 
     y_smoothed = np.convolve(
         y, np.ones(smoothing), mode="same"
@@ -389,7 +489,13 @@ def find_and_fit_peaks(
     return fitted_peaks
 
 
-class BasePeak(RefinementBaseModel):
+class Peak(RefinementBaseModel):
+    """Abstract base class for parameterised peak models.
+
+    Peak subclasses provide analytic peak shapes and support refinement
+    through the shared parameter interface.
+    """
+
     amplitude: Parameter | float = Field(gt=0)
     centre: Parameter | float = Field(gt=0)
     fwhm: Parameter | float = Field(gt=0, default=Parameter(value=0.02))
@@ -397,10 +503,13 @@ class BasePeak(RefinementBaseModel):
 
     @abstractmethod
     def calculate(self, x: np.ndarray) -> np.ndarray:
-        NotImplementedError("Must implement calculate method in peak subclass")
+        """Evaluate the peak shape on a coordinate array."""
+        raise NotImplementedError("Must implement calculate method in peak subclass")
 
 
-class GaussianPeak(BasePeak):
+class GaussianPeak(Peak):
+    """Gaussian peak model class."""
+
     peak_type: Literal["gaussian"] = "gaussian"
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
@@ -413,7 +522,9 @@ class GaussianPeak(BasePeak):
         )
 
 
-class LorentzianPeak(BasePeak):
+class LorentzianPeak(Peak):
+    """Lorentzian peak model class."""
+
     peak_type: Literal["lorentzian"] = "lorentzian"
 
     def calculate(self, x: np.ndarray) -> np.ndarray:
@@ -426,7 +537,9 @@ class LorentzianPeak(BasePeak):
         )
 
 
-class PseudoVoigtPeak(BasePeak):
+class PseudoVoigtPeak(Peak):
+    """Pseudo-Voigt peak model class combining Gaussian and Lorentzian shapes."""
+
     peak_type: Literal["pseudo_voigt"] = "pseudo_voigt"
 
     eta: Parameter | float | int = Field(
@@ -444,7 +557,9 @@ class PseudoVoigtPeak(BasePeak):
         )
 
 
-class TopHatPeak(BasePeak):
+class TopHatPeak(Peak):
+    """Smoothed top-hat peak model class."""
+
     peak_type: Literal["tophat"] = "tophat"
 
     epsilon: Parameter | float | int = Field(
@@ -464,23 +579,36 @@ class TopHatPeak(BasePeak):
 
 # would it be useful to have a peak that can be any of of the other peaks
 # possibly useful if you don't know what type of peak shape you actually want?
-# class MutatablePeak(BasePeak):
+# class MutatablePeak(Peak):
 #     peak_type: Literal["mutatable"] = "mutatable"
 
 
 def calculate_profile(
     x: np.ndarray,
-    peaks: Sequence[BasePeak],
+    peaks: Sequence[Peak],
     background: int | float | np.ndarray | Background = 0,
     phase_scale: int | float = 1,
     wdt: int | float = 5,
 ):
-    """wdt (range) of calculated profile of a single Bragg reflection in units of FWHM
-    (typically 4 for Gaussian and 20-30 for Lorentzian, 4-5 for TOF).
+    """Calculate the combined peak profile and optional background.
 
-    peaks: list of class: Peak which contain (cen, amp, fwhm)
+    Parameters
+    ----------
+    x : NDArray[np.float64]
+        Coordinate values at which to evaluate the profile.
+    peaks : Sequence[Peak]
+        Sequence of peak models to sum.
+    background : int | float | np.ndarray | Background, optional
+        Baseline to add to the summed peak profile. Default is 0.
+    phase_scale : int | float, optional
+        Multiplicative scale factor applied to the peak intensity.
+    wdt : int | float, optional
+        Range in units of peak FWHM used when evaluating each peak.
 
-    background: scalar or array, if array must be same shape as x
+    Returns
+    -------
+    numpy.ndarray
+        Summed intensity profile for the input coordinates.
     """
 
     if isinstance(background, np.ndarray):
@@ -512,17 +640,35 @@ def calculate_profile(
 @njit(parallel=True)
 def calculate_profile_parallel(
     x: np.ndarray,
-    peaks: Sequence[BasePeak],
+    peaks: Sequence[Peak],
     background: int | float | np.ndarray | Background = 0,
     phase_scale: int | float = 1,
     wdt: int | float = 5,
 ):
-    """wdt (range) of calculated profile of a single Bragg reflection in units of FWHM
-    (typically 4 for Gaussian and 20-30 for Lorentzian, 4-5 for TOF).
+    """Placeholder for a parallel profile calculation implementation.
 
-    peaks: list of class: Peak which contain (cen, amp, fwhm)
+    Parameters
+    ----------
+    x : NDArray[np.float64]
+        Coordinate values.
+    peaks : Sequence[Peak]
+        Sequence of peak models.
+    background : int | float | np.ndarray | Background, optional
+        Background model or baseline.
+    phase_scale : int | float, optional
+        Multiplicative intensity scale.
+    wdt : int | float, optional
+        Evaluation window in units of FWHM.
 
-    background: scalar or array, if array must be same shape as x
+    Returns
+    -------
+    numpy.ndarray
+        Combined intensity profile.
+
+    Notes
+    -----
+    This implementation is currently not completed and raises
+    NotImplementedError by design.
     """
 
     raise NotImplementedError("Not implemented well yet")

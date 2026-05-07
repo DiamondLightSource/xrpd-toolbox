@@ -1,6 +1,7 @@
 import numpy as np
 
-from xrpd_toolbox.core import Parameter, RefinementBaseModel
+from xrpd_toolbox.core import Parameter
+from xrpd_toolbox.fit_engine.fitting_core import RefinementBaseModel
 
 MIN_POSSIBLE_LATTICE = (
     0.53  # Single hydrogen atom is 0.53 angstroms so it can never be smaller than this

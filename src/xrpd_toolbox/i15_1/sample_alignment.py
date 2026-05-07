@@ -1,3 +1,9 @@
+"""Sample alignment utilities for the XRPD Toolbox.
+
+This module provides a SampleAligner model for I15-1 XRPD data,
+including peak detection, peak profile construction, and plotting.
+"""
+
 import math
 import os
 
@@ -5,24 +11,59 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from xrpd_toolbox.core import Model, Parameter
-from xrpd_toolbox.fit_engine.background import ConstantBackground
-from xrpd_toolbox.fit_engine.peaks import (
-    PeakType,
-    TopHatPeak,
-    calculate_profile,
+from xrpd_toolbox.core import Parameter, XRPDBaseModel, XYEData
+from xrpd_toolbox.fit_engine.background import (
+    BackgroundType,
+    ConstantBackground,
 )
-from xrpd_toolbox.fit_engine.profile_calculation import XYEData
-from xrpd_toolbox.fit_engine.refiner import refine_model
+from xrpd_toolbox.fit_engine.fitting_core import Model
+from xrpd_toolbox.fit_engine.peaks import (
+    Peak,
+    PeakType,
+    calculate_profile,
+    peak_factory,
+)
 from xrpd_toolbox.utils.utils import cluster_points_auto
 
 
-class SampleAligner(Model):
-    data: XYEData
-    background: ConstantBackground
+class SampleCenteringResult(XRPDBaseModel):
+    """This is what contains the results and can
+    be serisalised and sent back to the bluesky plan"""
+
+    centre: float
+    peaks: list[Peak]
+    scores: list[float]
+
+
+class SampleAligner(Model[XYEData]):
+    """Model for aligning XRPD sample patterns using initial peak detection.
+
+    The SampleAligner detects peaks from observed XYEData, groups them,
+    constructs initial peak models, and evaluates the resulting profile
+    together with an estimated background.
+    """
+
+    background: BackgroundType
     sample_and_capillary: list[PeakType] = []
 
     def get_peak_info(self, labels, peak_position, peak_intensity):
+        """Summarize grouped peak detections into peak initialization data.
+
+        Parameters
+        ----------
+        labels:
+            Cluster labels for each detected peak.
+        peak_position:
+            X positions of the detected peaks.
+        peak_intensity:
+            Intensities of the detected peaks.
+
+        Returns
+        -------
+        list[dict]
+            A list of peak summaries containing group id, centre,
+            amplitude, and FWHM estimates.
+        """
         grouped_peaks = []
 
         group_numbers = np.unique(labels)
@@ -38,7 +79,7 @@ class SampleAligner(Model):
             average_peak_spread = np.ptp(group_positions)
 
             if average_peak_spread == 0:
-                average_peak_spread = np.ptp(self.data.x) / 10
+                average_peak_spread = np.ptp(self.data.x) / 20
 
             peak = {
                 "group": int(group),
@@ -51,48 +92,29 @@ class SampleAligner(Model):
 
         return grouped_peaks
 
-    # def use_simple_peak_model(self):
-    #     capillary_edge = GaussianPeak(
-    #         amplitude=np.ptp(self.data.y),
-    #         centre=self.data.x.max() / 3,
-    #         fwhm=np.ptp(self.data.x) / 20,
-    #         normalised=False,
-    #     )
-    #     capillary_edge.parameterise_all(refine=True)
-    #     self.sample_and_capillary.append(capillary_edge)
-
-    #     sample1 = TopHatPeak(
-    #         amplitude=np.ptp(self.data.y),
-    #         centre=self.data.x.max() / 2,
-    #         fwhm=np.ptp(self.data.x) / 5,
-    #         normalised=False,
-    #     )
-    #     sample1.parameterise_all(refine=True)
-    #     sample1.amplitude.bounds = [0, np.amax(self.data.y)]
-    #     sample1.fwhm.bounds = [0, np.inf]
-    #     sample1.centre.bounds = [0, np.amax(self.data.x)]
-
-    #     sample1.epsilon.refine = False
-
-    #     sample2 = sample1.__deepcopy__()
-    #     sample3 = sample2.__deepcopy__()
-
-    #     sample1.centre.value = sample1.centre.value - 10
-    #     sample2.centre.value = sample2.centre.value + 20
-
-    #     # print(self.background)
-    #     # print(sample1)
-    #     # print(sample2)
-    #     # quit()
-
-    #     self.sample_and_capillary.extend([sample1, sample2, sample3])
-
     def calculate_profile(self):
+        """Calculate the combined peak profile plus background for the model.
+
+        Returns
+        -------
+        numpy.ndarray
+            The combined intensity profile evaluated at the current x positions.
+        """
         return calculate_profile(
             self.data.x, self.sample_and_capillary
         ) + self.background.calculate(self.data.x)
 
-    def get_initial_peaks(self, smoothing: int = 5):
+    def get_initial_peaks(self, peak_type: str = "tophat", smoothing: int = 5):
+        """Detect observed peaks and build initial peak models for fitting.
+
+        Parameters
+        ----------
+        peak_type:
+            The type of peak model to create for each detected peak.
+        smoothing:
+            Smoothing parameter for peak detection. Currently accepted for
+            API compatibility but not applied in the current implementation.
+        """
         peak_indexes = find_peaks(self.data.y)[0]
 
         peak_position = self.data.x[peak_indexes]
@@ -108,13 +130,27 @@ class SampleAligner(Model):
             ):
                 continue
             else:
-                sample_peak = TopHatPeak.model_validate(peak)
+                peak_cls = peak_factory(peak_type)
+
+                sample_peak = peak_cls.model_validate(peak)
                 sample_peak.parameterise_all(refine=True)
                 sample_peak.normalised = False
                 assert isinstance(sample_peak.centre, Parameter)
-                sample_peak.centre.bounds = [np.amin(self.data.x), np.amax(self.data.x)]
-
+                sample_peak.centre.bounds = [
+                    self.data.x.min(),
+                    self.data.x.max(),
+                ]
+                # assert isinstance(sample_peak.fwhm, Parameter)
+                # sample_peak.fwhm.bounds = [
+                #     0,
+                #     float(np.ptp(self.data.x)),
+                # ]
                 self.sample_and_capillary.append(sample_peak)
+
+            # plt.plot(self.data.x, self.calculate_profile())
+            # plt.plot(self.data.x, self.data.y)
+            # plt.scatter(peak_position, peak_intensity)
+            # plt.show()
 
         # print(self.sample_and_capillary)
         # plt.scatter(peak_position, peak_intensity)
@@ -122,17 +158,157 @@ class SampleAligner(Model):
         # plt.show()
 
     def plot_data(self):
+        """Plot the observed data, calculated profile, background, and residual.
+
+        The plot shows the observed intensities, the current fitted profile,
+        the background model, and the residual (observed minus calculated).
+        """
         if self.data.source is not None:
             plt.title(os.path.basename(self.data.source))
 
-        # profile = calculate_profile(self.data.x, self.sample_and_capillary)
+        profile = calculate_profile(self.data.x, self.sample_and_capillary)
 
-        # profile = profile + self.background.calculate(self.data.x)
+        profile = profile + self.background.calculate(self.data.x)
 
-        # plt.plot(self.data.x, profile)
-        plt.plot(self.data.x, self.data.y)
-        plt.plot(self.data.x, self.background.calculate(data.x))
+        plt.scatter(self.data.x, self.data.y, label="Obs", color="black", s=5)
+        plt.plot(self.data.x, profile, label="Calc", color="red")
+        plt.plot(
+            self.data.x, self.background.calculate(self.data.x), label="background"
+        )
+        plt.plot(self.data.x, self.data.y - profile, label="Obs-Calc", color="blue")
         plt.show()
+
+    def peaks_to_arrays(
+        self, peaks: list[PeakType]
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Convert a list of peaks into numpy arrays of centre, amplitude, and FWHM.
+
+        Parameters
+        ----------
+        peaks:
+            A list of peak model objects.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]
+            Arrays containing peak centres, amplitudes, and FWHMs.
+        """
+        centres = [
+            p.centre.value if isinstance(p.centre, Parameter) else p.centre
+            for p in peaks
+        ]
+        amplitudes = [
+            p.amplitude.value if isinstance(p.amplitude, Parameter) else p.amplitude
+            for p in peaks
+        ]
+        fwhms = [
+            p.fwhm.value if isinstance(p.fwhm, Parameter) else p.fwhm for p in peaks
+        ]
+        return np.array(centres), np.array(amplitudes), np.array(fwhms)
+
+    def middle_elements(self, lst: list):
+        """Return the central element(s) from a list.
+
+        If the list length is odd, returns the middle three elements. If even,
+        returns the two elements at the center of the list.
+        """
+        n = len(lst)
+        mid = n // 2
+
+        if n % 2 == 0:
+            return lst[mid - 1 : mid + 1]  # 2 elements
+        else:
+            return lst[mid - 1 : mid + 2]  # 3 elements
+
+    def get_middle_peaks(self):
+        """Return the central peaks from the current sample and capillary list.
+
+        This is useful for selecting the most representative peaks from the
+        middle of the detector pattern.
+        """
+        middle_peaks = self.middle_elements(self.sample_and_capillary)
+
+        return middle_peaks
+
+    def get_sample_centre(self) -> SampleCenteringResult:
+        middle_peaks = self.get_middle_peaks()
+        centres, amplitudes, fwhms = self.peaks_to_arrays(middle_peaks)
+
+        scores = fwhms * amplitudes
+        max_index = np.argmax(scores)
+
+        sample_centre = centres[max_index]
+
+        return SampleCenteringResult(
+            centre=sample_centre, peaks=middle_peaks, scores=scores.tolist()
+        )
+
+    # def get_best_peaks(self):
+    #     middle_peaks = self.get_middle_peaks()
+    #     centres, amplitudes, fwhms = self.peaks_to_arrays(self.sample_and_capillary)
+
+    #     scores = fwhms * amplitudes
+    #     sort_index = np.argsort(scores)
+
+    #     centre_distance = np.abs(centres - np.mean(centres))
+    #     centre_distance[centre_distance == 0] = 1e-12
+
+    #     centre_scores = normalise(np.log10(centre_distance))
+
+    #     for cen, amp, fw, cs, score in zip(
+    #         centres, amplitudes, fwhms, centre_scores, scores, strict=True
+    #     ):
+    #         print(cen, amp, fw, cs, score)
+
+
+def sample_alignment_builder(
+    data: XYEData | str, peak_type: str = "gaussian"
+) -> SampleAligner:
+    """Construct a SampleAligner from XYE data or a CSV file path, and a peak type
+    A sample aligner is what is used to align an abtract data set (usually a sample)
+
+    Parameters
+    ----------
+    data:
+        XYEData instance or a path to a CSV file containing x, y, and e data.
+    peak_type:
+        The peak model type to use when generating initial peaks.
+
+    Returns
+    -------
+    SampleAligner
+        A model with estimated background and initial peak definitions.
+    """
+    if isinstance(data, str):
+        data = XYEData.from_csv(data)
+
+    background = ConstantBackground.estimate(data.x, data.y)
+    sample_alignment_model = SampleAligner(data=data, background=background)
+    sample_alignment_model.get_initial_peaks(peak_type=peak_type)
+
+    return sample_alignment_model
+
+
+def run_sample_alignment(data: XYEData | str) -> SampleAligner:
+    gauss_model = sample_alignment_builder(data, "gaussian")
+    _, gauss_model, gauss_result = gauss_model.refine()
+
+    tophat_model = sample_alignment_builder(data, "tophat")
+    _, tophat_model, tophat_result = tophat_model.refine()
+
+    if gauss_result.cost < tophat_result.cost:
+        print("gaussian wins")
+        best_model = gauss_model
+    else:
+        print("top hat wins")
+        best_model = tophat_model
+
+    # sample_centre = best_model.get_best_peaks()
+    best_model.get_sample_centre()
+
+    # SampleCenteringResult(centre=sample_centre, peaks=)
+
+    return best_model
 
 
 if __name__ == "__main__":
@@ -141,19 +317,15 @@ if __name__ == "__main__":
     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
 
     for filepath in sample_alignment_files:
-        data = XYEData.from_csv(filepath)
-        background = ConstantBackground.estimate(data.x, data.y)
-        background.refine_none()
+        best_model = run_sample_alignment(data=filepath)
 
-        print(background.value)
+        sample_centre_result = best_model.get_sample_centre()
+        _ = best_model.get_best_peaks()
 
-        sample_alignment = SampleAligner(data=data, background=background)
+        print(sample_centre_result.model_dump_json())
 
-        # sample_alignment.plot_data()
-        sample_alignment.get_initial_peaks()
+        plt.vlines(sample_centre_result.centre, 0, best_model.data.y.max())
 
-        updated, new_model, result = refine_model(
-            sample_alignment, plot=True, step_time=0.1, max_nfev=10
-        )
+        best_model.plot_data()
 
-        # sample_alignment.plot_data()
+        print("-----")

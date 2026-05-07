@@ -70,7 +70,7 @@ class AngularCalibrationPyFAI:
             detector_module.mask = mask.reshape(-1, 1)
             self.modules[name] = detector_module
 
-        trans = ExtendedTransformation(
+        ExtendedTransformation(
             dist_expr="dist",
             poni1_expr="poni1",
             poni2_expr="poni2",
@@ -165,11 +165,11 @@ class AngularCalibrationPyFAI:
         x = np.zeros_like(ref) + 0.5  # half a pixel offset
         return np.vstack((ref, x)).T
 
-    def update(self, module_id, frame_id):
-        spectrum = self.data[module_id][frame_id]
-        self.line.set_data(np.arange(spectrum.size), spectrum)
-        self.ax.set_title(f"Module {module_id}, Frame {frame_id}")
-        self.fig.canvas.draw()
+    # def update(self, module_id, frame_id):
+    #     spectrum = self.data[module_id][frame_id]
+    #     self.line.set_data(np.arange(spectrum.size), spectrum)
+    #     self.ax.set_title(f"Module {module_id}, Frame {frame_id}")
+    #     self.fig.canvas.draw()
 
 
 if __name__ == "__main__":
