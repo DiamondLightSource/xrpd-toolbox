@@ -179,7 +179,7 @@ class SampleAligner(Model[XYEData]):
             diff=self.data.y - profile,
             background=self.background.calculate(self.data.x),
             title=title,
-            markers=np.array(self.centre),
+            markers=np.array([self.centre]),
         )
         plot_data.plot()
 

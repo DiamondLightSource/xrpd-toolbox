@@ -133,8 +133,6 @@ class RefinementBaseModel(XRPDBaseModel):
                     )
 
     def deparameterise(self, value, parent, key):
-        print(key, value, type(value))
-
         if isinstance(value, Parameter):
             setattr(parent, key, float(value.value))
             return
