@@ -342,7 +342,7 @@ if __name__ == "__main__":
         print(sample_centre_result.model_dump_json())
 
         plot_data = best_model.plot_data()
-        plot_data.publish(BEAMLINE)
+        # plot_data.publish(BEAMLINE)
 
         # messenger.send_plot_data(plot_data)
         # listener.listen(max_iter=5)

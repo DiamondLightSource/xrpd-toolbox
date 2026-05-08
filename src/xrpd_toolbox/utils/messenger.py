@@ -98,9 +98,12 @@ class Messenger:
         self.run = True
 
         if self.auto_connect:
-            self.setup_connection()
-            self.connect()
-            self.subscribe()
+            try:
+                self.setup_connection()
+                self.connect()
+                self.subscribe()
+            except Exception:
+                print(f"Could not connect to {self.host}")
 
     def setup_connection(self):
         self.conn = stomp.Connection(
@@ -160,8 +163,11 @@ class Messenger:
         self.send_message(destination, message)
 
     def send_message(self, destination: str, message: str):
-        self.conn.send(destination=destination, body=message, ack="auto")
-        print(f"Message sent to: {destination}")
+        try:
+            self.conn.send(destination=destination, body=message, ack="auto")
+            print(f"Message sent to: {destination}")
+        except Exception:
+            print("Could not send message!")
 
     def stop(self):
         """Stop listening to destinations"""
