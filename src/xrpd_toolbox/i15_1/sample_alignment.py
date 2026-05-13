@@ -26,7 +26,10 @@ from xrpd_toolbox.fit_engine.peaks import (
 )
 from xrpd_toolbox.plotting import FittedDataPlot
 from xrpd_toolbox.utils.messenger import Messenger
-from xrpd_toolbox.utils.utils import cluster_points_auto
+from xrpd_toolbox.utils.utils import (
+    cluster_points_auto,
+    processed_directory_and_filename,
+)
 
 
 class SampleCenteringResult(RefinementBaseModel):
@@ -322,7 +325,10 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
 
 
 def sample_alignment(
-    filepath: str | Path, dataset_path: str, beamline: str | None = None
+    filepath: str | Path,
+    dataset_path: str,
+    beamline: str | None = None,
+    save: bool = False,
 ):
     if (beamline is not None) and (not beamline.startswith("i")):
         print(f"{beamline} must start with i, eg i15-1, or i11")
@@ -339,6 +345,11 @@ def sample_alignment(
 
     plot_data = best_model.get_plot_data()
 
+    if save:
+        processed_dir, file_name = processed_directory_and_filename(filepath)
+        save_file = os.path.join(processed_dir, file_name + "_alignment_fit.png")
+        plot_data.plot(save_to=save_file)
+
     if beamline is not None:
         plot_data.publish(beamline=beamline)
 
@@ -348,7 +359,7 @@ def sample_alignment(
 if __name__ == "__main__":
     BEAMLINE = "i15-1"
 
-    folder = "/workspaces/XRPD-Toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
+    folder = "/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
 
     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
 

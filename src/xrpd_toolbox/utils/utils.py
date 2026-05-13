@@ -566,3 +566,15 @@ def cluster_points_auto(
     labels[order] = labels_sorted
 
     return labels, n_groups
+
+
+def processed_directory_and_filename(filepath: str | Path) -> tuple[str, str]:
+    path = Path(filepath)
+
+    base_dir = path.parent if path.suffix else path
+    processed_dir = base_dir / "processed"
+
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    file_stem = path.stem  # filename without extension
+
+    return str(processed_dir), str(file_stem)
