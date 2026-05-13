@@ -596,6 +596,16 @@ class XYEData(XRPDBaseModel):
 
         return cls(x=x, y=y, e=e, source=str(filepath))
 
+    def save_to_xye(self, filepath):
+        if self.e is None:
+            error = np.sqrt(self.y)
+        else:
+            error = self.e
+
+        xye_out_data = np.stack((self.x, self.y, error), axis=-1)
+
+        np.savetxt(filepath, xye_out_data, fmt="%.6f", delimiter=" ", newline="\n")
+
 
 # TODO: Decide whether better to put x_unit into XYEData, remove generic ModelDataVar
 # and then get data type from Radiation class -

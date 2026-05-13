@@ -13,11 +13,12 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from h5py import Dataset, File
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel, XYEData
 from xrpd_toolbox.fit_engine.peaks import fit_peaks
 from xrpd_toolbox.fit_engine.profile_calculation import Structure
+from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.utils import (
@@ -27,7 +28,6 @@ from xrpd_toolbox.utils.utils import (
     h5_to_array,
     load_int_array_from_file,
     save_data_to_h5,
-    save_to_xye,
 )
 
 # np.set_printoptions(threshold=sys.maxsize)
@@ -40,7 +40,7 @@ MYTHEN_PIXEL_SIZE = 0.05  # mm
 PIXEL_NUMBER = np.arange(PIXELS_PER_MODULE, dtype=np.int64)
 
 
-class ModuleConversion(BaseModel):
+class ModuleConversion(XRPDBaseModel):
     conv: float
     offset: float
     centre: float
@@ -68,6 +68,7 @@ class ModuleConversion(BaseModel):
         return raw_tth
 
 
+# TODO: Make module_n a dict?
 class AngularCalibration(XRPDBaseModel):
     beamline_offset: float | int
     module_0: ModuleConversion
@@ -588,12 +589,10 @@ class MythenDetector:
             )
         )
 
-        save_to_xye(
-            self.xye_filepath_out,
-            self.binned_tth,
-            self.binned_counts,
-            self.binned_error,
+        self.xye_data = XYEData(
+            x=self.binned_tth, y=self.binned_counts, e=self.binned_error
         )
+        self.xye_data.save_to_xye(self.xye_filepath_out)
 
         xye_names_and_data = {
             "tth": self.binned_tth,
@@ -609,8 +608,12 @@ class MythenDetector:
 
         print(f"Data saved to: {self.processed_nexus_filepath}")
 
+        self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
+        self.data_plot.plot()
+
         try:
             self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
+            self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
         except Exception as e:
             print(f"Could not connect with control - {e}")
             pass

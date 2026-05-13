@@ -23,6 +23,7 @@ from xrpd_toolbox.fit_engine.background import (
 from xrpd_toolbox.fit_engine.constants import (
     ELEMENT_ATOMIC_NUMBER,
 )
+from xrpd_toolbox.fit_engine.fit_statistics import calculate_chi_squared
 from xrpd_toolbox.fit_engine.fitting_core import (
     Model,
     RefinementBaseModel,
@@ -47,14 +48,13 @@ from xrpd_toolbox.fit_engine.symmetry import (
     format_space_group_name,
     get_symmetry_tables,
 )
-from xrpd_toolbox.plotting import PlotData
+from xrpd_toolbox.plotting import FittedDataPlot
 from xrpd_toolbox.utils.cif_reader import read_cif
 from xrpd_toolbox.utils.unit_conversion import (
     beam_energy_to_wavelength,
     q_space_to_s,
     q_space_to_theta,
 )
-from xrpd_toolbox.utils.utils import calculate_chi_squared
 
 CrystalType: TypeAlias = Literal["powder", "single-crystal"]
 
@@ -1056,7 +1056,7 @@ class ReitveldRefinement(Model[ScatteringData]):
         else:
             background = float(self.background)
 
-        plot_data = PlotData(
+        plot_data = FittedDataPlot(
             data=self.data,
             calc=self.calculated_intensity,
             diff=self.data.y - self.calculated_intensity,

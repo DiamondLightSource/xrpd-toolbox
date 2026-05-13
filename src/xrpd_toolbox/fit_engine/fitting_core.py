@@ -39,7 +39,11 @@ from xrpd_toolbox.core import (
     XRPDBaseModel,
     XYEData,
 )
-from xrpd_toolbox.utils.utils import calculate_chi_squared
+from xrpd_toolbox.fit_engine.fit_statistics import (
+    calculate_chi_squared,
+    calculate_rp,
+    calculate_rwp,
+)
 
 # TODO: Expand this to other methods: simulated annealing etc, AI stuff?
 RefineMethod = Literal[
@@ -603,8 +607,16 @@ def refine_model(
         y_calc = optimized_model.calculate_profile()
         residuals = y_obs - np.asarray(y_calc, dtype=float)
 
-        chi_squared = calculate_chi_squared(y_calc, model.data.y, model.data.e)
+        chi_squared = calculate_chi_squared(
+            y_calc=y_calc, y_obs=model.data.y, y_obs_error=model.data.e
+        )
+
+        rwp = calculate_rwp(y_calc=y_calc, y_obs=model.data.y, y_obs_error=model.data.e)
+        rp = calculate_rp(y_calc=y_calc, y_obs=model.data.y)
+
         print(f"Chi-squared: {chi_squared}")
+        print(f"Rwp: {rwp}")
+        print(f"Rp: {rp}")
 
         if verbose:
             for path, param in parameters:

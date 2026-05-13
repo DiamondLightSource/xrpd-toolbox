@@ -15,23 +15,6 @@ from pyFAI.calibrant import get_calibrant
 from scipy.interpolate import interp1d
 
 
-def calculate_chi_squared(
-    ycalc: np.ndarray, yobs: np.ndarray, y_err: np.ndarray | None
-) -> float:
-    """calculates chi_squared (the minimisation cost function) that is familiar to
-    those who do retiveld refinements"""
-
-    if y_err is not None:
-        wi = 1 / y_err**2
-    else:
-        wi = 1 / yobs
-
-    residual = (wi * (yobs - ycalc)) ** 2
-    chi_squared = float(np.sum(residual))
-
-    return chi_squared
-
-
 # TODO: Decide whether we can just use the normal logging within python
 class AnalysisLogger:
     """A class that can be use as a logger to log data to a

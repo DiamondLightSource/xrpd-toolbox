@@ -22,7 +22,7 @@ from xrpd_toolbox.fit_engine.peaks import (
     calculate_profile,
     peak_factory,
 )
-from xrpd_toolbox.plotting import PlotData
+from xrpd_toolbox.plotting import FittedDataPlot
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.utils import cluster_points_auto
 
@@ -173,7 +173,7 @@ class SampleAligner(Model[XYEData]):
         profile = calculate_profile(self.data.x, self.sample_and_capillary)
         profile = profile + self.background.calculate(self.data.x)
 
-        plot_data = PlotData(
+        plot_data = FittedDataPlot(
             data=self.data,
             calc=profile,
             diff=self.data.y - profile,
@@ -342,7 +342,7 @@ if __name__ == "__main__":
         print(sample_centre_result.model_dump_json())
 
         plot_data = best_model.plot_data()
-        # plot_data.publish(BEAMLINE)
+        plot_data.publish(BEAMLINE)
 
         # messenger.send_plot_data(plot_data)
         # listener.listen(max_iter=5)
