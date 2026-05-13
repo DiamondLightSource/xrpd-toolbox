@@ -17,7 +17,7 @@ from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
-from xrpd_toolbox.utils.settings import XRPDBaseModel
+from xrpd_toolbox.core import XRPDBaseModel
 from xrpd_toolbox.utils.utils import (
     get_entry,
     h5_to_array,
@@ -249,8 +249,8 @@ class Eiger500K(Detector):
             ai_copy = deepcopy(self.ai)
             ai_copy.rot2 = position
 
-            simulated_image = calibrant.fake_calibration_image(
-                ai, shape=self.max_shape, resolution=resolution
+            simulated_image = self.calibrant.fake_calibration_image(
+                ai_copy, shape=self.max_shape, resolution=resolution
             )
 
             simulated_ais.append(ai_copy)

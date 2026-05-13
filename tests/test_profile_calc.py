@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,7 @@ def test_refine_silicon():
     model.irf.refine_none()
     model.refine(plot=False)
     model.save(OUTPUT_NAME)
+    os.remove(OUTPUT_NAME)
 
 
 @pytest.mark.skipif(
