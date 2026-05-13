@@ -25,7 +25,7 @@ from xrpd_toolbox.fit_engine.peaks import (
     peak_factory,
 )
 from xrpd_toolbox.plotting import FittedDataPlot
-from xrpd_toolbox.utils.messenger import Messenger
+from xrpd_toolbox.utils.messenger import DEFAULT_DII_PROCESSED_DESTINATION, Messenger
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
     processed_directory_and_filename,
@@ -333,11 +333,14 @@ def sample_alignment(
     if (beamline is not None) and (not beamline.startswith("i")):
         print(f"{beamline} must start with i, eg i15-1, or i11")
 
-    data = BaseDataLoader(filepath=filepath, data_path=dataset_path)
-    summed_frames = data.sum_frames()
-    index = np.linspace(0, len(summed_frames), len(summed_frames))
+    if str(filepath).endswith(".csv"):
+        xyedata = XYEData.from_csv(filepath)
+    else:
+        data = BaseDataLoader(filepath=filepath, data_path=dataset_path)
+        summed_frames = data.sum_frames()
+        index = np.linspace(0, len(summed_frames), len(summed_frames))
+        xyedata = XYEData(x=index, y=summed_frames)
 
-    xyedata = XYEData(x=index, y=summed_frames)
     best_model = run_sample_alignment(data=xyedata)
 
     sample_centre_result = best_model.get_sample_centre()
@@ -351,7 +354,11 @@ def sample_alignment(
         plot_data.plot(save_to=save_file)
 
     if beamline is not None:
-        plot_data.publish(beamline=beamline)
+        messenger = Messenger("i15-1", destinations=["/topic/public.data.plot"])
+        messenger.send_message(
+            DEFAULT_DII_PROCESSED_DESTINATION, sample_centre_result.model_dump_json()
+        )
+        messenger.send_plot_data(plot_data)
 
     return sample_centre_result
 
@@ -363,20 +370,14 @@ if __name__ == "__main__":
 
     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
 
-    listener = Messenger("i15-1", destinations=["/topic/public.data.plot"])
+    print(sample_alignment_files)
 
     for filepath in sample_alignment_files:
-        best_model = run_sample_alignment(data=filepath)
-
-        sample_centre_result = best_model.get_sample_centre()
-        # _ = best_model.get_best_peaks()
-
-        sample_centre_result.deparameterise_all()
+        sample_centre_result = sample_alignment(
+            filepath, dataset_path="", beamline=BEAMLINE
+        )
 
         print(sample_centre_result.model_dump_json())
-
-        plot_data = best_model.get_plot_data()
-        plot_data.plot()
 
         # plot_data.publish(BEAMLINE)
 
