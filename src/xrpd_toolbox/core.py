@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import tomllib
+from collections.abc import Collection
 from numbers import Real
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeAlias
@@ -703,6 +704,12 @@ class ScatteringData(XYEData):
             wavelength=wavelength,
             source=str(filepath),
         )
+
+
+def check_parameters(maybe_parameters: Collection[Any]):
+    for maybe_parameter in maybe_parameters:
+        if not isinstance(maybe_parameter, Parameter):
+            raise ValueError(f"{maybe_parameter} is not a Parameter")
 
 
 if __name__ == "__main__":

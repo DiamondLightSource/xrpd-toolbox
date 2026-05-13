@@ -1,9 +1,10 @@
 import os
 
 import numpy as np
+import pytest
 import scipy.integrate as integrate
-from xrpd_toolbox.utils.peaks import find_and_fit_peaks, gaussian
 
+from xrpd_toolbox.fit_engine.peaks import find_and_fit_peaks, gaussian
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength, two_theta_to_q
 from xrpd_toolbox.utils.utils import (
     get_filenumber_from_nxs,
@@ -56,34 +57,34 @@ def test_beam_energy_to_wavelength():
     assert round(wavelength_in_angstrom, 2) == 1.0
 
 
-def test_load_int_array_from_file_returns_array_when_contains_ints():
-    test_file = "int_array.txt"
+def test_load_int_array_from_file_returns_array_when_contains_ints(tmp_path):
+    test_file = tmp_path / "int_array.txt"
 
     # Create a temporary file
-    with open(test_file, "w") as f:
-        for i in range(1, 6):
-            f.write(f"{i}\n")
+    test_file.write_text("\n".join(str(i) for i in range(1, 6)))
 
     # Test loading the array
     result = load_int_array_from_file(test_file)
     expected = np.array([1, 2, 3, 4, 5])
     assert np.array_equal(result, expected)
 
-    # Clean up
-    os.remove(test_file)
 
-
-def test_load_int_array_from_file_returns_none_when_file_doesnt_exist():
+def test_load_int_array_from_file_raises_when_file_doesnt_exist():
     test_file = "non_existent.txt"
 
-    # Test loading the array
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        load_int_array_from_file(test_file)
+
+
+def test_load_int_array_from_file_returns_empty_array_when_file_empty(tmp_path):
+    test_file = tmp_path / "int_array.txt"
+
+    # Create a temporary empty file
+    test_file.write_text("")
+
     result = load_int_array_from_file(test_file)
     expected = np.array([])
     assert np.array_equal(result, expected)
-
-
-def test_load_int_array_from_file_returns_none_when_file_empty():
-    test_file = "int_array.txt"
 
     # Create a temporary file
     with open(test_file, "w") as f:
@@ -125,8 +126,8 @@ def test_find_and_fit_peaks_with_n_peaks():
 
     y_intensity = np.zeros_like(x)
 
-    for n, peak_cen in enumerate(np.linspace(20, 80, 4)):
-        peak_intensity = gaussian(x, amplitude=n, centre=peak_cen, fwhm=1.0)
+    for peak_cen in np.linspace(20, 80, 4):
+        peak_intensity = gaussian(x, amplitude=1.0, centre=peak_cen, fwhm=1.0)
         y_intensity = y_intensity + peak_intensity
 
     noise = np.random.normal(0, 0.02, size=y_intensity.shape)
@@ -134,7 +135,9 @@ def test_find_and_fit_peaks_with_n_peaks():
 
     peaks = find_and_fit_peaks(x, y_noisy)
 
-    assert len(peaks) == 3
+    assert len(peaks) == 4
+
+    assert np.allclose([float(p.centre) for p in peaks], [20, 40, 60, 80], atol=0.5)
 
 
 if __name__ == "__main__":
