@@ -18,9 +18,25 @@ dependencies = [
     "matplotlib",
     "scipy",
     "pyfai",
-    "pandas",
+    "pydantic",
+    "numpydantic",
     "lmfit",
+    "pandas",
     "peakutils",
+    "PyCifRW",
+    "pyyaml",
+    "toml",
+    "PyQt6",
+    # "PyQt5",
+    "spglib",
+    "pymatgen",
+    "scikit-learn",
+    "Dans_Diffraction",
+    "stomp.py",
+    "numba",
+    "gql",
+    "ipywidgets",
+
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"

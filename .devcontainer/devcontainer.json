@@ -3,7 +3,8 @@
     "name": "Python 3 Developer Container",
     "build": {
         "dockerfile": "../Dockerfile",
-        "target": "developer"
+        "target": "developer",
+        "platform": "linux/amd64"
     },
     "remoteEnv": {
         // Allow X11 apps to run inside the container
@@ -63,7 +64,25 @@
             "source": "devcontainer-shared-cache",
             "target": "/cache",
             "type": "volume"
-        }
+        },
+        {
+            "source": "${localEnv:HOME}${localEnv:USERPROFILE}",
+            "target": "/host-home",
+            "type": "bind"
+        },
+        // Mount facility directories if present on the host (Docker will create
+        // the host directory if it does not exist). These ensure /dls and
+        // /dls_sw are available inside the container when present on the host.
+        // {
+        //     "source": "/dls/i15-1/data",
+        //     "target": "/dls/i15-1/data",
+        //     "type": "bind"
+        // },
+        // {
+        //     "source": "/dls_sw",
+        //     "target": "/dls_sw",
+        //     "type": "bind"
+        // }
     ],
     // Mount the parent as /workspaces so we can pip install peers as editable
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces,type=bind",

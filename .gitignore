@@ -5,6 +5,16 @@ __pycache__/
 # C extensions
 *.so
 
+#h5 files, but not hdf5
+*.h5 
+
+# output of running reduction
+*.xye
+**/processed/
+
+#binary files used for ang cal
+*.obj
+
 # Distribution / packaging
 .Python
 env/
@@ -69,3 +79,6 @@ lockfiles/
 
 # ruff cache
 .ruff_cache/
+
+#mac items
+*.DS_Store

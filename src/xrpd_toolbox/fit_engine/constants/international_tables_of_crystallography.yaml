@@ -1,0 +1,3404 @@
+---
+spacegroups:
+  P1:
+    spacegroup: P1
+    crystal_class: triclinic
+    hall: ' P 1'
+    hermann_mauguin: P 1
+    symops: ['x,y,z']
+    ncsym: ['x,y,z']
+    number: 1
+    schoenflies: C1^1
+    universal_h_m: P 1
+  P-1:
+    spacegroup: P-1
+    crystal_class: triclinic
+    hall: -P 1
+    hermann_mauguin: P -1
+    symops: ['x,y,z', '-x,-y,-z']
+    ncsym: ['x,y,z', '-x,-y,-z']
+    number: 2
+    schoenflies: Ci^1
+    universal_h_m: P -1
+  P2:
+    spacegroup: P2
+    crystal_class: monoclinic
+    hall: ' P 2y'
+    hermann_mauguin: P 1 2 1
+    symops: ['x,y,z', '-x,y,-z']
+    ncsym: ['x,y,z', '-x,y,-z']
+    number: 3
+    schoenflies: C2^1
+    universal_h_m: P 1 2 1
+  P21:
+    spacegroup: P21
+    crystal_class: monoclinic
+    hall: ' P 2yb'
+    hermann_mauguin: P 1 21 1
+    symops: ['x,y,z', '-x,y+0.5,-z']
+    ncsym: ['x,y,z', '-x,y+0.5,-z']
+    number: 4
+    schoenflies: C2^2
+    universal_h_m: P 1 21 1
+  C2:
+    spacegroup: C2
+    crystal_class: monoclinic
+    hall: ' C 2y'
+    hermann_mauguin: C 1 2 1
+    symops: ['x,y,z', '-x,y,-z', 'x+0.5,y+0.5,z', '-x+0.5,y+0.5,-z']
+    ncsym: ['x,y,z', '-x,y,-z']
+    number: 5
+    schoenflies: C2^3
+    universal_h_m: C 1 2 1
+  Pm:
+    spacegroup: Pm
+    crystal_class: monoclinic
+    hall: ' P -2y'
+    hermann_mauguin: P 1 m 1
+    symops: ['x,y,z', 'x,-y,z']
+    ncsym: ['x,y,z', 'x,-y,z']
+    number: 6
+    schoenflies: Cs^1
+    universal_h_m: P 1 m 1
+  Pc:
+    spacegroup: Pc
+    crystal_class: monoclinic
+    hall: ' P -2yc'
+    hermann_mauguin: P 1 c 1
+    symops: ['x,y,z', 'x,-y,z+0.5']
+    ncsym: ['x,y,z', 'x,-y,z+0.5']
+    number: 7
+    schoenflies: Cs^2
+    universal_h_m: P 1 c 1
+  Cm:
+    spacegroup: Cm
+    crystal_class: monoclinic
+    hall: ' C -2y'
+    hermann_mauguin: C 1 m 1
+    symops: ['x,y,z', 'x,-y,z', 'x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', 'x,-y,z']
+    number: 8
+    schoenflies: Cs^3
+    universal_h_m: C 1 m 1
+  Cc:
+    spacegroup: Cc
+    crystal_class: monoclinic
+    hall: ' C -2yc'
+    hermann_mauguin: C 1 c 1
+    symops: ['x,y,z', 'x,-y,z+0.5', 'x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', 'x,-y,z+0.5']
+    number: 9
+    schoenflies: Cs^4
+    universal_h_m: C 1 c 1
+  P2/m:
+    spacegroup: P2/m
+    crystal_class: monoclinic
+    hall: -P 2y
+    hermann_mauguin: P 1 2/m 1
+    symops: ['x,y,z', '-x,y,-z', '-x,-y,-z', 'x,-y,z']
+    ncsym: ['x,y,z', '-x,y,-z', '-x,-y,-z', 'x,-y,z']
+    number: 10
+    schoenflies: C2h^1
+    universal_h_m: P 1 2/m 1
+  P21/m:
+    spacegroup: P21/m
+    crystal_class: monoclinic
+    hall: -P 2yb
+    hermann_mauguin: P 1 21/m 1
+    symops: ['x,y,z', '-x,y+0.5,-z', '-x,-y,-z', 'x,-y-0.5,z']
+    ncsym: ['x,y,z', '-x,y+0.5,-z', '-x,-y,-z', 'x,-y-0.5,z']
+    number: 11
+    schoenflies: C2h^2
+    universal_h_m: P 1 21/m 1
+  C2/m:
+    spacegroup: C2/m
+    crystal_class: monoclinic
+    hall: -C 2y
+    hermann_mauguin: C 1 2/m 1
+    symops: ['x,y,z', '-x,y,-z', '-x,-y,-z', 'x,-y,z', 'x+0.5,y+0.5,z', '-x+0.5,y+0.5,-z',
+      '-x+0.5,-y+0.5,-z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,y,-z', '-x,-y,-z', 'x,-y,z']
+    number: 12
+    schoenflies: C2h^3
+    universal_h_m: C 1 2/m 1
+  P2/c:
+    spacegroup: P2/c
+    crystal_class: monoclinic
+    hall: -P 2yc
+    hermann_mauguin: P 1 2/c 1
+    symops: ['x,y,z', '-x,y,-z+0.5', '-x,-y,-z', 'x,-y,z-0.5']
+    ncsym: ['x,y,z', '-x,y,-z+0.5', '-x,-y,-z', 'x,-y,z-0.5']
+    number: 13
+    schoenflies: C2h^4
+    universal_h_m: P 1 2/c 1
+  P21/c:
+    spacegroup: P21/c
+    crystal_class: monoclinic
+    hall: -P 2ybc
+    hermann_mauguin: P 1 21/c 1
+    symops: ['x,y,z', '-x,y+0.5,-z+0.5', '-x,-y,-z', 'x,-y-0.5,z-0.5']
+    ncsym: ['x,y,z', '-x,y+0.5,-z+0.5', '-x,-y,-z', 'x,-y-0.5,z-0.5']
+    number: 14
+    schoenflies: C2h^5
+    universal_h_m: P 1 21/c 1
+  C2/c:
+    spacegroup: C2/c
+    crystal_class: monoclinic
+    hall: -C 2yc
+    hermann_mauguin: C 1 2/c 1
+    symops: ['x,y,z', '-x,y,-z+0.5', '-x,-y,-z', 'x,-y,z-0.5', 'x+0.5,y+0.5,z', '-x+0.5,y+0.5,-z+0.5',
+      '-x+0.5,-y+0.5,-z', 'x+0.5,-y+0.5,z-0.5']
+    ncsym: ['x,y,z', '-x,y,-z+0.5', '-x,-y,-z', 'x,-y,z-0.5']
+    number: 15
+    schoenflies: C2h^6
+    universal_h_m: C 1 2/c 1
+  P222:
+    spacegroup: P222
+    crystal_class: orthorhombic
+    hall: ' P 2 2'
+    hermann_mauguin: P 2 2 2
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z']
+    number: 16
+    schoenflies: D2^1
+    universal_h_m: P 2 2 2
+  P2221:
+    spacegroup: P2221
+    crystal_class: orthorhombic
+    hall: ' P 2c 2'
+    hermann_mauguin: P 2 2 21
+    symops: ['x,y,z', '-x,-y,z+0.5', 'x,-y,-z', '-x,y,-z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', 'x,-y,-z', '-x,y,-z+0.5']
+    number: 17
+    schoenflies: D2^2
+    universal_h_m: P 2 2 21
+  P21212:
+    spacegroup: P21212
+    crystal_class: orthorhombic
+    hall: ' P 2 2ab'
+    hermann_mauguin: P 21 21 2
+    symops: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z']
+    number: 18
+    schoenflies: D2^3
+    universal_h_m: P 21 21 2
+  P212121:
+    spacegroup: P212121
+    crystal_class: orthorhombic
+    hall: ' P 2ac 2ab'
+    hermann_mauguin: P 21 21 21
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5']
+    number: 19
+    schoenflies: D2^4
+    universal_h_m: P 21 21 21
+  C2221:
+    spacegroup: C2221
+    crystal_class: orthorhombic
+    hall: ' C 2c 2'
+    hermann_mauguin: C 2 2 21
+    symops: ['x,y,z', '-x,-y,z+0.5', 'x,-y,-z', '-x,y,-z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z+0.5',
+      'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', 'x,-y,-z', '-x,y,-z+0.5']
+    number: 20
+    schoenflies: D2^5
+    universal_h_m: C 2 2 21
+  C222:
+    spacegroup: C222
+    crystal_class: orthorhombic
+    hall: ' C 2 2'
+    hermann_mauguin: C 2 2 2
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z',
+      'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z']
+    number: 21
+    schoenflies: D2^6
+    universal_h_m: C 2 2 2
+  F222:
+    spacegroup: F222
+    crystal_class: orthorhombic
+    hall: ' F 2 2'
+    hermann_mauguin: F 2 2 2
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      'x,-y+0.5,-z+0.5', '-x,y+0.5,-z+0.5', 'x+0.5,y,z+0.5', '-x+0.5,-y,z+0.5', 'x+0.5,-y,-z+0.5',
+      '-x+0.5,y,-z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z']
+    number: 22
+    schoenflies: D2^7
+    universal_h_m: F 2 2 2
+  I222:
+    spacegroup: I222
+    crystal_class: orthorhombic
+    hall: ' I 2 2'
+    hermann_mauguin: I 2 2 2
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'x+0.5,-y+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z']
+    number: 23
+    schoenflies: D2^8
+    universal_h_m: I 2 2 2
+  I212121:
+    spacegroup: I212121
+    crystal_class: orthorhombic
+    hall: ' I 2b 2c'
+    hermann_mauguin: I 21 21 21
+    symops: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', 'x+0.5,y+0.5,z+0.5',
+      '-x+0.5,-y+1,z+0.5', 'x+0.5,-y+0.5,-z+1', '-x+0.5,y+1,-z+1']
+    ncsym: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5']
+    number: 24
+    schoenflies: D2^9
+    universal_h_m: I 21 21 21
+  Pmm2:
+    spacegroup: Pmm2
+    crystal_class: orthorhombic
+    hall: ' P 2 -2'
+    hermann_mauguin: P m m 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z']
+    number: 25
+    schoenflies: C2v^1
+    universal_h_m: P m m 2
+  Pmc21:
+    spacegroup: Pmc21
+    crystal_class: orthorhombic
+    hall: ' P 2c -2'
+    hermann_mauguin: P m c 21
+    symops: ['x,y,z', '-x,-y,z+0.5', '-x,y,z', 'x,-y,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', '-x,y,z', 'x,-y,z+0.5']
+    number: 26
+    schoenflies: C2v^2
+    universal_h_m: P m c 21
+  Pcc2:
+    spacegroup: Pcc2
+    crystal_class: orthorhombic
+    hall: ' P 2 -2c'
+    hermann_mauguin: P c c 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z+0.5', 'x,-y,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z+0.5', 'x,-y,z+0.5']
+    number: 27
+    schoenflies: C2v^3
+    universal_h_m: P c c 2
+  Pma2:
+    spacegroup: Pma2
+    crystal_class: orthorhombic
+    hall: ' P 2 -2a'
+    hermann_mauguin: P m a 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.5,y,z', 'x+0.5,-y,z']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.5,y,z', 'x+0.5,-y,z']
+    number: 28
+    schoenflies: C2v^4
+    universal_h_m: P m a 2
+  Pca21:
+    spacegroup: Pca21
+    crystal_class: orthorhombic
+    hall: ' P 2c -2ac'
+    hermann_mauguin: P c a 21
+    symops: ['x,y,z', '-x,-y,z+0.5', '-x+0.5,y,z+0.5', 'x+0.5,-y,z']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', '-x+0.5,y,z+0.5', 'x+0.5,-y,z']
+    number: 29
+    schoenflies: C2v^5
+    universal_h_m: P c a 21
+  Pnc2:
+    spacegroup: Pnc2
+    crystal_class: orthorhombic
+    hall: ' P 2 -2bc'
+    hermann_mauguin: P n c 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y+0.5,z+0.5', 'x,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y+0.5,z+0.5', 'x,-y+0.5,z+0.5']
+    number: 30
+    schoenflies: C2v^6
+    universal_h_m: P n c 2
+  Pmn21:
+    spacegroup: Pmn21
+    crystal_class: orthorhombic
+    hall: ' P 2ac -2'
+    hermann_mauguin: P m n 21
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', '-x,y,z', 'x+0.5,-y,z+0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', '-x,y,z', 'x+0.5,-y,z+0.5']
+    number: 31
+    schoenflies: C2v^7
+    universal_h_m: P m n 21
+  Pba2:
+    spacegroup: Pba2
+    crystal_class: orthorhombic
+    hall: ' P 2 -2ab'
+    hermann_mauguin: P b a 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    number: 32
+    schoenflies: C2v^8
+    universal_h_m: P b a 2
+  Pna21:
+    spacegroup: Pna21
+    crystal_class: orthorhombic
+    hall: ' P 2c -2n'
+    hermann_mauguin: P n a 21
+    symops: ['x,y,z', '-x,-y,z+0.5', '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z']
+    number: 33
+    schoenflies: C2v^9
+    universal_h_m: P n a 21
+  Pnn2:
+    spacegroup: Pnn2
+    crystal_class: orthorhombic
+    hall: ' P 2 -2n'
+    hermann_mauguin: P n n 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    number: 34
+    schoenflies: C2v^10
+    universal_h_m: P n n 2
+  Cmm2:
+    spacegroup: Cmm2
+    crystal_class: orthorhombic
+    hall: ' C 2 -2'
+    hermann_mauguin: C m m 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z']
+    number: 35
+    schoenflies: C2v^11
+    universal_h_m: C m m 2
+  Cmc21:
+    spacegroup: Cmc21
+    crystal_class: orthorhombic
+    hall: ' C 2c -2'
+    hermann_mauguin: C m c 21
+    symops: ['x,y,z', '-x,-y,z+0.5', '-x,y,z', 'x,-y,z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z+0.5',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', '-x,y,z', 'x,-y,z+0.5']
+    number: 36
+    schoenflies: C2v^12
+    universal_h_m: C m c 21
+  Ccc2:
+    spacegroup: Ccc2
+    crystal_class: orthorhombic
+    hall: ' C 2 -2c'
+    hermann_mauguin: C c c 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z+0.5', 'x,-y,z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z',
+      '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z+0.5', 'x,-y,z+0.5']
+    number: 37
+    schoenflies: C2v^13
+    universal_h_m: C c c 2
+  Amm2:
+    spacegroup: Amm2
+    crystal_class: orthorhombic
+    hall: ' A 2 -2'
+    hermann_mauguin: A m m 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      '-x,y+0.5,z+0.5', 'x,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z']
+    number: 38
+    schoenflies: C2v^14
+    universal_h_m: A m m 2
+  Abm2:
+    spacegroup: Abm2
+    crystal_class: orthorhombic
+    hall: ' A 2 -2b'
+    hermann_mauguin: A e m 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y+0.5,z', 'x,-y+0.5,z', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      '-x,y+1,z+0.5', 'x,-y+1,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y+0.5,z', 'x,-y+0.5,z']
+    number: 39
+    schoenflies: C2v^15
+    universal_h_m: A e m 2
+  Ama2:
+    spacegroup: Ama2
+    crystal_class: orthorhombic
+    hall: ' A 2 -2a'
+    hermann_mauguin: A m a 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.5,y,z', 'x+0.5,-y,z', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.5,y,z', 'x+0.5,-y,z']
+    number: 40
+    schoenflies: C2v^16
+    universal_h_m: A m a 2
+  Aba2:
+    spacegroup: Aba2
+    crystal_class: orthorhombic
+    hall: ' A 2 -2ab'
+    hermann_mauguin: A e a 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z', 'x,y+0.5,z+0.5',
+      '-x,-y+0.5,z+0.5', '-x+0.5,y+1,z+0.5', 'x+0.5,-y+1,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    number: 41
+    schoenflies: C2v^17
+    universal_h_m: A e a 2
+  Fmm2:
+    spacegroup: Fmm2
+    crystal_class: orthorhombic
+    hall: ' F 2 -2'
+    hermann_mauguin: F m m 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      '-x,y+0.5,z+0.5', 'x,-y+0.5,z+0.5', 'x+0.5,y,z+0.5', '-x+0.5,-y,z+0.5', '-x+0.5,y,z+0.5',
+      'x+0.5,-y,z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z']
+    number: 42
+    schoenflies: C2v^18
+    universal_h_m: F m m 2
+  Fdd2:
+    spacegroup: Fdd2
+    crystal_class: orthorhombic
+    hall: ' F 2 -2d'
+    hermann_mauguin: F d d 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.25,y+0.25,z+0.25', 'x+0.75,-y+0.75,z+0.25',
+      'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5', '-x+0.25,y+0.75,z+0.75', 'x+0.75,-y+1.25,z+0.75',
+      'x+0.5,y,z+0.5', '-x+0.5,-y,z+0.5', '-x+0.75,y+0.25,z+0.75', 'x+1.25,-y+0.75,z+0.75',
+      'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', '-x+0.75,y+0.75,z+0.25', 'x+1.25,-y+1.25,z+0.25']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.25,y+0.25,z+0.25', 'x+0.75,-y+0.75,z+0.25']
+    number: 43
+    schoenflies: C2v^19
+    universal_h_m: F d d 2
+  Imm2:
+    spacegroup: Imm2
+    crystal_class: orthorhombic
+    hall: ' I 2 -2'
+    hermann_mauguin: I m m 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z', 'x,-y,z']
+    number: 44
+    schoenflies: C2v^20
+    universal_h_m: I m m 2
+  Iba2:
+    spacegroup: Iba2
+    crystal_class: orthorhombic
+    hall: ' I 2 -2c'
+    hermann_mauguin: I b a 2
+    symops: ['x,y,z', '-x,-y,z', '-x,y,z+0.5', 'x,-y,z+0.5', 'x+0.5,y+0.5,z+0.5',
+      '-x+0.5,-y+0.5,z+0.5', '-x+0.5,y+0.5,z+1', 'x+0.5,-y+0.5,z+1']
+    ncsym: ['x,y,z', '-x,-y,z', '-x,y,z+0.5', 'x,-y,z+0.5']
+    number: 45
+    schoenflies: C2v^21
+    universal_h_m: I b a 2
+  Ima2:
+    spacegroup: Ima2
+    crystal_class: orthorhombic
+    hall: ' I 2 -2a'
+    hermann_mauguin: I m a 2
+    symops: ['x,y,z', '-x,-y,z', '-x+0.5,y,z', 'x+0.5,-y,z', 'x+0.5,y+0.5,z+0.5',
+      '-x+0.5,-y+0.5,z+0.5', '-x+1,y+0.5,z+0.5', 'x+1,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', '-x+0.5,y,z', 'x+0.5,-y,z']
+    number: 46
+    schoenflies: C2v^22
+    universal_h_m: I m a 2
+  Pmmm:
+    spacegroup: Pmmm
+    crystal_class: orthorhombic
+    hall: -P 2 2
+    hermann_mauguin: P m m m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z']
+    number: 47
+    schoenflies: D2h^1
+    universal_h_m: P m m m
+  Pnnn:
+    spacegroup: Pnnn
+    crystal_class: orthorhombic
+    hall: ' P 2 2 -1n'
+    hermann_mauguin: P n n n
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5']
+    number: 48
+    schoenflies: D2h^2
+    universal_h_m: P n n n :1
+  Pccm:
+    spacegroup: Pccm
+    crystal_class: orthorhombic
+    hall: -P 2 2c
+    hermann_mauguin: P c c m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z',
+      '-x,y,z-0.5', 'x,-y,z-0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z',
+      '-x,y,z-0.5', 'x,-y,z-0.5']
+    number: 49
+    schoenflies: D2h^3
+    universal_h_m: P c c m
+  Pban:
+    spacegroup: Pban
+    crystal_class: orthorhombic
+    hall: ' P 2 2 -1ab'
+    hermann_mauguin: P b a n
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.5,-y+0.5,-z', 'x+0.5,y+0.5,-z',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.5,-y+0.5,-z', 'x+0.5,y+0.5,-z',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    number: 50
+    schoenflies: D2h^4
+    universal_h_m: P b a n :1
+  Pmma:
+    spacegroup: Pmma
+    crystal_class: orthorhombic
+    hall: -P 2a 2a
+    hermann_mauguin: P m m a
+    symops: ['x,y,z', '-x+0.5,-y,z', 'x+0.5,-y,-z', '-x,y,-z', '-x,-y,-z', 'x-0.5,y,-z',
+      '-x-0.5,y,z', 'x,-y,z']
+    ncsym: ['x,y,z', '-x+0.5,-y,z', 'x+0.5,-y,-z', '-x,y,-z', '-x,-y,-z', 'x-0.5,y,-z',
+      '-x-0.5,y,z', 'x,-y,z']
+    number: 51
+    schoenflies: D2h^5
+    universal_h_m: P m m a
+  Pnna:
+    spacegroup: Pnna
+    crystal_class: orthorhombic
+    hall: -P 2a 2bc
+    hermann_mauguin: P n n a
+    symops: ['x,y,z', '-x+0.5,-y,z', 'x,-y+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z', '-x,y-0.5,z-0.5', 'x-0.5,-y-0.5,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z', 'x,-y+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z', '-x,y-0.5,z-0.5', 'x-0.5,-y-0.5,z-0.5']
+    number: 52
+    schoenflies: D2h^6
+    universal_h_m: P n n a
+  Pmna:
+    spacegroup: Pmna
+    crystal_class: orthorhombic
+    hall: -P 2ac 2
+    hermann_mauguin: P m n a
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x,-y,-z', '-x+0.5,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x,y,z', 'x-0.5,-y,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x,-y,-z', '-x+0.5,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x,y,z', 'x-0.5,-y,z-0.5']
+    number: 53
+    schoenflies: D2h^7
+    universal_h_m: P m n a
+  Pcca:
+    spacegroup: Pcca
+    crystal_class: orthorhombic
+    hall: -P 2a 2ac
+    hermann_mauguin: P c c a
+    symops: ['x,y,z', '-x+0.5,-y,z', 'x+0.5,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z', '-x-0.5,y,z-0.5', 'x,-y,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z', 'x+0.5,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z', '-x-0.5,y,z-0.5', 'x,-y,z-0.5']
+    number: 54
+    schoenflies: D2h^8
+    universal_h_m: P c c a
+  Pbam:
+    spacegroup: Pbam
+    crystal_class: orthorhombic
+    hall: -P 2 2ab
+    hermann_mauguin: P b a m
+    symops: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', '-x,-y,-z',
+      'x,y,-z', '-x-0.5,y-0.5,z', 'x-0.5,-y-0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', '-x,-y,-z',
+      'x,y,-z', '-x-0.5,y-0.5,z', 'x-0.5,-y-0.5,z']
+    number: 55
+    schoenflies: D2h^9
+    universal_h_m: P b a m
+  Pccn:
+    spacegroup: Pccn
+    crystal_class: orthorhombic
+    hall: -P 2ab 2ac
+    hermann_mauguin: P c c n
+    symops: ['x,y,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y,-z+0.5', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x-0.5,y-0.5,-z', '-x-0.5,y,z-0.5', 'x,-y-0.5,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y,-z+0.5', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x-0.5,y-0.5,-z', '-x-0.5,y,z-0.5', 'x,-y-0.5,z-0.5']
+    number: 56
+    schoenflies: D2h^10
+    universal_h_m: P c c n
+  Pbcm:
+    spacegroup: Pbcm
+    crystal_class: orthorhombic
+    hall: -P 2c 2b
+    hermann_mauguin: P b c m
+    symops: ['x,y,z', '-x,-y,z+0.5', 'x,-y+0.5,-z', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x,y,-z-0.5', '-x,y-0.5,z', 'x,-y-0.5,z-0.5']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', 'x,-y+0.5,-z', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x,y,-z-0.5', '-x,y-0.5,z', 'x,-y-0.5,z-0.5']
+    number: 57
+    schoenflies: D2h^11
+    universal_h_m: P b c m
+  Pnnm:
+    spacegroup: Pnnm
+    crystal_class: orthorhombic
+    hall: -P 2 2n
+    hermann_mauguin: P n n m
+    symops: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5', '-x,-y,-z',
+      'x,y,-z', '-x-0.5,y-0.5,z-0.5', 'x-0.5,-y-0.5,z-0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5', '-x,-y,-z',
+      'x,y,-z', '-x-0.5,y-0.5,z-0.5', 'x-0.5,-y-0.5,z-0.5']
+    number: 58
+    schoenflies: D2h^12
+    universal_h_m: P n n m
+  Pmmn:
+    spacegroup: Pmmn
+    crystal_class: orthorhombic
+    hall: ' P 2 2ab -1ab'
+    hermann_mauguin: P m m n
+    symops: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', '-x+0.5,-y+0.5,-z',
+      'x+0.5,y+0.5,-z', '-x,y,z', 'x,-y,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', '-x+0.5,-y+0.5,-z',
+      'x+0.5,y+0.5,-z', '-x,y,z', 'x,-y,z']
+    number: 59
+    schoenflies: D2h^13
+    universal_h_m: P m m n :1
+  Pbcn:
+    spacegroup: Pbcn
+    crystal_class: orthorhombic
+    hall: -P 2n 2ab
+    hermann_mauguin: P b c n
+    symops: ['x,y,z', '-x+0.5,-y+0.5,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y-0.5,-z-0.5', '-x-0.5,y-0.5,z', 'x,-y,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y+0.5,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y-0.5,-z-0.5', '-x-0.5,y-0.5,z', 'x,-y,z-0.5']
+    number: 60
+    schoenflies: D2h^14
+    universal_h_m: P b c n
+  Pbca:
+    spacegroup: Pbca
+    crystal_class: orthorhombic
+    hall: -P 2ac 2ab
+    hermann_mauguin: P b c a
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x-0.5,y-0.5,z', 'x,-y-0.5,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x-0.5,y-0.5,z', 'x,-y-0.5,z-0.5']
+    number: 61
+    schoenflies: D2h^15
+    universal_h_m: P b c a
+  Pnma:
+    spacegroup: Pnma
+    crystal_class: orthorhombic
+    hall: -P 2ac 2n
+    hermann_mauguin: P n m a
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z+0.5', '-x,y+0.5,-z', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x-0.5,y-0.5,z-0.5', 'x,-y-0.5,z']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z+0.5', '-x,y+0.5,-z', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x-0.5,y-0.5,z-0.5', 'x,-y-0.5,z']
+    number: 62
+    schoenflies: D2h^16
+    universal_h_m: P n m a
+  Cmcm:
+    spacegroup: Cmcm
+    crystal_class: orthorhombic
+    hall: -C 2c 2
+    hermann_mauguin: C m c m
+    symops: ['x,y,z', '-x,-y,z+0.5', 'x,-y,-z', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z-0.5',
+      '-x,y,z', 'x,-y,z-0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z+0.5', 'x+0.5,-y+0.5,-z',
+      '-x+0.5,y+0.5,-z+0.5', '-x+0.5,-y+0.5,-z', 'x+0.5,y+0.5,-z-0.5', '-x+0.5,y+0.5,z',
+      'x+0.5,-y+0.5,z-0.5']
+    ncsym: ['x,y,z', '-x,-y,z+0.5', 'x,-y,-z', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z-0.5',
+      '-x,y,z', 'x,-y,z-0.5']
+    number: 63
+    schoenflies: D2h^17
+    universal_h_m: C m c m
+  Cmce:
+    spacegroup: Cmce
+    crystal_class: orthorhombic
+    hall: -C 2ac 2
+    hermann_mauguin: C m c e
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x,-y,-z', '-x+0.5,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x,y,z', 'x-0.5,-y,z-0.5', 'x+0.5,y+0.5,z', '-x+1,-y+0.5,z+0.5',
+      'x+0.5,-y+0.5,-z', '-x+1,y+0.5,-z+0.5', '-x+0.5,-y+0.5,-z', 'x,y+0.5,-z-0.5',
+      '-x+0.5,y+0.5,z', 'x,-y+0.5,z-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x,-y,-z', '-x+0.5,y,-z+0.5', '-x,-y,-z',
+      'x-0.5,y,-z-0.5', '-x,y,z', 'x-0.5,-y,z-0.5']
+    number: 64
+    schoenflies: D2h^18
+    universal_h_m: C m c e
+  Cmmm:
+    spacegroup: Cmmm
+    crystal_class: orthorhombic
+    hall: -C 2 2
+    hermann_mauguin: C m m m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z',
+      '-x+0.5,-y+0.5,-z', 'x+0.5,y+0.5,-z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z']
+    number: 65
+    schoenflies: D2h^19
+    universal_h_m: C m m m
+  Cccm:
+    spacegroup: Cccm
+    crystal_class: orthorhombic
+    hall: -C 2 2c
+    hermann_mauguin: C c c m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z',
+      '-x,y,z-0.5', 'x,-y,z-0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', '-x+0.5,-y+0.5,-z', 'x+0.5,y+0.5,-z', '-x+0.5,y+0.5,z-0.5',
+      'x+0.5,-y+0.5,z-0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z',
+      '-x,y,z-0.5', 'x,-y,z-0.5']
+    number: 66
+    schoenflies: D2h^20
+    universal_h_m: C c c m
+  Cmme:
+    spacegroup: Cmme
+    crystal_class: orthorhombic
+    hall: -C 2a 2
+    hermann_mauguin: C m m a
+    symops: ['x,y,z', '-x+0.5,-y,z', 'x,-y,-z', '-x+0.5,y,-z', '-x,-y,-z', 'x-0.5,y,-z',
+      '-x,y,z', 'x-0.5,-y,z', 'x+0.5,y+0.5,z', '-x+1,-y+0.5,z', 'x+0.5,-y+0.5,-z',
+      '-x+1,y+0.5,-z', '-x+0.5,-y+0.5,-z', 'x,y+0.5,-z', '-x+0.5,y+0.5,z', 'x,-y+0.5,z']
+    ncsym: ['x,y,z', '-x+0.5,-y,z', 'x,-y,-z', '-x+0.5,y,-z', '-x,-y,-z', 'x-0.5,y,-z',
+      '-x,y,z', 'x-0.5,-y,z']
+    number: 67
+    schoenflies: D2h^21
+    universal_h_m: C m m a
+  Ccce:
+    spacegroup: Ccce
+    crystal_class: orthorhombic
+    hall: ' C 2 2 -1ac'
+    hermann_mauguin: C c c e
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.5,-y,-z+0.5', 'x+0.5,y,-z+0.5',
+      '-x+0.5,y,z+0.5', 'x+0.5,-y,z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z',
+      '-x+0.5,y+0.5,-z', '-x+1,-y+0.5,-z+0.5', 'x+1,y+0.5,-z+0.5', '-x+1,y+0.5,z+0.5',
+      'x+1,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.5,-y,-z+0.5', 'x+0.5,y,-z+0.5',
+      '-x+0.5,y,z+0.5', 'x+0.5,-y,z+0.5']
+    number: 68
+    schoenflies: D2h^22
+    universal_h_m: C c c e :1
+  Fmmm:
+    spacegroup: Fmmm
+    crystal_class: orthorhombic
+    hall: -F 2 2
+    hermann_mauguin: F m m m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5', 'x,-y+0.5,-z+0.5', '-x,y+0.5,-z+0.5',
+      '-x,-y+0.5,-z+0.5', 'x,y+0.5,-z+0.5', '-x,y+0.5,z+0.5', 'x,-y+0.5,z+0.5', 'x+0.5,y,z+0.5',
+      '-x+0.5,-y,z+0.5', 'x+0.5,-y,-z+0.5', '-x+0.5,y,-z+0.5', '-x+0.5,-y,-z+0.5',
+      'x+0.5,y,-z+0.5', '-x+0.5,y,z+0.5', 'x+0.5,-y,z+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z',
+      'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', '-x+0.5,-y+0.5,-z', 'x+0.5,y+0.5,-z',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z']
+    number: 69
+    schoenflies: D2h^23
+    universal_h_m: F m m m
+  Fddd:
+    spacegroup: Fddd
+    crystal_class: orthorhombic
+    hall: ' F 2 2 -1d'
+    hermann_mauguin: F d d d
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.25,-y+0.25,-z+0.25',
+      'x+0.25,y+0.25,-z+0.25', '-x+0.25,y+0.25,z+0.25', 'x+0.25,-y+0.25,z+0.25', 'x,y+0.5,z+0.5',
+      '-x,-y+0.5,z+0.5', 'x,-y+0.5,-z+0.5', '-x,y+0.5,-z+0.5', '-x+0.25,-y+0.75,-z+0.75',
+      'x+0.25,y+0.75,-z+0.75', '-x+0.25,y+0.75,z+0.75', 'x+0.25,-y+0.75,z+0.75', 'x+0.5,y,z+0.5',
+      '-x+0.5,-y,z+0.5', 'x+0.5,-y,-z+0.5', '-x+0.5,y,-z+0.5', '-x+0.75,-y+0.25,-z+0.75',
+      'x+0.75,y+0.25,-z+0.75', '-x+0.75,y+0.25,z+0.75', 'x+0.75,-y+0.25,z+0.75', 'x+0.5,y+0.5,z',
+      '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', '-x+0.75,-y+0.75,-z+0.25',
+      'x+0.75,y+0.75,-z+0.25', '-x+0.75,y+0.75,z+0.25', 'x+0.75,-y+0.75,z+0.25']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x+0.25,-y+0.25,-z+0.25', 'x+0.25,y+0.25,-z+0.25',
+      '-x+0.25,y+0.25,z+0.25', 'x+0.25,-y+0.25,z+0.25']
+    number: 70
+    schoenflies: D2h^24
+    universal_h_m: F d d d :1
+  Immm:
+    spacegroup: Immm
+    crystal_class: orthorhombic
+    hall: -I 2 2
+    hermann_mauguin: I m m m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5',
+      'x+0.5,-y+0.5,z+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z']
+    number: 71
+    schoenflies: D2h^25
+    universal_h_m: I m m m
+  Ibam:
+    spacegroup: Ibam
+    crystal_class: orthorhombic
+    hall: -I 2 2c
+    hermann_mauguin: I b a m
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z',
+      '-x,y,z-0.5', 'x,-y,z-0.5', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5', 'x+0.5,-y+0.5,-z+1',
+      '-x+0.5,y+0.5,-z+1', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5', '-x+0.5,y+0.5,z',
+      'x+0.5,-y+0.5,z']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z+0.5', '-x,y,-z+0.5', '-x,-y,-z', 'x,y,-z',
+      '-x,y,z-0.5', 'x,-y,z-0.5']
+    number: 72
+    schoenflies: D2h^26
+    universal_h_m: I b a m
+  Ibca:
+    spacegroup: Ibca
+    crystal_class: orthorhombic
+    hall: -I 2b 2c
+    hermann_mauguin: I b c a
+    symops: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x,y-0.5,-z', '-x,y,z-0.5', 'x,-y-0.5,z-0.5', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+1,z+0.5',
+      'x+0.5,-y+0.5,-z+1', '-x+0.5,y+1,-z+1', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y,-z+0.5',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y,z']
+    ncsym: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', '-x,-y,-z',
+      'x,y-0.5,-z', '-x,y,z-0.5', 'x,-y-0.5,z-0.5']
+    number: 73
+    schoenflies: D2h^27
+    universal_h_m: I b c a
+  Imma:
+    spacegroup: Imma
+    crystal_class: orthorhombic
+    hall: -I 2b 2
+    hermann_mauguin: I m m a
+    symops: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z', '-x,y+0.5,-z', '-x,-y,-z', 'x,y-0.5,-z',
+      '-x,y,z', 'x,-y-0.5,z', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+1,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      '-x+0.5,y+1,-z+0.5', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y,-z+0.5', '-x+0.5,y+0.5,z+0.5',
+      'x+0.5,-y,z+0.5']
+    ncsym: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z', '-x,y+0.5,-z', '-x,-y,-z', 'x,y-0.5,-z',
+      '-x,y,z', 'x,-y-0.5,z']
+    number: 74
+    schoenflies: D2h^28
+    universal_h_m: I m m a
+  P4:
+    spacegroup: P4
+    crystal_class: tetragonal
+    hall: ' P 4'
+    hermann_mauguin: P 4
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z']
+    number: 75
+    schoenflies: C4^1
+    universal_h_m: P 4
+  P41:
+    spacegroup: P41
+    crystal_class: tetragonal
+    hall: ' P 4w'
+    hermann_mauguin: P 41
+    symops: ['x,y,z', '-y,x,z+0.25', '-x,-y,z+0.5', 'y,-x,z+0.75']
+    ncsym: ['x,y,z', '-y,x,z+0.25', '-x,-y,z+0.5', 'y,-x,z+0.75']
+    number: 76
+    schoenflies: C4^2
+    universal_h_m: P 41
+  P42:
+    spacegroup: P42
+    crystal_class: tetragonal
+    hall: ' P 4c'
+    hermann_mauguin: P 42
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5']
+    number: 77
+    schoenflies: C4^3
+    universal_h_m: P 42
+  P43:
+    spacegroup: P43
+    crystal_class: tetragonal
+    hall: ' P 4cw'
+    hermann_mauguin: P 43
+    symops: ['x,y,z', '-y,x,z+0.75', '-x,-y,z+0.5', 'y,-x,z+0.25']
+    ncsym: ['x,y,z', '-y,x,z+0.75', '-x,-y,z+0.5', 'y,-x,z+0.25']
+    number: 78
+    schoenflies: C4^4
+    universal_h_m: P 43
+  I4:
+    spacegroup: I4
+    crystal_class: tetragonal
+    hall: ' I 4'
+    hermann_mauguin: I 4
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5',
+      '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z']
+    number: 79
+    schoenflies: C4^5
+    universal_h_m: I 4
+  I41:
+    spacegroup: I41
+    crystal_class: tetragonal
+    hall: ' I 4bw'
+    hermann_mauguin: I 41
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x+0.5,y+0.5,z+0.5', '-y+0.5,x+1,z+0.75', '-x+1,-y+1,z+1', 'y+1,-x+0.5,z+1.25']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75']
+    number: 80
+    schoenflies: C4^6
+    universal_h_m: I 41
+  P-4:
+    spacegroup: P-4
+    crystal_class: tetragonal
+    hall: ' P -4'
+    hermann_mauguin: P -4
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z']
+    number: 81
+    schoenflies: S4^1
+    universal_h_m: P -4
+  I-4:
+    spacegroup: I-4
+    crystal_class: tetragonal
+    hall: ' I -4'
+    hermann_mauguin: I -4
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x+0.5,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5',
+      '-x+0.5,-y+0.5,z+0.5', '-y+0.5,x+0.5,-z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z']
+    number: 82
+    schoenflies: S4^2
+    universal_h_m: I -4
+  P4/m:
+    spacegroup: P4/m
+    crystal_class: tetragonal
+    hall: -P 4
+    hermann_mauguin: P 4/m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z',
+      '-y,x,-z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z',
+      '-y,x,-z']
+    number: 83
+    schoenflies: C4h^1
+    universal_h_m: P 4/m
+  P42/m:
+    spacegroup: P42/m
+    crystal_class: tetragonal
+    hall: -P 4c
+    hermann_mauguin: P 42/m
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x,-y,-z', 'y,-x,-z-0.5',
+      'x,y,-z', '-y,x,-z-0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x,-y,-z', 'y,-x,-z-0.5',
+      'x,y,-z', '-y,x,-z-0.5']
+    number: 84
+    schoenflies: C4h^2
+    universal_h_m: P 42/m
+  P4/n:
+    spacegroup: P4/n
+    crystal_class: tetragonal
+    hall: ' P 4ab -1ab'
+    hermann_mauguin: P 4/n
+    symops: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', '-x+0.5,-y+0.5,-z',
+      'y,-x,-z', 'x+0.5,y+0.5,-z', '-y,x,-z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', '-x+0.5,-y+0.5,-z',
+      'y,-x,-z', 'x+0.5,y+0.5,-z', '-y,x,-z']
+    number: 85
+    schoenflies: C4h^3
+    universal_h_m: P 4/n :1
+  P42/n:
+    spacegroup: P42/n
+    crystal_class: tetragonal
+    hall: ' P 4n -1n'
+    hermann_mauguin: P 42/n
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', '-x+0.5,-y+0.5,-z+0.5',
+      'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', '-x+0.5,-y+0.5,-z+0.5',
+      'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z']
+    number: 86
+    schoenflies: C4h^4
+    universal_h_m: P 42/n :1
+  I4/m:
+    spacegroup: I4/m
+    crystal_class: tetragonal
+    hall: -I 4
+    hermann_mauguin: I 4/m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z',
+      '-y,x,-z', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z',
+      '-y,x,-z']
+    number: 87
+    schoenflies: C4h^5
+    universal_h_m: I 4/m
+  I41/a:
+    spacegroup: I41/a
+    crystal_class: tetragonal
+    hall: ' I 4bw -1bw'
+    hermann_mauguin: I 41/a
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      '-x,-y+0.5,-z+0.25', 'y,-x,-z', 'x-0.5,y,-z-0.25', '-y-0.5,x+0.5,-z-0.5', 'x+0.5,y+0.5,z+0.5',
+      '-y+0.5,x+1,z+0.75', '-x+1,-y+1,z+1', 'y+1,-x+0.5,z+1.25', '-x+0.5,-y+1,-z+0.75',
+      'y+0.5,-x+0.5,-z+0.5', 'x,y+0.5,-z+0.25', '-y,x+1,-z']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      '-x,-y+0.5,-z+0.25', 'y,-x,-z', 'x-0.5,y,-z-0.25', '-y-0.5,x+0.5,-z-0.5']
+    number: 88
+    schoenflies: C4h^6
+    universal_h_m: I 41/a :1
+  P422:
+    spacegroup: P422
+    crystal_class: tetragonal
+    hall: ' P 4 2'
+    hermann_mauguin: P 4 2 2
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z']
+    number: 89
+    schoenflies: D4^1
+    universal_h_m: P 4 2 2
+  P4212:
+    spacegroup: P4212
+    crystal_class: tetragonal
+    hall: ' P 4ab 2ab'
+    hermann_mauguin: P 4 21 2
+    symops: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z',
+      'y,x,-z', '-x+0.5,y+0.5,-z', '-y,-x,-z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z',
+      'y,x,-z', '-x+0.5,y+0.5,-z', '-y,-x,-z']
+    number: 90
+    schoenflies: D4^2
+    universal_h_m: P 4 21 2
+  P4122:
+    spacegroup: P4122
+    crystal_class: tetragonal
+    hall: ' P 4w 2c'
+    hermann_mauguin: P 41 2 2
+    symops: ['x,y,z', '-y,x,z+0.25', '-x,-y,z+0.5', 'y,-x,z+0.75', 'x,-y,-z+0.5',
+      'y,x,-z+0.75', '-x,y,-z', '-y,-x,-z+0.25']
+    ncsym: ['x,y,z', '-y,x,z+0.25', '-x,-y,z+0.5', 'y,-x,z+0.75', 'x,-y,-z+0.5', 'y,x,-z+0.75',
+      '-x,y,-z', '-y,-x,-z+0.25']
+    number: 91
+    schoenflies: D4^3
+    universal_h_m: P 41 2 2
+  P41212:
+    spacegroup: P41212
+    crystal_class: tetragonal
+    hall: ' P 4abw 2nw'
+    hermann_mauguin: P 41 21 2
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.25', '-x,-y,z+0.5', 'y+0.5,-x+0.5,z+0.75',
+      'x+0.5,-y+0.5,-z+0.75', 'y,x,-z', '-x+0.5,y+0.5,-z+0.25', '-y,-x,-z+0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.25', '-x,-y,z+0.5', 'y+0.5,-x+0.5,z+0.75',
+      'x+0.5,-y+0.5,-z+0.75', 'y,x,-z', '-x+0.5,y+0.5,-z+0.25', '-y,-x,-z+0.5']
+    number: 92
+    schoenflies: D4^4
+    universal_h_m: P 41 21 2
+  P4222:
+    spacegroup: P4222
+    crystal_class: tetragonal
+    hall: ' P 4c 2'
+    hermann_mauguin: P 42 2 2
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x,-y,-z', 'y,x,-z+0.5',
+      '-x,y,-z', '-y,-x,-z+0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x,-y,-z', 'y,x,-z+0.5',
+      '-x,y,-z', '-y,-x,-z+0.5']
+    number: 93
+    schoenflies: D4^5
+    universal_h_m: P 42 2 2
+  P42212:
+    spacegroup: P42212
+    crystal_class: tetragonal
+    hall: ' P 4n 2n'
+    hermann_mauguin: P 42 21 2
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z']
+    number: 94
+    schoenflies: D4^6
+    universal_h_m: P 42 21 2
+  P4322:
+    spacegroup: P4322
+    crystal_class: tetragonal
+    hall: ' P 4cw 2c'
+    hermann_mauguin: P 43 2 2
+    symops: ['x,y,z', '-y,x,z+0.75', '-x,-y,z+0.5', 'y,-x,z+0.25', 'x,-y,-z+0.5',
+      'y,x,-z+0.25', '-x,y,-z', '-y,-x,-z+0.75']
+    ncsym: ['x,y,z', '-y,x,z+0.75', '-x,-y,z+0.5', 'y,-x,z+0.25', 'x,-y,-z+0.5', 'y,x,-z+0.25',
+      '-x,y,-z', '-y,-x,-z+0.75']
+    number: 95
+    schoenflies: D4^7
+    universal_h_m: P 43 2 2
+  P43212:
+    spacegroup: P43212
+    crystal_class: tetragonal
+    hall: ' P 4nw 2abw'
+    hermann_mauguin: P 43 21 2
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.75', '-x,-y,z+0.5', 'y+0.5,-x+0.5,z+0.25',
+      'x+0.5,-y+0.5,-z+0.25', 'y,x,-z', '-x+0.5,y+0.5,-z+0.75', '-y,-x,-z+0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.75', '-x,-y,z+0.5', 'y+0.5,-x+0.5,z+0.25',
+      'x+0.5,-y+0.5,-z+0.25', 'y,x,-z', '-x+0.5,y+0.5,-z+0.75', '-y,-x,-z+0.5']
+    number: 96
+    schoenflies: D4^8
+    universal_h_m: P 43 21 2
+  I422:
+    spacegroup: I422
+    crystal_class: tetragonal
+    hall: ' I 4 2'
+    hermann_mauguin: I 4 2 2
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,-x+0.5,-z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z']
+    number: 97
+    schoenflies: D4^9
+    universal_h_m: I 4 2 2
+  I4122:
+    spacegroup: I4122
+    crystal_class: tetragonal
+    hall: ' I 4bw 2bw'
+    hermann_mauguin: I 41 2 2
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x,-y+0.5,-z+0.25', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y,-z+0.75', '-y,-x,-z', 'x+0.5,y+0.5,z+0.5',
+      '-y+0.5,x+1,z+0.75', '-x+1,-y+1,z+1', 'y+1,-x+0.5,z+1.25', 'x+0.5,-y+1,-z+0.75',
+      'y+1,x+1,-z+1', '-x+1,y+0.5,-z+1.25', '-y+0.5,-x+0.5,-z+0.5']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x,-y+0.5,-z+0.25', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y,-z+0.75', '-y,-x,-z']
+    number: 98
+    schoenflies: D4^10
+    universal_h_m: I 41 2 2
+  P4mm:
+    spacegroup: P4mm
+    crystal_class: tetragonal
+    hall: ' P 4 -2'
+    hermann_mauguin: P 4 m m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z', '-y,-x,z', 'x,-y,z',
+      'y,x,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z', '-y,-x,z', 'x,-y,z',
+      'y,x,z']
+    number: 99
+    schoenflies: C4v^1
+    universal_h_m: P 4 m m
+  P4bm:
+    spacegroup: P4bm
+    crystal_class: tetragonal
+    hall: ' P 4 -2ab'
+    hermann_mauguin: P 4 b m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z',
+      'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z',
+      'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z']
+    number: 100
+    schoenflies: C4v^2
+    universal_h_m: P 4 b m
+  P42cm:
+    spacegroup: P42cm
+    crystal_class: tetragonal
+    hall: ' P 4c -2c'
+    hermann_mauguin: P 42 c m
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x,y,z+0.5', '-y,-x,z',
+      'x,-y,z+0.5', 'y,x,z']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x,y,z+0.5', '-y,-x,z',
+      'x,-y,z+0.5', 'y,x,z']
+    number: 101
+    schoenflies: C4v^3
+    universal_h_m: P 42 c m
+  P42nm:
+    spacegroup: P42nm
+    crystal_class: tetragonal
+    hall: ' P 4n -2n'
+    hermann_mauguin: P 42 n m
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', '-x+0.5,y+0.5,z+0.5',
+      '-y,-x,z', 'x+0.5,-y+0.5,z+0.5', 'y,x,z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', '-x+0.5,y+0.5,z+0.5',
+      '-y,-x,z', 'x+0.5,-y+0.5,z+0.5', 'y,x,z']
+    number: 102
+    schoenflies: C4v^4
+    universal_h_m: P 42 n m
+  P4cc:
+    spacegroup: P4cc
+    crystal_class: tetragonal
+    hall: ' P 4 -2c'
+    hermann_mauguin: P 4 c c
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z+0.5', '-y,-x,z+0.5',
+      'x,-y,z+0.5', 'y,x,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z+0.5', '-y,-x,z+0.5', 'x,-y,z+0.5',
+      'y,x,z+0.5']
+    number: 103
+    schoenflies: C4v^5
+    universal_h_m: P 4 c c
+  P4nc:
+    spacegroup: P4nc
+    crystal_class: tetragonal
+    hall: ' P 4 -2n'
+    hermann_mauguin: P 4 n c
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5',
+      'x+0.5,-y+0.5,z+0.5', 'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5',
+      'x+0.5,-y+0.5,z+0.5', 'y+0.5,x+0.5,z+0.5']
+    number: 104
+    schoenflies: C4v^6
+    universal_h_m: P 4 n c
+  P42mc:
+    spacegroup: P42mc
+    crystal_class: tetragonal
+    hall: ' P 4c -2'
+    hermann_mauguin: P 42 m c
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x,y,z', '-y,-x,z+0.5',
+      'x,-y,z', 'y,x,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x,y,z', '-y,-x,z+0.5',
+      'x,-y,z', 'y,x,z+0.5']
+    number: 105
+    schoenflies: C4v^7
+    universal_h_m: P 42 m c
+  P42bc:
+    spacegroup: P42bc
+    crystal_class: tetragonal
+    hall: ' P 4c -2ab'
+    hermann_mauguin: P 42 b c
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z+0.5',
+      'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z+0.5',
+      'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z+0.5']
+    number: 106
+    schoenflies: C4v^8
+    universal_h_m: P 42 b c
+  I4mm:
+    spacegroup: I4mm
+    crystal_class: tetragonal
+    hall: ' I 4 -2'
+    hermann_mauguin: I 4 m m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z', '-y,-x,z', 'x,-y,z',
+      'y,x,z', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x+0.5,z+0.5',
+      '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5', 'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z', '-y,-x,z', 'x,-y,z',
+      'y,x,z']
+    number: 107
+    schoenflies: C4v^9
+    universal_h_m: I 4 m m
+  I4cm:
+    spacegroup: I4cm
+    crystal_class: tetragonal
+    hall: ' I 4 -2c'
+    hermann_mauguin: I 4 c m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z+0.5', '-y,-x,z+0.5',
+      'x,-y,z+0.5', 'y,x,z+0.5', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', '-x+0.5,y+0.5,z+1', '-y+0.5,-x+0.5,z+1', 'x+0.5,-y+0.5,z+1',
+      'y+0.5,x+0.5,z+1']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', '-x,y,z+0.5', '-y,-x,z+0.5', 'x,-y,z+0.5',
+      'y,x,z+0.5']
+    number: 108
+    schoenflies: C4v^10
+    universal_h_m: I 4 c m
+  I41md:
+    spacegroup: I41md
+    crystal_class: tetragonal
+    hall: ' I 4bw -2'
+    hermann_mauguin: I 41 m d
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      '-x,y,z', '-y,-x+0.5,z+0.25', 'x+0.5,-y+0.5,z+0.5', 'y+0.5,x,z+0.75', 'x+0.5,y+0.5,z+0.5',
+      '-y+0.5,x+1,z+0.75', '-x+1,-y+1,z+1', 'y+1,-x+0.5,z+1.25', '-x+0.5,y+0.5,z+0.5',
+      '-y+0.5,-x+1,z+0.75', 'x+1,-y+1,z+1', 'y+1,x+0.5,z+1.25']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      '-x,y,z', '-y,-x+0.5,z+0.25', 'x+0.5,-y+0.5,z+0.5', 'y+0.5,x,z+0.75']
+    number: 109
+    schoenflies: C4v^11
+    universal_h_m: I 41 m d
+  I41cd:
+    spacegroup: I41cd
+    crystal_class: tetragonal
+    hall: ' I 4bw -2c'
+    hermann_mauguin: I 41 c d
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      '-x,y,z+0.5', '-y,-x+0.5,z+0.75', 'x+0.5,-y+0.5,z', 'y+0.5,x,z+0.25', 'x+0.5,y+0.5,z+0.5',
+      '-y+0.5,x+1,z+0.75', '-x+1,-y+1,z+1', 'y+1,-x+0.5,z+1.25', '-x+0.5,y+0.5,z+1',
+      '-y+0.5,-x+1,z+1.25', 'x+1,-y+1,z+0.5', 'y+1,x+0.5,z+0.75']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      '-x,y,z+0.5', '-y,-x+0.5,z+0.75', 'x+0.5,-y+0.5,z', 'y+0.5,x,z+0.25']
+    number: 110
+    schoenflies: C4v^12
+    universal_h_m: I 41 c d
+  P-42m:
+    spacegroup: P-42m
+    crystal_class: tetragonal
+    hall: ' P -4 2'
+    hermann_mauguin: P -4 2 m
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z']
+    number: 111
+    schoenflies: D2d^1
+    universal_h_m: P -4 2 m
+  P-42c:
+    spacegroup: P-42c
+    crystal_class: tetragonal
+    hall: ' P -4 2c'
+    hermann_mauguin: P -4 2 c
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z+0.5', '-y,-x,z+0.5',
+      '-x,y,-z+0.5', 'y,x,z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z+0.5', '-y,-x,z+0.5',
+      '-x,y,-z+0.5', 'y,x,z+0.5']
+    number: 112
+    schoenflies: D2d^2
+    universal_h_m: P -4 2 c
+  P-421m:
+    spacegroup: P-421m
+    crystal_class: tetragonal
+    hall: ' P -4 2ab'
+    hermann_mauguin: P -4 21 m
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x+0.5,-y+0.5,-z', '-y+0.5,-x+0.5,z',
+      '-x+0.5,y+0.5,-z', 'y+0.5,x+0.5,z']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x+0.5,-y+0.5,-z', '-y+0.5,-x+0.5,z',
+      '-x+0.5,y+0.5,-z', 'y+0.5,x+0.5,z']
+    number: 113
+    schoenflies: D2d^3
+    universal_h_m: P -4 21 m
+  P-421c:
+    spacegroup: P-421c
+    crystal_class: tetragonal
+    hall: ' P -4 2n'
+    hermann_mauguin: P -4 21 c
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x+0.5,-y+0.5,-z+0.5', '-y+0.5,-x+0.5,z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', 'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x+0.5,-y+0.5,-z+0.5', '-y+0.5,-x+0.5,z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', 'y+0.5,x+0.5,z+0.5']
+    number: 114
+    schoenflies: D2d^4
+    universal_h_m: P -4 21 c
+  P-4m2:
+    spacegroup: P-4m2
+    crystal_class: tetragonal
+    hall: ' P -4 -2'
+    hermann_mauguin: P -4 m 2
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z', 'y,x,-z', 'x,-y,z',
+      '-y,-x,-z']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z', 'y,x,-z', 'x,-y,z',
+      '-y,-x,-z']
+    number: 115
+    schoenflies: D2d^5
+    universal_h_m: P -4 m 2
+  P-4c2:
+    spacegroup: P-4c2
+    crystal_class: tetragonal
+    hall: ' P -4 -2c'
+    hermann_mauguin: P -4 c 2
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z+0.5', 'y,x,-z+0.5',
+      'x,-y,z+0.5', '-y,-x,-z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z+0.5', 'y,x,-z+0.5',
+      'x,-y,z+0.5', '-y,-x,-z+0.5']
+    number: 116
+    schoenflies: D2d^6
+    universal_h_m: P -4 c 2
+  P-4b2:
+    spacegroup: P-4b2
+    crystal_class: tetragonal
+    hall: ' P -4 -2ab'
+    hermann_mauguin: P -4 b 2
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x+0.5,y+0.5,z', 'y+0.5,x+0.5,-z',
+      'x+0.5,-y+0.5,z', '-y+0.5,-x+0.5,-z']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x+0.5,y+0.5,z', 'y+0.5,x+0.5,-z',
+      'x+0.5,-y+0.5,z', '-y+0.5,-x+0.5,-z']
+    number: 117
+    schoenflies: D2d^7
+    universal_h_m: P -4 b 2
+  P-4n2:
+    spacegroup: P-4n2
+    crystal_class: tetragonal
+    hall: ' P -4 -2n'
+    hermann_mauguin: P -4 n 2
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x+0.5,y+0.5,z+0.5', 'y+0.5,x+0.5,-z+0.5',
+      'x+0.5,-y+0.5,z+0.5', '-y+0.5,-x+0.5,-z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x+0.5,y+0.5,z+0.5', 'y+0.5,x+0.5,-z+0.5',
+      'x+0.5,-y+0.5,z+0.5', '-y+0.5,-x+0.5,-z+0.5']
+    number: 118
+    schoenflies: D2d^8
+    universal_h_m: P -4 n 2
+  I-4m2:
+    spacegroup: I-4m2
+    crystal_class: tetragonal
+    hall: ' I -4 -2'
+    hermann_mauguin: I -4 m 2
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z', 'y,x,-z', 'x,-y,z',
+      '-y,-x,-z', 'x+0.5,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', 'y+0.5,x+0.5,-z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      '-y+0.5,-x+0.5,-z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z', 'y,x,-z', 'x,-y,z',
+      '-y,-x,-z']
+    number: 119
+    schoenflies: D2d^9
+    universal_h_m: I -4 m 2
+  I-4c2:
+    spacegroup: I-4c2
+    crystal_class: tetragonal
+    hall: ' I -4 -2c'
+    hermann_mauguin: I -4 c 2
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z+0.5', 'y,x,-z+0.5',
+      'x,-y,z+0.5', '-y,-x,-z+0.5', 'x+0.5,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+1', 'y+0.5,x+0.5,-z+1', 'x+0.5,-y+0.5,z+1',
+      '-y+0.5,-x+0.5,-z+1']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', '-x,y,z+0.5', 'y,x,-z+0.5',
+      'x,-y,z+0.5', '-y,-x,-z+0.5']
+    number: 120
+    schoenflies: D2d^10
+    universal_h_m: I -4 c 2
+  I-42m:
+    spacegroup: I-42m
+    crystal_class: tetragonal
+    hall: ' I -4 2'
+    hermann_mauguin: I -4 2 m
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'x+0.5,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', 'x+0.5,-y+0.5,-z+0.5', '-y+0.5,-x+0.5,z+0.5', '-x+0.5,y+0.5,-z+0.5',
+      'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z']
+    number: 121
+    schoenflies: D2d^11
+    universal_h_m: I -4 2 m
+  I-42d:
+    spacegroup: I-42d
+    crystal_class: tetragonal
+    hall: ' I -4 2bw'
+    hermann_mauguin: I -4 2 d
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y+0.5,-z+0.25', '-y+0.5,-x,z+0.75',
+      '-x,y+0.5,-z+0.25', 'y+0.5,x,z+0.75', 'x+0.5,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5',
+      '-x+0.5,-y+0.5,z+0.5', '-y+0.5,x+0.5,-z+0.5', 'x+0.5,-y+1,-z+0.75', '-y+1,-x+0.5,z+1.25',
+      '-x+0.5,y+1,-z+0.75', 'y+1,x+0.5,z+1.25']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y+0.5,-z+0.25', '-y+0.5,-x,z+0.75',
+      '-x,y+0.5,-z+0.25', 'y+0.5,x,z+0.75']
+    number: 122
+    schoenflies: D2d^12
+    universal_h_m: I -4 2 d
+  P4/mmm:
+    spacegroup: P4/mmm
+    crystal_class: tetragonal
+    hall: -P 4 2
+    hermann_mauguin: P 4/m m m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z']
+    number: 123
+    schoenflies: D4h^1
+    universal_h_m: P 4/m m m
+  P4/mcc:
+    spacegroup: P4/mcc
+    crystal_class: tetragonal
+    hall: -P 4 2c
+    hermann_mauguin: P 4/m c c
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z+0.5', 'y,x,-z+0.5',
+      '-x,y,-z+0.5', '-y,-x,-z+0.5', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z-0.5',
+      '-y,-x,z-0.5', 'x,-y,z-0.5', 'y,x,z-0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z+0.5', 'y,x,-z+0.5', '-x,y,-z+0.5',
+      '-y,-x,-z+0.5', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z-0.5', '-y,-x,z-0.5',
+      'x,-y,z-0.5', 'y,x,z-0.5']
+    number: 124
+    schoenflies: D4h^2
+    universal_h_m: P 4/m c c
+  P4/nbm:
+    spacegroup: P4/nbm
+    crystal_class: tetragonal
+    hall: ' P 4 2 -1ab'
+    hermann_mauguin: P 4/n b m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x+0.5,-y+0.5,-z', 'y+0.5,-x+0.5,-z', 'x+0.5,y+0.5,-z', '-y+0.5,x+0.5,-z',
+      '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x+0.5,-y+0.5,-z', 'y+0.5,-x+0.5,-z', 'x+0.5,y+0.5,-z', '-y+0.5,x+0.5,-z',
+      '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z']
+    number: 125
+    schoenflies: D4h^3
+    universal_h_m: P 4/n b m :1
+  P4/nnc:
+    spacegroup: P4/nnc
+    crystal_class: tetragonal
+    hall: ' P 4 2 -1n'
+    hermann_mauguin: P 4/n n c
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      'y+0.5,x+0.5,z+0.5']
+    number: 126
+    schoenflies: D4h^4
+    universal_h_m: P 4/n n c :1
+  P4/mbm:
+    spacegroup: P4/mbm
+    crystal_class: tetragonal
+    hall: -P 4 2ab
+    hermann_mauguin: P 4/m b m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x+0.5,-y+0.5,-z', 'y+0.5,x+0.5,-z',
+      '-x+0.5,y+0.5,-z', '-y+0.5,-x+0.5,-z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z',
+      '-x-0.5,y-0.5,z', '-y-0.5,-x-0.5,z', 'x-0.5,-y-0.5,z', 'y-0.5,x-0.5,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x+0.5,-y+0.5,-z', 'y+0.5,x+0.5,-z',
+      '-x+0.5,y+0.5,-z', '-y+0.5,-x+0.5,-z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z',
+      '-x-0.5,y-0.5,z', '-y-0.5,-x-0.5,z', 'x-0.5,-y-0.5,z', 'y-0.5,x-0.5,z']
+    number: 127
+    schoenflies: D4h^5
+    universal_h_m: P 4/m b m
+  P4/mnc:
+    spacegroup: P4/mnc
+    crystal_class: tetragonal
+    hall: -P 4 2n
+    hermann_mauguin: P 4/m n c
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x+0.5,-y+0.5,-z+0.5', 'y+0.5,x+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', '-y+0.5,-x+0.5,-z+0.5', '-x,-y,-z', 'y,-x,-z', 'x,y,-z',
+      '-y,x,-z', '-x-0.5,y-0.5,z-0.5', '-y-0.5,-x-0.5,z-0.5', 'x-0.5,-y-0.5,z-0.5',
+      'y-0.5,x-0.5,z-0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x+0.5,-y+0.5,-z+0.5', 'y+0.5,x+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', '-y+0.5,-x+0.5,-z+0.5', '-x,-y,-z', 'y,-x,-z', 'x,y,-z',
+      '-y,x,-z', '-x-0.5,y-0.5,z-0.5', '-y-0.5,-x-0.5,z-0.5', 'x-0.5,-y-0.5,z-0.5',
+      'y-0.5,x-0.5,z-0.5']
+    number: 128
+    schoenflies: D4h^6
+    universal_h_m: P 4/m n c
+  P4/nmm:
+    spacegroup: P4/nmm
+    crystal_class: tetragonal
+    hall: ' P 4ab 2ab -1ab'
+    hermann_mauguin: P 4/n m m
+    symops: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z',
+      'y,x,-z', '-x+0.5,y+0.5,-z', '-y,-x,-z', '-x+0.5,-y+0.5,-z', 'y,-x,-z', 'x+0.5,y+0.5,-z',
+      '-y,x,-z', '-x,y,z', '-y+0.5,-x+0.5,z', 'x,-y,z', 'y+0.5,x+0.5,z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z',
+      'y,x,-z', '-x+0.5,y+0.5,-z', '-y,-x,-z', '-x+0.5,-y+0.5,-z', 'y,-x,-z', 'x+0.5,y+0.5,-z',
+      '-y,x,-z', '-x,y,z', '-y+0.5,-x+0.5,z', 'x,-y,z', 'y+0.5,x+0.5,z']
+    number: 129
+    schoenflies: D4h^7
+    universal_h_m: P 4/n m m :1
+  P4/ncc:
+    spacegroup: P4/ncc
+    crystal_class: tetragonal
+    hall: ' P 4ab 2n -1ab'
+    hermann_mauguin: P 4/n c c
+    symops: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z+0.5', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z+0.5', '-x+0.5,-y+0.5,-z', 'y,-x,-z',
+      'x+0.5,y+0.5,-z', '-y,x,-z', '-x,y,z-0.5', '-y+0.5,-x+0.5,z-0.5', 'x,-y,z-0.5',
+      'y+0.5,x+0.5,z-0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z', '-x,-y,z', 'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z+0.5', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z+0.5', '-x+0.5,-y+0.5,-z', 'y,-x,-z',
+      'x+0.5,y+0.5,-z', '-y,x,-z', '-x,y,z-0.5', '-y+0.5,-x+0.5,z-0.5', 'x,-y,z-0.5',
+      'y+0.5,x+0.5,z-0.5']
+    number: 130
+    schoenflies: D4h^8
+    universal_h_m: P 4/n c c :1
+  P42/mmc:
+    spacegroup: P42/mmc
+    crystal_class: tetragonal
+    hall: -P 4c 2
+    hermann_mauguin: P 42/m m c
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x,-y,-z', 'y,x,-z+0.5',
+      '-x,y,-z', '-y,-x,-z+0.5', '-x,-y,-z', 'y,-x,-z-0.5', 'x,y,-z', '-y,x,-z-0.5',
+      '-x,y,z', '-y,-x,z-0.5', 'x,-y,z', 'y,x,z-0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x,-y,-z', 'y,x,-z+0.5',
+      '-x,y,-z', '-y,-x,-z+0.5', '-x,-y,-z', 'y,-x,-z-0.5', 'x,y,-z', '-y,x,-z-0.5',
+      '-x,y,z', '-y,-x,z-0.5', 'x,-y,z', 'y,x,z-0.5']
+    number: 131
+    schoenflies: D4h^9
+    universal_h_m: P 42/m m c
+  P42/mcm:
+    spacegroup: P42/mcm
+    crystal_class: tetragonal
+    hall: -P 4c 2c
+    hermann_mauguin: P 42/m c m
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x,-y,-z+0.5', 'y,x,-z',
+      '-x,y,-z+0.5', '-y,-x,-z', '-x,-y,-z', 'y,-x,-z-0.5', 'x,y,-z', '-y,x,-z-0.5',
+      '-x,y,z-0.5', '-y,-x,z', 'x,-y,z-0.5', 'y,x,z']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x,-y,-z+0.5', 'y,x,-z',
+      '-x,y,-z+0.5', '-y,-x,-z', '-x,-y,-z', 'y,-x,-z-0.5', 'x,y,-z', '-y,x,-z-0.5',
+      '-x,y,z-0.5', '-y,-x,z', 'x,-y,z-0.5', 'y,x,z']
+    number: 132
+    schoenflies: D4h^10
+    universal_h_m: P 42/m c m
+  P42/nbc:
+    spacegroup: P42/nbc
+    crystal_class: tetragonal
+    hall: ' P 4n 2c -1n'
+    hermann_mauguin: P 42/n b c
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z+0.5',
+      'y+0.5,x+0.5,-z', '-x,y,-z+0.5', '-y+0.5,-x+0.5,-z', '-x+0.5,-y+0.5,-z+0.5',
+      'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x+0.5,y+0.5,z', '-y,-x,z+0.5',
+      'x+0.5,-y+0.5,z', 'y,x,z+0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z+0.5',
+      'y+0.5,x+0.5,-z', '-x,y,-z+0.5', '-y+0.5,-x+0.5,-z', '-x+0.5,-y+0.5,-z+0.5',
+      'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x+0.5,y+0.5,z', '-y,-x,z+0.5',
+      'x+0.5,-y+0.5,z', 'y,x,z+0.5']
+    number: 133
+    schoenflies: D4h^11
+    universal_h_m: P 42/n b c :1
+  P42/nnm:
+    spacegroup: P42/nnm
+    crystal_class: tetragonal
+    hall: ' P 4n 2 -1n'
+    hermann_mauguin: P 42/n n m
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,-z+0.5',
+      'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x+0.5,y+0.5,z+0.5', '-y,-x,z',
+      'x+0.5,-y+0.5,z+0.5', 'y,x,z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,-z+0.5',
+      'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x+0.5,y+0.5,z+0.5', '-y,-x,z',
+      'x+0.5,-y+0.5,z+0.5', 'y,x,z']
+    number: 134
+    schoenflies: D4h^12
+    universal_h_m: P 42/n n m :1
+  P42/mbc:
+    spacegroup: P42/mbc
+    crystal_class: tetragonal
+    hall: -P 4c 2ab
+    hermann_mauguin: P 42/m b c
+    symops: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x+0.5,-y+0.5,-z', 'y+0.5,x+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z', '-y+0.5,-x+0.5,-z+0.5', '-x,-y,-z', 'y,-x,-z-0.5', 'x,y,-z',
+      '-y,x,-z-0.5', '-x-0.5,y-0.5,z', '-y-0.5,-x-0.5,z-0.5', 'x-0.5,-y-0.5,z', 'y-0.5,x-0.5,z-0.5']
+    ncsym: ['x,y,z', '-y,x,z+0.5', '-x,-y,z', 'y,-x,z+0.5', 'x+0.5,-y+0.5,-z', 'y+0.5,x+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z', '-y+0.5,-x+0.5,-z+0.5', '-x,-y,-z', 'y,-x,-z-0.5', 'x,y,-z',
+      '-y,x,-z-0.5', '-x-0.5,y-0.5,z', '-y-0.5,-x-0.5,z-0.5', 'x-0.5,-y-0.5,z', 'y-0.5,x-0.5,z-0.5']
+    number: 135
+    schoenflies: D4h^13
+    universal_h_m: P 42/m b c
+  P42/mnm:
+    spacegroup: P42/mnm
+    crystal_class: tetragonal
+    hall: -P 4n 2n
+    hermann_mauguin: P 42/m n m
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z', '-x,-y,-z', 'y-0.5,-x-0.5,-z-0.5',
+      'x,y,-z', '-y-0.5,x-0.5,-z-0.5', '-x-0.5,y-0.5,z-0.5', '-y,-x,z', 'x-0.5,-y-0.5,z-0.5',
+      'y,x,z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z', '-x,-y,-z', 'y-0.5,-x-0.5,-z-0.5',
+      'x,y,-z', '-y-0.5,x-0.5,-z-0.5', '-x-0.5,y-0.5,z-0.5', '-y,-x,z', 'x-0.5,-y-0.5,z-0.5',
+      'y,x,z']
+    number: 136
+    schoenflies: D4h^14
+    universal_h_m: P 42/m n m
+  P42/nmc:
+    spacegroup: P42/nmc
+    crystal_class: tetragonal
+    hall: ' P 4n 2n -1n'
+    hermann_mauguin: P 42/n m c
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z', '-x+0.5,-y+0.5,-z+0.5', 'y,-x,-z',
+      'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x,y,z', '-y+0.5,-x+0.5,z+0.5', 'x,-y,z',
+      'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      'y,x,-z', '-x+0.5,y+0.5,-z+0.5', '-y,-x,-z', '-x+0.5,-y+0.5,-z+0.5', 'y,-x,-z',
+      'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x,y,z', '-y+0.5,-x+0.5,z+0.5', 'x,-y,z',
+      'y+0.5,x+0.5,z+0.5']
+    number: 137
+    schoenflies: D4h^15
+    universal_h_m: P 42/n m c :1
+  P42/ncm:
+    spacegroup: P42/ncm
+    crystal_class: tetragonal
+    hall: ' P 4n 2ab -1n'
+    hermann_mauguin: P 42/n c m
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z',
+      'y,x,-z+0.5', '-x+0.5,y+0.5,-z', '-y,-x,-z+0.5', '-x+0.5,-y+0.5,-z+0.5', 'y,-x,-z',
+      'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x,y,z+0.5', '-y+0.5,-x+0.5,z', 'x,-y,z+0.5',
+      'y+0.5,x+0.5,z']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z',
+      'y,x,-z+0.5', '-x+0.5,y+0.5,-z', '-y,-x,-z+0.5', '-x+0.5,-y+0.5,-z+0.5', 'y,-x,-z',
+      'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x,y,z+0.5', '-y+0.5,-x+0.5,z', 'x,-y,z+0.5',
+      'y+0.5,x+0.5,z']
+    number: 138
+    schoenflies: D4h^16
+    universal_h_m: P 42/n c m :1
+  I4/mmm:
+    spacegroup: I4/mmm
+    crystal_class: tetragonal
+    hall: -I 4 2
+    hermann_mauguin: I 4/m m m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      'y+0.5,x+0.5,z+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z']
+    number: 139
+    schoenflies: D4h^17
+    universal_h_m: I 4/m m m
+  I4/mcm:
+    spacegroup: I4/mcm
+    crystal_class: tetragonal
+    hall: -I 4 2c
+    hermann_mauguin: I 4/m c m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z+0.5', 'y,x,-z+0.5',
+      '-x,y,-z+0.5', '-y,-x,-z+0.5', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z-0.5',
+      '-y,-x,z-0.5', 'x,-y,z-0.5', 'y,x,z-0.5', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5',
+      '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+1', 'y+0.5,x+0.5,-z+1',
+      '-x+0.5,y+0.5,-z+1', '-y+0.5,-x+0.5,-z+1', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5',
+      'x+0.5,y+0.5,-z+0.5', '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z',
+      'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z+0.5', 'y,x,-z+0.5', '-x,y,-z+0.5',
+      '-y,-x,-z+0.5', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z-0.5', '-y,-x,z-0.5',
+      'x,-y,z-0.5', 'y,x,z-0.5']
+    number: 140
+    schoenflies: D4h^18
+    universal_h_m: I 4/m c m
+  I41/amd:
+    spacegroup: I41/amd
+    crystal_class: tetragonal
+    hall: ' I 4bw 2bw -1bw'
+    hermann_mauguin: I 41/a m d
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x,-y+0.5,-z+0.25', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y,-z+0.75', '-y,-x,-z', '-x,-y+0.5,-z+0.25',
+      'y,-x,-z', 'x-0.5,y,-z-0.25', '-y-0.5,x+0.5,-z-0.5', '-x,y,z', '-y-0.5,-x,z-0.25',
+      'x-0.5,-y+0.5,z-0.5', 'y,x+0.5,z+0.25', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+1,z+0.75',
+      '-x+1,-y+1,z+1', 'y+1,-x+0.5,z+1.25', 'x+0.5,-y+1,-z+0.75', 'y+1,x+1,-z+1',
+      '-x+1,y+0.5,-z+1.25', '-y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+1,-z+0.75', 'y+0.5,-x+0.5,-z+0.5',
+      'x,y+0.5,-z+0.25', '-y,x+1,-z', '-x+0.5,y+0.5,z+0.5', '-y,-x+0.5,z+0.25', 'x,-y+1,z',
+      'y+0.5,x+1,z+0.75']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x,-y+0.5,-z+0.25', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y,-z+0.75', '-y,-x,-z', '-x,-y+0.5,-z+0.25',
+      'y,-x,-z', 'x-0.5,y,-z-0.25', '-y-0.5,x+0.5,-z-0.5', '-x,y,z', '-y-0.5,-x,z-0.25',
+      'x-0.5,-y+0.5,z-0.5', 'y,x+0.5,z+0.25']
+    number: 141
+    schoenflies: D4h^19
+    universal_h_m: I 41/a m d :1
+  I41/acd:
+    spacegroup: I41/acd
+    crystal_class: tetragonal
+    hall: ' I 4bw 2aw -1bw'
+    hermann_mauguin: I 41/a c d
+    symops: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x+0.5,-y,-z+0.25', 'y,x,-z+0.5', '-x,y+0.5,-z+0.75', '-y+0.5,-x+0.5,-z', '-x,-y+0.5,-z+0.25',
+      'y,-x,-z', 'x-0.5,y,-z-0.25', '-y-0.5,x+0.5,-z-0.5', '-x-0.5,y+0.5,z', '-y,-x+0.5,z-0.25',
+      'x,-y,z-0.5', 'y-0.5,x,z+0.25', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+1,z+0.75', '-x+1,-y+1,z+1',
+      'y+1,-x+0.5,z+1.25', 'x+1,-y+0.5,-z+0.75', 'y+0.5,x+0.5,-z+1', '-x+0.5,y+1,-z+1.25',
+      '-y+1,-x+1,-z+0.5', '-x+0.5,-y+1,-z+0.75', 'y+0.5,-x+0.5,-z+0.5', 'x,y+0.5,-z+0.25',
+      '-y,x+1,-z', '-x,y+1,z+0.5', '-y+0.5,-x+1,z+0.25', 'x+0.5,-y+0.5,z', 'y,x+0.5,z+0.75']
+    ncsym: ['x,y,z', '-y,x+0.5,z+0.25', '-x+0.5,-y+0.5,z+0.5', 'y+0.5,-x,z+0.75',
+      'x+0.5,-y,-z+0.25', 'y,x,-z+0.5', '-x,y+0.5,-z+0.75', '-y+0.5,-x+0.5,-z', '-x,-y+0.5,-z+0.25',
+      'y,-x,-z', 'x-0.5,y,-z-0.25', '-y-0.5,x+0.5,-z-0.5', '-x-0.5,y+0.5,z', '-y,-x+0.5,z-0.25',
+      'x,-y,z-0.5', 'y-0.5,x,z+0.25']
+    number: 142
+    schoenflies: D4h^20
+    universal_h_m: I 41/a c d :1
+  P3:
+    spacegroup: P3
+    crystal_class: trigonal
+    hall: ' P 3'
+    hermann_mauguin: P 3
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z']
+    number: 143
+    schoenflies: C3^1
+    universal_h_m: P 3
+  P31:
+    spacegroup: P31
+    crystal_class: trigonal
+    hall: ' P 31'
+    hermann_mauguin: P 31
+    symops: ['x,y,z', '-y,x-y,z+0.333', '-x+y,-x,z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z+0.333', '-x+y,-x,z+0.667']
+    number: 144
+    schoenflies: C3^2
+    universal_h_m: P 31
+  P32:
+    spacegroup: P32
+    crystal_class: trigonal
+    hall: ' P 32'
+    hermann_mauguin: P 32
+    symops: ['x,y,z', '-y,x-y,z+0.667', '-x+y,-x,z+0.333']
+    ncsym: ['x,y,z', '-y,x-y,z+0.667', '-x+y,-x,z+0.333']
+    number: 145
+    schoenflies: C3^3
+    universal_h_m: P 32
+  R3:
+    spacegroup: R3
+    crystal_class: rhombohedral
+    hall: ' R 3'
+    hermann_mauguin: R 3
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'x+0.667,y+0.333,z+0.333', '-y+0.667,x-y+0.333,z+0.333',
+      '-x+y+0.667,-x+0.333,z+0.333', 'x+0.333,y+0.667,z+0.667', '-y+0.333,x-y+0.667,z+0.667',
+      '-x+y+0.333,-x+0.667,z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z']
+    number: 146
+    schoenflies: C3^4
+    universal_h_m: R 3 :H
+  P-3:
+    spacegroup: P-3
+    crystal_class: trigonal
+    hall: -P 3
+    hermann_mauguin: P -3
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z']
+    number: 147
+    schoenflies: C3i^1
+    universal_h_m: P -3
+  R-3:
+    spacegroup: R-3
+    crystal_class: rhombohedral
+    hall: -R 3
+    hermann_mauguin: R -3
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z',
+      'x+0.667,y+0.333,z+0.333', '-y+0.667,x-y+0.333,z+0.333', '-x+y+0.667,-x+0.333,z+0.333',
+      '-x+0.667,-y+0.333,-z+0.333', 'y+0.667,-x+y+0.333,-z+0.333', 'x-y+0.667,x+0.333,-z+0.333',
+      'x+0.333,y+0.667,z+0.667', '-y+0.333,x-y+0.667,z+0.667', '-x+y+0.333,-x+0.667,z+0.667',
+      '-x+0.333,-y+0.667,-z+0.667', 'y+0.333,-x+y+0.667,-z+0.667', 'x-y+0.333,x+0.667,-z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z']
+    number: 148
+    schoenflies: C3i^2
+    universal_h_m: R -3 :H
+  P312:
+    spacegroup: P312
+    crystal_class: trigonal
+    hall: ' P 3 2'
+    hermann_mauguin: P 3 1 2
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,-z', 'x,x-y,-z', '-x+y,y,-z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,-z', 'x,x-y,-z', '-x+y,y,-z']
+    number: 149
+    schoenflies: D3^1
+    universal_h_m: P 3 1 2
+  P321:
+    spacegroup: P321
+    crystal_class: trigonal
+    hall: ' P 3 2"'
+    hermann_mauguin: P 3 2 1
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z']
+    number: 150
+    schoenflies: D3^2
+    universal_h_m: P 3 2 1
+  P3112:
+    spacegroup: P3112
+    crystal_class: trigonal
+    hall: ' P 31 2 (0 0 4)'
+    hermann_mauguin: P 31 1 2
+    symops: ['x,y,z', '-y,x-y,z+0.333', '-x+y,-x,z+0.667', '-y,-x,-z+0.667', 'x,x-y,-z',
+      '-x+y,y,-z+0.333']
+    ncsym: ['x,y,z', '-y,x-y,z+0.333', '-x+y,-x,z+0.667', '-y,-x,-z+0.667', 'x,x-y,-z',
+      '-x+y,y,-z+0.333']
+    number: 151
+    schoenflies: D3^3
+    universal_h_m: P 31 1 2
+  P3121:
+    spacegroup: P3121
+    crystal_class: trigonal
+    hall: ' P 31 2"'
+    hermann_mauguin: P 31 2 1
+    symops: ['x,y,z', '-y,x-y,z+0.333', '-x+y,-x,z+0.667', 'y,x,-z', '-x,-x+y,-z+0.333',
+      'x-y,-y,-z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z+0.333', '-x+y,-x,z+0.667', 'y,x,-z', '-x,-x+y,-z+0.333',
+      'x-y,-y,-z+0.667']
+    number: 152
+    schoenflies: D3^4
+    universal_h_m: P 31 2 1
+  P3212:
+    spacegroup: P3212
+    crystal_class: trigonal
+    hall: ' P 32 2 (0 0 2)'
+    hermann_mauguin: P 32 1 2
+    symops: ['x,y,z', '-y,x-y,z+0.667', '-x+y,-x,z+0.333', '-y,-x,-z+0.333', 'x,x-y,-z',
+      '-x+y,y,-z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z+0.667', '-x+y,-x,z+0.333', '-y,-x,-z+0.333', 'x,x-y,-z',
+      '-x+y,y,-z+0.667']
+    number: 153
+    schoenflies: D3^5
+    universal_h_m: P 32 1 2
+  P3221:
+    spacegroup: P3221
+    crystal_class: trigonal
+    hall: ' P 32 2"'
+    hermann_mauguin: P 32 2 1
+    symops: ['x,y,z', '-y,x-y,z+0.667', '-x+y,-x,z+0.333', 'y,x,-z', '-x,-x+y,-z+0.667',
+      'x-y,-y,-z+0.333']
+    ncsym: ['x,y,z', '-y,x-y,z+0.667', '-x+y,-x,z+0.333', 'y,x,-z', '-x,-x+y,-z+0.667',
+      'x-y,-y,-z+0.333']
+    number: 154
+    schoenflies: D3^6
+    universal_h_m: P 32 2 1
+  R32:
+    spacegroup: R32
+    crystal_class: rhombohedral
+    hall: ' R 3 2"'
+    hermann_mauguin: R 3 2
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z',
+      'x+0.667,y+0.333,z+0.333', '-y+0.667,x-y+0.333,z+0.333', '-x+y+0.667,-x+0.333,z+0.333',
+      'y+0.667,x+0.333,-z+0.333', '-x+0.667,-x+y+0.333,-z+0.333', 'x-y+0.667,-y+0.333,-z+0.333',
+      'x+0.333,y+0.667,z+0.667', '-y+0.333,x-y+0.667,z+0.667', '-x+y+0.333,-x+0.667,z+0.667',
+      'y+0.333,x+0.667,-z+0.667', '-x+0.333,-x+y+0.667,-z+0.667', 'x-y+0.333,-y+0.667,-z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z']
+    number: 155
+    schoenflies: D3^7
+    universal_h_m: R 3 2 :H
+  P3m1:
+    spacegroup: P3m1
+    crystal_class: trigonal
+    hall: ' P 3 -2"'
+    hermann_mauguin: P 3 m 1
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z']
+    number: 156
+    schoenflies: C3v^1
+    universal_h_m: P 3 m 1
+  P31m:
+    spacegroup: P31m
+    crystal_class: trigonal
+    hall: ' P 3 -2'
+    hermann_mauguin: P 3 1 m
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,z', '-x,-x+y,z', 'x-y,-y,z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,z', '-x,-x+y,z', 'x-y,-y,z']
+    number: 157
+    schoenflies: C3v^2
+    universal_h_m: P 3 1 m
+  P3c1:
+    spacegroup: P3c1
+    crystal_class: trigonal
+    hall: ' P 3 -2"c'
+    hermann_mauguin: P 3 c 1
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z+0.5', 'x,x-y,z+0.5', '-x+y,y,z+0.5']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z+0.5', 'x,x-y,z+0.5', '-x+y,y,z+0.5']
+    number: 158
+    schoenflies: C3v^3
+    universal_h_m: P 3 c 1
+  P31c:
+    spacegroup: P31c
+    crystal_class: trigonal
+    hall: ' P 3 -2c'
+    hermann_mauguin: P 3 1 c
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,z+0.5', '-x,-x+y,z+0.5', 'x-y,-y,z+0.5']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,z+0.5', '-x,-x+y,z+0.5', 'x-y,-y,z+0.5']
+    number: 159
+    schoenflies: C3v^4
+    universal_h_m: P 3 1 c
+  R3m:
+    spacegroup: R3m
+    crystal_class: rhombohedral
+    hall: ' R 3 -2"'
+    hermann_mauguin: R 3 m
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z', 'x+0.667,y+0.333,z+0.333',
+      '-y+0.667,x-y+0.333,z+0.333', '-x+y+0.667,-x+0.333,z+0.333', '-y+0.667,-x+0.333,z+0.333',
+      'x+0.667,x-y+0.333,z+0.333', '-x+y+0.667,y+0.333,z+0.333', 'x+0.333,y+0.667,z+0.667',
+      '-y+0.333,x-y+0.667,z+0.667', '-x+y+0.333,-x+0.667,z+0.667', '-y+0.333,-x+0.667,z+0.667',
+      'x+0.333,x-y+0.667,z+0.667', '-x+y+0.333,y+0.667,z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z']
+    number: 160
+    schoenflies: C3v^5
+    universal_h_m: R 3 m :H
+  R3c:
+    spacegroup: R3c
+    crystal_class: rhombohedral
+    hall: ' R 3 -2"c'
+    hermann_mauguin: R 3 c
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z+0.5', 'x,x-y,z+0.5', '-x+y,y,z+0.5',
+      'x+0.667,y+0.333,z+0.333', '-y+0.667,x-y+0.333,z+0.333', '-x+y+0.667,-x+0.333,z+0.333',
+      '-y+0.667,-x+0.333,z+0.833', 'x+0.667,x-y+0.333,z+0.833', '-x+y+0.667,y+0.333,z+0.833',
+      'x+0.333,y+0.667,z+0.667', '-y+0.333,x-y+0.667,z+0.667', '-x+y+0.333,-x+0.667,z+0.667',
+      '-y+0.333,-x+0.667,z+1.17', 'x+0.333,x-y+0.667,z+1.17', '-x+y+0.333,y+0.667,z+1.17']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,z+0.5', 'x,x-y,z+0.5', '-x+y,y,z+0.5']
+    number: 161
+    schoenflies: C3v^6
+    universal_h_m: R 3 c :H
+  P-31m:
+    spacegroup: P-31m
+    crystal_class: trigonal
+    hall: -P 3 2
+    hermann_mauguin: P -3 1 m
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,-z', 'x,x-y,-z', '-x+y,y,-z',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', 'y,x,z', '-x,-x+y,z', 'x-y,-y,z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,-z', 'x,x-y,-z', '-x+y,y,-z',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', 'y,x,z', '-x,-x+y,z', 'x-y,-y,z']
+    number: 162
+    schoenflies: D3d^1
+    universal_h_m: P -3 1 m
+  P-31c:
+    spacegroup: P-31c
+    crystal_class: trigonal
+    hall: -P 3 2c
+    hermann_mauguin: P -3 1 c
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,-z+0.5', 'x,x-y,-z+0.5', '-x+y,y,-z+0.5',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', 'y,x,z-0.5', '-x,-x+y,z-0.5', 'x-y,-y,z-0.5']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', '-y,-x,-z+0.5', 'x,x-y,-z+0.5', '-x+y,y,-z+0.5',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', 'y,x,z-0.5', '-x,-x+y,z-0.5', 'x-y,-y,z-0.5']
+    number: 163
+    schoenflies: D3d^2
+    universal_h_m: P -3 1 c
+  P-3m1:
+    spacegroup: P-3m1
+    crystal_class: trigonal
+    hall: -P 3 2"
+    hermann_mauguin: P -3 m 1
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z']
+    number: 164
+    schoenflies: D3d^3
+    universal_h_m: P -3 m 1
+  P-3c1:
+    spacegroup: P-3c1
+    crystal_class: trigonal
+    hall: -P 3 2"c
+    hermann_mauguin: P -3 c 1
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z+0.5', '-x,-x+y,-z+0.5', 'x-y,-y,-z+0.5',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z-0.5', 'x,x-y,z-0.5', '-x+y,y,z-0.5']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z+0.5', '-x,-x+y,-z+0.5', 'x-y,-y,-z+0.5',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z-0.5', 'x,x-y,z-0.5', '-x+y,y,z-0.5']
+    number: 165
+    schoenflies: D3d^4
+    universal_h_m: P -3 c 1
+  R-3m:
+    spacegroup: R-3m
+    crystal_class: rhombohedral
+    hall: -R 3 2"
+    hermann_mauguin: R -3 m
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z', 'x+0.667,y+0.333,z+0.333',
+      '-y+0.667,x-y+0.333,z+0.333', '-x+y+0.667,-x+0.333,z+0.333', 'y+0.667,x+0.333,-z+0.333',
+      '-x+0.667,-x+y+0.333,-z+0.333', 'x-y+0.667,-y+0.333,-z+0.333', '-x+0.667,-y+0.333,-z+0.333',
+      'y+0.667,-x+y+0.333,-z+0.333', 'x-y+0.667,x+0.333,-z+0.333', '-y+0.667,-x+0.333,z+0.333',
+      'x+0.667,x-y+0.333,z+0.333', '-x+y+0.667,y+0.333,z+0.333', 'x+0.333,y+0.667,z+0.667',
+      '-y+0.333,x-y+0.667,z+0.667', '-x+y+0.333,-x+0.667,z+0.667', 'y+0.333,x+0.667,-z+0.667',
+      '-x+0.333,-x+y+0.667,-z+0.667', 'x-y+0.333,-y+0.667,-z+0.667', '-x+0.333,-y+0.667,-z+0.667',
+      'y+0.333,-x+y+0.667,-z+0.667', 'x-y+0.333,x+0.667,-z+0.667', '-y+0.333,-x+0.667,z+0.667',
+      'x+0.333,x-y+0.667,z+0.667', '-x+y+0.333,y+0.667,z+0.667']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z', '-x,-x+y,-z', 'x-y,-y,-z',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z', 'x,x-y,z', '-x+y,y,z']
+    number: 166
+    schoenflies: D3d^5
+    universal_h_m: R -3 m :H
+  R-3c:
+    spacegroup: R-3c
+    crystal_class: rhombohedral
+    hall: -R 3 2"c
+    hermann_mauguin: R -3 c
+    symops: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z+0.5', '-x,-x+y,-z+0.5', 'x-y,-y,-z+0.5',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z-0.5', 'x,x-y,z-0.5', '-x+y,y,z-0.5',
+      'x+0.667,y+0.333,z+0.333', '-y+0.667,x-y+0.333,z+0.333', '-x+y+0.667,-x+0.333,z+0.333',
+      'y+0.667,x+0.333,-z+0.833', '-x+0.667,-x+y+0.333,-z+0.833', 'x-y+0.667,-y+0.333,-z+0.833',
+      '-x+0.667,-y+0.333,-z+0.333', 'y+0.667,-x+y+0.333,-z+0.333', 'x-y+0.667,x+0.333,-z+0.333',
+      '-y+0.667,-x+0.333,z-0.167', 'x+0.667,x-y+0.333,z-0.167', '-x+y+0.667,y+0.333,z-0.167',
+      'x+0.333,y+0.667,z+0.667', '-y+0.333,x-y+0.667,z+0.667', '-x+y+0.333,-x+0.667,z+0.667',
+      'y+0.333,x+0.667,-z+1.17', '-x+0.333,-x+y+0.667,-z+1.17', 'x-y+0.333,-y+0.667,-z+1.17',
+      '-x+0.333,-y+0.667,-z+0.667', 'y+0.333,-x+y+0.667,-z+0.667', 'x-y+0.333,x+0.667,-z+0.667',
+      '-y+0.333,-x+0.667,z+0.167', 'x+0.333,x-y+0.667,z+0.167', '-x+y+0.333,y+0.667,z+0.167']
+    ncsym: ['x,y,z', '-y,x-y,z', '-x+y,-x,z', 'y,x,-z+0.5', '-x,-x+y,-z+0.5', 'x-y,-y,-z+0.5',
+      '-x,-y,-z', 'y,-x+y,-z', 'x-y,x,-z', '-y,-x,z-0.5', 'x,x-y,z-0.5', '-x+y,y,z-0.5']
+    number: 167
+    schoenflies: D3d^6
+    universal_h_m: R -3 c :H
+  P6:
+    spacegroup: P6
+    crystal_class: hexagonal
+    hall: ' P 6'
+    hermann_mauguin: P 6
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z']
+    number: 168
+    schoenflies: C6^1
+    universal_h_m: P 6
+  P61:
+    spacegroup: P61
+    crystal_class: hexagonal
+    hall: ' P 61'
+    hermann_mauguin: P 61
+    symops: ['x,y,z', 'x-y,x,z+0.167', '-y,x-y,z+0.333', '-x,-y,z+0.5', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.833']
+    ncsym: ['x,y,z', 'x-y,x,z+0.167', '-y,x-y,z+0.333', '-x,-y,z+0.5', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.833']
+    number: 169
+    schoenflies: C6^2
+    universal_h_m: P 61
+  P6_5:
+    spacegroup: P6_5
+    crystal_class: hexagonal
+    hall: ' P 65'
+    hermann_mauguin: P 65
+    symops: ['x,y,z', 'x-y,x,z+0.833', '-y,x-y,z+0.667', '-x,-y,z+0.5', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.167']
+    ncsym: ['x,y,z', 'x-y,x,z+0.833', '-y,x-y,z+0.667', '-x,-y,z+0.5', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.167']
+    number: 170
+    schoenflies: C6^3
+    universal_h_m: P 65
+  P62:
+    spacegroup: P62
+    crystal_class: hexagonal
+    hall: ' P 62'
+    hermann_mauguin: P 62
+    symops: ['x,y,z', 'x-y,x,z+0.333', '-y,x-y,z+0.667', '-x,-y,z', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.667']
+    ncsym: ['x,y,z', 'x-y,x,z+0.333', '-y,x-y,z+0.667', '-x,-y,z', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.667']
+    number: 171
+    schoenflies: C6^4
+    universal_h_m: P 62
+  P64:
+    spacegroup: P64
+    crystal_class: hexagonal
+    hall: ' P 64'
+    hermann_mauguin: P 64
+    symops: ['x,y,z', 'x-y,x,z+0.667', '-y,x-y,z+0.333', '-x,-y,z', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.333']
+    ncsym: ['x,y,z', 'x-y,x,z+0.667', '-y,x-y,z+0.333', '-x,-y,z', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.333']
+    number: 172
+    schoenflies: C6^5
+    universal_h_m: P 64
+  P63:
+    spacegroup: P63
+    crystal_class: hexagonal
+    hall: ' P 6c'
+    hermann_mauguin: P 63
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5']
+    number: 173
+    schoenflies: C6^6
+    universal_h_m: P 63
+  P-6:
+    spacegroup: P-6
+    crystal_class: hexagonal
+    hall: ' P -6'
+    hermann_mauguin: P -6
+    symops: ['x,y,z', '-x+y,-x,-z', '-y,x-y,z', 'x,y,-z', '-x+y,-x,z', '-y,x-y,-z']
+    ncsym: ['x,y,z', '-x+y,-x,-z', '-y,x-y,z', 'x,y,-z', '-x+y,-x,z', '-y,x-y,-z']
+    number: 174
+    schoenflies: C3h^1
+    universal_h_m: P -6
+  P6/m:
+    spacegroup: P6/m
+    crystal_class: hexagonal
+    hall: -P 6
+    hermann_mauguin: P 6/m
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-x,-y,-z',
+      '-x+y,-x,-z', 'y,-x+y,-z', 'x,y,-z', 'x-y,x,-z', '-y,x-y,-z']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-x,-y,-z',
+      '-x+y,-x,-z', 'y,-x+y,-z', 'x,y,-z', 'x-y,x,-z', '-y,x-y,-z']
+    number: 175
+    schoenflies: C6h^1
+    universal_h_m: P 6/m
+  P63/m:
+    spacegroup: P63/m
+    crystal_class: hexagonal
+    hall: -P 6c
+    hermann_mauguin: P 63/m
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-x,-y,-z', '-x+y,-x,-z-0.5', 'y,-x+y,-z', 'x,y,-z-0.5', 'x-y,x,-z', '-y,x-y,-z-0.5']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-x,-y,-z', '-x+y,-x,-z-0.5', 'y,-x+y,-z', 'x,y,-z-0.5', 'x-y,x,-z', '-y,x-y,-z-0.5']
+    number: 176
+    schoenflies: C6h^2
+    universal_h_m: P 63/m
+  P622:
+    spacegroup: P622
+    crystal_class: hexagonal
+    hall: ' P 6 2'
+    hermann_mauguin: P 6 2 2
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-y,-x,-z',
+      'x-y,-y,-z', 'x,x-y,-z', 'y,x,-z', '-x+y,y,-z', '-x,-x+y,-z']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-y,-x,-z',
+      'x-y,-y,-z', 'x,x-y,-z', 'y,x,-z', '-x+y,y,-z', '-x,-x+y,-z']
+    number: 177
+    schoenflies: D6^1
+    universal_h_m: P 6 2 2
+  P6122:
+    spacegroup: P6122
+    crystal_class: hexagonal
+    hall: ' P 61 2 (0 0 5)'
+    hermann_mauguin: P 61 2 2
+    symops: ['x,y,z', 'x-y,x,z+0.167', '-y,x-y,z+0.333', '-x,-y,z+0.5', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.833', '-y,-x,-z+0.833', 'x-y,-y,-z', 'x,x-y,-z+0.167', 'y,x,-z+0.333',
+      '-x+y,y,-z+0.5', '-x,-x+y,-z+0.667']
+    ncsym: ['x,y,z', 'x-y,x,z+0.167', '-y,x-y,z+0.333', '-x,-y,z+0.5', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.833', '-y,-x,-z+0.833', 'x-y,-y,-z', 'x,x-y,-z+0.167', 'y,x,-z+0.333',
+      '-x+y,y,-z+0.5', '-x,-x+y,-z+0.667']
+    number: 178
+    schoenflies: D6^2
+    universal_h_m: P 61 2 2
+  P6_522:
+    spacegroup: P6_522
+    crystal_class: hexagonal
+    hall: ' P 65 2 (0 0 1)'
+    hermann_mauguin: P 65 2 2
+    symops: ['x,y,z', 'x-y,x,z+0.833', '-y,x-y,z+0.667', '-x,-y,z+0.5', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.167', '-y,-x,-z+0.167', 'x-y,-y,-z', 'x,x-y,-z+0.833', 'y,x,-z+0.667',
+      '-x+y,y,-z+0.5', '-x,-x+y,-z+0.333']
+    ncsym: ['x,y,z', 'x-y,x,z+0.833', '-y,x-y,z+0.667', '-x,-y,z+0.5', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.167', '-y,-x,-z+0.167', 'x-y,-y,-z', 'x,x-y,-z+0.833', 'y,x,-z+0.667',
+      '-x+y,y,-z+0.5', '-x,-x+y,-z+0.333']
+    number: 179
+    schoenflies: D6^3
+    universal_h_m: P 65 2 2
+  P6222:
+    spacegroup: P6222
+    crystal_class: hexagonal
+    hall: ' P 62 2 (0 0 4)'
+    hermann_mauguin: P 62 2 2
+    symops: ['x,y,z', 'x-y,x,z+0.333', '-y,x-y,z+0.667', '-x,-y,z', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.667', '-y,-x,-z+0.667', 'x-y,-y,-z', 'x,x-y,-z+0.333', 'y,x,-z+0.667',
+      '-x+y,y,-z', '-x,-x+y,-z+0.333']
+    ncsym: ['x,y,z', 'x-y,x,z+0.333', '-y,x-y,z+0.667', '-x,-y,z', '-x+y,-x,z+0.333',
+      'y,-x+y,z+0.667', '-y,-x,-z+0.667', 'x-y,-y,-z', 'x,x-y,-z+0.333', 'y,x,-z+0.667',
+      '-x+y,y,-z', '-x,-x+y,-z+0.333']
+    number: 180
+    schoenflies: D6^4
+    universal_h_m: P 62 2 2
+  P6422:
+    spacegroup: P6422
+    crystal_class: hexagonal
+    hall: ' P 64 2 (0 0 2)'
+    hermann_mauguin: P 64 2 2
+    symops: ['x,y,z', 'x-y,x,z+0.667', '-y,x-y,z+0.333', '-x,-y,z', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.333', '-y,-x,-z+0.333', 'x-y,-y,-z', 'x,x-y,-z+0.667', 'y,x,-z+0.333',
+      '-x+y,y,-z', '-x,-x+y,-z+0.667']
+    ncsym: ['x,y,z', 'x-y,x,z+0.667', '-y,x-y,z+0.333', '-x,-y,z', '-x+y,-x,z+0.667',
+      'y,-x+y,z+0.333', '-y,-x,-z+0.333', 'x-y,-y,-z', 'x,x-y,-z+0.667', 'y,x,-z+0.333',
+      '-x+y,y,-z', '-x,-x+y,-z+0.667']
+    number: 181
+    schoenflies: D6^5
+    universal_h_m: P 64 2 2
+  P6322:
+    spacegroup: P6322
+    crystal_class: hexagonal
+    hall: ' P 6c 2c'
+    hermann_mauguin: P 63 2 2
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-y,-x,-z+0.5', 'x-y,-y,-z', 'x,x-y,-z+0.5', 'y,x,-z', '-x+y,y,-z+0.5', '-x,-x+y,-z']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-y,-x,-z+0.5', 'x-y,-y,-z', 'x,x-y,-z+0.5', 'y,x,-z', '-x+y,y,-z+0.5', '-x,-x+y,-z']
+    number: 182
+    schoenflies: D6^6
+    universal_h_m: P 63 2 2
+  P6mm:
+    spacegroup: P6mm
+    crystal_class: hexagonal
+    hall: ' P 6 -2'
+    hermann_mauguin: P 6 m m
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', 'y,x,z',
+      '-x+y,y,z', '-x,-x+y,z', '-y,-x,z', 'x-y,-y,z', 'x,x-y,z']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', 'y,x,z',
+      '-x+y,y,z', '-x,-x+y,z', '-y,-x,z', 'x-y,-y,z', 'x,x-y,z']
+    number: 183
+    schoenflies: C6v^1
+    universal_h_m: P 6 m m
+  P6cc:
+    spacegroup: P6cc
+    crystal_class: hexagonal
+    hall: ' P 6 -2c'
+    hermann_mauguin: P 6 c c
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', 'y,x,z+0.5',
+      '-x+y,y,z+0.5', '-x,-x+y,z+0.5', '-y,-x,z+0.5', 'x-y,-y,z+0.5', 'x,x-y,z+0.5']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', 'y,x,z+0.5',
+      '-x+y,y,z+0.5', '-x,-x+y,z+0.5', '-y,-x,z+0.5', 'x-y,-y,z+0.5', 'x,x-y,z+0.5']
+    number: 184
+    schoenflies: C6v^2
+    universal_h_m: P 6 c c
+  P63cm:
+    spacegroup: P63cm
+    crystal_class: hexagonal
+    hall: ' P 6c -2'
+    hermann_mauguin: P 63 c m
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      'y,x,z', '-x+y,y,z+0.5', '-x,-x+y,z', '-y,-x,z+0.5', 'x-y,-y,z', 'x,x-y,z+0.5']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      'y,x,z', '-x+y,y,z+0.5', '-x,-x+y,z', '-y,-x,z+0.5', 'x-y,-y,z', 'x,x-y,z+0.5']
+    number: 185
+    schoenflies: C6v^3
+    universal_h_m: P 63 c m
+  P63mc:
+    spacegroup: P63mc
+    crystal_class: hexagonal
+    hall: ' P 6c -2c'
+    hermann_mauguin: P 63 m c
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      'y,x,z+0.5', '-x+y,y,z', '-x,-x+y,z+0.5', '-y,-x,z', 'x-y,-y,z+0.5', 'x,x-y,z']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      'y,x,z+0.5', '-x+y,y,z', '-x,-x+y,z+0.5', '-y,-x,z', 'x-y,-y,z+0.5', 'x,x-y,z']
+    number: 186
+    schoenflies: C6v^4
+    universal_h_m: P 63 m c
+  P-6m2:
+    spacegroup: P-6m2
+    crystal_class: hexagonal
+    hall: ' P -6 2'
+    hermann_mauguin: P -6 m 2
+    symops: ['x,y,z', '-x+y,-x,-z', '-y,x-y,z', 'x,y,-z', '-x+y,-x,z', '-y,x-y,-z',
+      '-y,-x,-z', '-x+y,y,z', 'x,x-y,-z', '-y,-x,z', '-x+y,y,-z', 'x,x-y,z']
+    ncsym: ['x,y,z', '-x+y,-x,-z', '-y,x-y,z', 'x,y,-z', '-x+y,-x,z', '-y,x-y,-z',
+      '-y,-x,-z', '-x+y,y,z', 'x,x-y,-z', '-y,-x,z', '-x+y,y,-z', 'x,x-y,z']
+    number: 187
+    schoenflies: D3h^1
+    universal_h_m: P -6 m 2
+  P-6c2:
+    spacegroup: P-6c2
+    crystal_class: hexagonal
+    hall: ' P -6c 2'
+    hermann_mauguin: P -6 c 2
+    symops: ['x,y,z', '-x+y,-x,-z+0.5', '-y,x-y,z', 'x,y,-z+0.5', '-x+y,-x,z', '-y,x-y,-z+0.5',
+      '-y,-x,-z', '-x+y,y,z+0.5', 'x,x-y,-z', '-y,-x,z+0.5', '-x+y,y,-z', 'x,x-y,z+0.5']
+    ncsym: ['x,y,z', '-x+y,-x,-z+0.5', '-y,x-y,z', 'x,y,-z+0.5', '-x+y,-x,z', '-y,x-y,-z+0.5',
+      '-y,-x,-z', '-x+y,y,z+0.5', 'x,x-y,-z', '-y,-x,z+0.5', '-x+y,y,-z', 'x,x-y,z+0.5']
+    number: 188
+    schoenflies: D3h^2
+    universal_h_m: P -6 c 2
+  P-62m:
+    spacegroup: P-62m
+    crystal_class: hexagonal
+    hall: ' P -6 -2'
+    hermann_mauguin: P -6 2 m
+    symops: ['x,y,z', '-x+y,-x,-z', '-y,x-y,z', 'x,y,-z', '-x+y,-x,z', '-y,x-y,-z',
+      'y,x,z', 'x-y,-y,-z', '-x,-x+y,z', 'y,x,-z', 'x-y,-y,z', '-x,-x+y,-z']
+    ncsym: ['x,y,z', '-x+y,-x,-z', '-y,x-y,z', 'x,y,-z', '-x+y,-x,z', '-y,x-y,-z',
+      'y,x,z', 'x-y,-y,-z', '-x,-x+y,z', 'y,x,-z', 'x-y,-y,z', '-x,-x+y,-z']
+    number: 189
+    schoenflies: D3h^3
+    universal_h_m: P -6 2 m
+  P-62c:
+    spacegroup: P-62c
+    crystal_class: hexagonal
+    hall: ' P -6c -2c'
+    hermann_mauguin: P -6 2 c
+    symops: ['x,y,z', '-x+y,-x,-z+0.5', '-y,x-y,z', 'x,y,-z+0.5', '-x+y,-x,z', '-y,x-y,-z+0.5',
+      'y,x,z+0.5', 'x-y,-y,-z', '-x,-x+y,z+0.5', 'y,x,-z', 'x-y,-y,z+0.5', '-x,-x+y,-z']
+    ncsym: ['x,y,z', '-x+y,-x,-z+0.5', '-y,x-y,z', 'x,y,-z+0.5', '-x+y,-x,z', '-y,x-y,-z+0.5',
+      'y,x,z+0.5', 'x-y,-y,-z', '-x,-x+y,z+0.5', 'y,x,-z', 'x-y,-y,z+0.5', '-x,-x+y,-z']
+    number: 190
+    schoenflies: D3h^4
+    universal_h_m: P -6 2 c
+  P6/mmm:
+    spacegroup: P6/mmm
+    crystal_class: hexagonal
+    hall: -P 6 2
+    hermann_mauguin: P 6/m m m
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-y,-x,-z',
+      'x-y,-y,-z', 'x,x-y,-z', 'y,x,-z', '-x+y,y,-z', '-x,-x+y,-z', '-x,-y,-z', '-x+y,-x,-z',
+      'y,-x+y,-z', 'x,y,-z', 'x-y,x,-z', '-y,x-y,-z', 'y,x,z', '-x+y,y,z', '-x,-x+y,z',
+      '-y,-x,z', 'x-y,-y,z', 'x,x-y,z']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-y,-x,-z',
+      'x-y,-y,-z', 'x,x-y,-z', 'y,x,-z', '-x+y,y,-z', '-x,-x+y,-z', '-x,-y,-z', '-x+y,-x,-z',
+      'y,-x+y,-z', 'x,y,-z', 'x-y,x,-z', '-y,x-y,-z', 'y,x,z', '-x+y,y,z', '-x,-x+y,z',
+      '-y,-x,z', 'x-y,-y,z', 'x,x-y,z']
+    number: 191
+    schoenflies: D6h^1
+    universal_h_m: P 6/m m m
+  P6/mcc:
+    spacegroup: P6/mcc
+    crystal_class: hexagonal
+    hall: -P 6 2c
+    hermann_mauguin: P 6/m c c
+    symops: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-y,-x,-z+0.5',
+      'x-y,-y,-z+0.5', 'x,x-y,-z+0.5', 'y,x,-z+0.5', '-x+y,y,-z+0.5', '-x,-x+y,-z+0.5',
+      '-x,-y,-z', '-x+y,-x,-z', 'y,-x+y,-z', 'x,y,-z', 'x-y,x,-z', '-y,x-y,-z', 'y,x,z-0.5',
+      '-x+y,y,z-0.5', '-x,-x+y,z-0.5', '-y,-x,z-0.5', 'x-y,-y,z-0.5', 'x,x-y,z-0.5']
+    ncsym: ['x,y,z', 'x-y,x,z', '-y,x-y,z', '-x,-y,z', '-x+y,-x,z', 'y,-x+y,z', '-y,-x,-z+0.5',
+      'x-y,-y,-z+0.5', 'x,x-y,-z+0.5', 'y,x,-z+0.5', '-x+y,y,-z+0.5', '-x,-x+y,-z+0.5',
+      '-x,-y,-z', '-x+y,-x,-z', 'y,-x+y,-z', 'x,y,-z', 'x-y,x,-z', '-y,x-y,-z', 'y,x,z-0.5',
+      '-x+y,y,z-0.5', '-x,-x+y,z-0.5', '-y,-x,z-0.5', 'x-y,-y,z-0.5', 'x,x-y,z-0.5']
+    number: 192
+    schoenflies: D6h^2
+    universal_h_m: P 6/m c c
+  P63/mcm:
+    spacegroup: P63/mcm
+    crystal_class: hexagonal
+    hall: -P 6c 2
+    hermann_mauguin: P 63/m c m
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-y,-x,-z', 'x-y,-y,-z+0.5', 'x,x-y,-z', 'y,x,-z+0.5', '-x+y,y,-z', '-x,-x+y,-z+0.5',
+      '-x,-y,-z', '-x+y,-x,-z-0.5', 'y,-x+y,-z', 'x,y,-z-0.5', 'x-y,x,-z', '-y,x-y,-z-0.5',
+      'y,x,z', '-x+y,y,z-0.5', '-x,-x+y,z', '-y,-x,z-0.5', 'x-y,-y,z', 'x,x-y,z-0.5']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-y,-x,-z', 'x-y,-y,-z+0.5', 'x,x-y,-z', 'y,x,-z+0.5', '-x+y,y,-z', '-x,-x+y,-z+0.5',
+      '-x,-y,-z', '-x+y,-x,-z-0.5', 'y,-x+y,-z', 'x,y,-z-0.5', 'x-y,x,-z', '-y,x-y,-z-0.5',
+      'y,x,z', '-x+y,y,z-0.5', '-x,-x+y,z', '-y,-x,z-0.5', 'x-y,-y,z', 'x,x-y,z-0.5']
+    number: 193
+    schoenflies: D6h^3
+    universal_h_m: P 63/m c m
+  P63/mmc:
+    spacegroup: P63/mmc
+    crystal_class: hexagonal
+    hall: -P 6c 2c
+    hermann_mauguin: P 63/m m c
+    symops: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-y,-x,-z+0.5', 'x-y,-y,-z', 'x,x-y,-z+0.5', 'y,x,-z', '-x+y,y,-z+0.5', '-x,-x+y,-z',
+      '-x,-y,-z', '-x+y,-x,-z-0.5', 'y,-x+y,-z', 'x,y,-z-0.5', 'x-y,x,-z', '-y,x-y,-z-0.5',
+      'y,x,z-0.5', '-x+y,y,z', '-x,-x+y,z-0.5', '-y,-x,z', 'x-y,-y,z-0.5', 'x,x-y,z']
+    ncsym: ['x,y,z', 'x-y,x,z+0.5', '-y,x-y,z', '-x,-y,z+0.5', '-x+y,-x,z', 'y,-x+y,z+0.5',
+      '-y,-x,-z+0.5', 'x-y,-y,-z', 'x,x-y,-z+0.5', 'y,x,-z', '-x+y,y,-z+0.5', '-x,-x+y,-z',
+      '-x,-y,-z', '-x+y,-x,-z-0.5', 'y,-x+y,-z', 'x,y,-z-0.5', 'x-y,x,-z', '-y,x-y,-z-0.5',
+      'y,x,z-0.5', '-x+y,y,z', '-x,-x+y,z-0.5', '-y,-x,z', 'x-y,-y,z-0.5', 'x,x-y,z']
+    number: 194
+    schoenflies: D6h^4
+    universal_h_m: P 63/m m c
+  P23:
+    spacegroup: P23
+    crystal_class: cubic
+    hall: ' P 2 2 3'
+    hermann_mauguin: P 2 3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x']
+    number: 195
+    schoenflies: T^1
+    universal_h_m: P 2 3
+  F23:
+    spacegroup: F23
+    crystal_class: cubic
+    hall: ' F 2 2 3'
+    hermann_mauguin: F 2 3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      'x,-y+0.5,-z+0.5', '-x,y+0.5,-z+0.5', 'z,x+0.5,y+0.5', '-z,-x+0.5,y+0.5', 'z,-x+0.5,-y+0.5',
+      '-z,x+0.5,-y+0.5', 'y,z+0.5,x+0.5', 'y,-z+0.5,-x+0.5', '-y,z+0.5,-x+0.5', '-y,-z+0.5,x+0.5',
+      'x+0.5,y,z+0.5', '-x+0.5,-y,z+0.5', 'x+0.5,-y,-z+0.5', '-x+0.5,y,-z+0.5', 'z+0.5,x,y+0.5',
+      '-z+0.5,-x,y+0.5', 'z+0.5,-x,-y+0.5', '-z+0.5,x,-y+0.5', 'y+0.5,z,x+0.5', 'y+0.5,-z,-x+0.5',
+      '-y+0.5,z,-x+0.5', '-y+0.5,-z,x+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z',
+      '-x+0.5,y+0.5,-z', 'z+0.5,x+0.5,y', '-z+0.5,-x+0.5,y', 'z+0.5,-x+0.5,-y', '-z+0.5,x+0.5,-y',
+      'y+0.5,z+0.5,x', 'y+0.5,-z+0.5,-x', '-y+0.5,z+0.5,-x', '-y+0.5,-z+0.5,x']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x']
+    number: 196
+    schoenflies: T^2
+    universal_h_m: F 2 3
+  I23:
+    spacegroup: I23
+    crystal_class: cubic
+    hall: ' I 2 2 3'
+    hermann_mauguin: I 2 3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'x+0.5,-y+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5', 'z+0.5,x+0.5,y+0.5', '-z+0.5,-x+0.5,y+0.5',
+      'z+0.5,-x+0.5,-y+0.5', '-z+0.5,x+0.5,-y+0.5', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+0.5',
+      '-y+0.5,z+0.5,-x+0.5', '-y+0.5,-z+0.5,x+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x']
+    number: 197
+    schoenflies: T^3
+    universal_h_m: I 2 3
+  P213:
+    spacegroup: P213
+    crystal_class: cubic
+    hall: ' P 2ac 2ab 3'
+    hermann_mauguin: P 21 3
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5', 'z,x,y',
+      '-z+0.5,-x,y+0.5', 'z+0.5,-x+0.5,-y', '-z,x+0.5,-y+0.5', 'y,z,x', 'y+0.5,-z+0.5,-x',
+      '-y,z+0.5,-x+0.5', '-y+0.5,-z,x+0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5', 'z,x,y',
+      '-z+0.5,-x,y+0.5', 'z+0.5,-x+0.5,-y', '-z,x+0.5,-y+0.5', 'y,z,x', 'y+0.5,-z+0.5,-x',
+      '-y,z+0.5,-x+0.5', '-y+0.5,-z,x+0.5']
+    number: 198
+    schoenflies: T^4
+    universal_h_m: P 21 3
+  I213:
+    spacegroup: I213
+    crystal_class: cubic
+    hall: ' I 2b 2c 3'
+    hermann_mauguin: I 21 3
+    symops: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', 'z,x,y', '-z,-x+0.5,y',
+      'z,-x,-y+0.5', '-z,x+0.5,-y+0.5', 'y,z,x', 'y,-z,-x+0.5', '-y,z+0.5,-x+0.5',
+      '-y+0.5,-z,x+0.5', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+1,z+0.5', 'x+0.5,-y+0.5,-z+1',
+      '-x+0.5,y+1,-z+1', 'z+0.5,x+0.5,y+0.5', '-z+0.5,-x+1,y+0.5', 'z+0.5,-x+0.5,-y+1',
+      '-z+0.5,x+1,-y+1', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+1', '-y+0.5,z+1,-x+1',
+      '-y+1,-z+0.5,x+1']
+    ncsym: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', 'z,x,y', '-z,-x+0.5,y',
+      'z,-x,-y+0.5', '-z,x+0.5,-y+0.5', 'y,z,x', 'y,-z,-x+0.5', '-y,z+0.5,-x+0.5',
+      '-y+0.5,-z,x+0.5']
+    number: 199
+    schoenflies: T^5
+    universal_h_m: I 21 3
+  Pm-3:
+    spacegroup: Pm-3
+    crystal_class: cubic
+    hall: -P 2 2 3
+    hermann_mauguin: P m -3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', '-z,-x,-y', 'z,x,-y', '-z,x,y', 'z,-x,y', '-y,-z,-x', '-y,z,x', 'y,-z,x',
+      'y,z,-x']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', '-z,-x,-y', 'z,x,-y', '-z,x,y', 'z,-x,y', '-y,-z,-x', '-y,z,x', 'y,-z,x',
+      'y,z,-x']
+    number: 200
+    schoenflies: Th^1
+    universal_h_m: P m -3
+  Pn-3:
+    spacegroup: Pn-3
+    crystal_class: cubic
+    hall: ' P 2 2 3 -1n'
+    hermann_mauguin: P n -3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x+0.5,-y+0.5,-z+0.5',
+      'x+0.5,y+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5', '-z+0.5,-x+0.5,-y+0.5',
+      'z+0.5,x+0.5,-y+0.5', '-z+0.5,x+0.5,y+0.5', 'z+0.5,-x+0.5,y+0.5', '-y+0.5,-z+0.5,-x+0.5',
+      '-y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,x+0.5', 'y+0.5,z+0.5,-x+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x+0.5,-y+0.5,-z+0.5',
+      'x+0.5,y+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5', '-z+0.5,-x+0.5,-y+0.5',
+      'z+0.5,x+0.5,-y+0.5', '-z+0.5,x+0.5,y+0.5', 'z+0.5,-x+0.5,y+0.5', '-y+0.5,-z+0.5,-x+0.5',
+      '-y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,x+0.5', 'y+0.5,z+0.5,-x+0.5']
+    number: 201
+    schoenflies: Th^2
+    universal_h_m: P n -3 :1
+  Fm-3:
+    spacegroup: Fm-3
+    crystal_class: cubic
+    hall: -F 2 2 3
+    hermann_mauguin: F m -3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', '-z,-x,-y', 'z,x,-y', '-z,x,y', 'z,-x,y', '-y,-z,-x', '-y,z,x', 'y,-z,x',
+      'y,z,-x', 'x,y+0.5,z+0.5', '-x,-y+0.5,z+0.5', 'x,-y+0.5,-z+0.5', '-x,y+0.5,-z+0.5',
+      'z,x+0.5,y+0.5', '-z,-x+0.5,y+0.5', 'z,-x+0.5,-y+0.5', '-z,x+0.5,-y+0.5', 'y,z+0.5,x+0.5',
+      'y,-z+0.5,-x+0.5', '-y,z+0.5,-x+0.5', '-y,-z+0.5,x+0.5', '-x,-y+0.5,-z+0.5',
+      'x,y+0.5,-z+0.5', '-x,y+0.5,z+0.5', 'x,-y+0.5,z+0.5', '-z,-x+0.5,-y+0.5', 'z,x+0.5,-y+0.5',
+      '-z,x+0.5,y+0.5', 'z,-x+0.5,y+0.5', '-y,-z+0.5,-x+0.5', '-y,z+0.5,x+0.5', 'y,-z+0.5,x+0.5',
+      'y,z+0.5,-x+0.5', 'x+0.5,y,z+0.5', '-x+0.5,-y,z+0.5', 'x+0.5,-y,-z+0.5', '-x+0.5,y,-z+0.5',
+      'z+0.5,x,y+0.5', '-z+0.5,-x,y+0.5', 'z+0.5,-x,-y+0.5', '-z+0.5,x,-y+0.5', 'y+0.5,z,x+0.5',
+      'y+0.5,-z,-x+0.5', '-y+0.5,z,-x+0.5', '-y+0.5,-z,x+0.5', '-x+0.5,-y,-z+0.5',
+      'x+0.5,y,-z+0.5', '-x+0.5,y,z+0.5', 'x+0.5,-y,z+0.5', '-z+0.5,-x,-y+0.5', 'z+0.5,x,-y+0.5',
+      '-z+0.5,x,y+0.5', 'z+0.5,-x,y+0.5', '-y+0.5,-z,-x+0.5', '-y+0.5,z,x+0.5', 'y+0.5,-z,x+0.5',
+      'y+0.5,z,-x+0.5', 'x+0.5,y+0.5,z', '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z',
+      'z+0.5,x+0.5,y', '-z+0.5,-x+0.5,y', 'z+0.5,-x+0.5,-y', '-z+0.5,x+0.5,-y', 'y+0.5,z+0.5,x',
+      'y+0.5,-z+0.5,-x', '-y+0.5,z+0.5,-x', '-y+0.5,-z+0.5,x', '-x+0.5,-y+0.5,-z',
+      'x+0.5,y+0.5,-z', '-x+0.5,y+0.5,z', 'x+0.5,-y+0.5,z', '-z+0.5,-x+0.5,-y', 'z+0.5,x+0.5,-y',
+      '-z+0.5,x+0.5,y', 'z+0.5,-x+0.5,y', '-y+0.5,-z+0.5,-x', '-y+0.5,z+0.5,x', 'y+0.5,-z+0.5,x',
+      'y+0.5,z+0.5,-x']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', '-z,-x,-y', 'z,x,-y', '-z,x,y', 'z,-x,y', '-y,-z,-x', '-y,z,x', 'y,-z,x',
+      'y,z,-x']
+    number: 202
+    schoenflies: Th^3
+    universal_h_m: F m -3
+  Fd-3:
+    spacegroup: Fd-3
+    crystal_class: cubic
+    hall: ' F 2 2 3 -1d'
+    hermann_mauguin: F d -3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x+0.25,-y+0.25,-z+0.25',
+      'x+0.25,y+0.25,-z+0.25', '-x+0.25,y+0.25,z+0.25', 'x+0.25,-y+0.25,z+0.25', '-z+0.25,-x+0.25,-y+0.25',
+      'z+0.25,x+0.25,-y+0.25', '-z+0.25,x+0.25,y+0.25', 'z+0.25,-x+0.25,y+0.25', '-y+0.25,-z+0.25,-x+0.25',
+      '-y+0.25,z+0.25,x+0.25', 'y+0.25,-z+0.25,x+0.25', 'y+0.25,z+0.25,-x+0.25', 'x,y+0.5,z+0.5',
+      '-x,-y+0.5,z+0.5', 'x,-y+0.5,-z+0.5', '-x,y+0.5,-z+0.5', 'z,x+0.5,y+0.5', '-z,-x+0.5,y+0.5',
+      'z,-x+0.5,-y+0.5', '-z,x+0.5,-y+0.5', 'y,z+0.5,x+0.5', 'y,-z+0.5,-x+0.5', '-y,z+0.5,-x+0.5',
+      '-y,-z+0.5,x+0.5', '-x+0.25,-y+0.75,-z+0.75', 'x+0.25,y+0.75,-z+0.75', '-x+0.25,y+0.75,z+0.75',
+      'x+0.25,-y+0.75,z+0.75', '-z+0.25,-x+0.75,-y+0.75', 'z+0.25,x+0.75,-y+0.75',
+      '-z+0.25,x+0.75,y+0.75', 'z+0.25,-x+0.75,y+0.75', '-y+0.25,-z+0.75,-x+0.75',
+      '-y+0.25,z+0.75,x+0.75', 'y+0.25,-z+0.75,x+0.75', 'y+0.25,z+0.75,-x+0.75', 'x+0.5,y,z+0.5',
+      '-x+0.5,-y,z+0.5', 'x+0.5,-y,-z+0.5', '-x+0.5,y,-z+0.5', 'z+0.5,x,y+0.5', '-z+0.5,-x,y+0.5',
+      'z+0.5,-x,-y+0.5', '-z+0.5,x,-y+0.5', 'y+0.5,z,x+0.5', 'y+0.5,-z,-x+0.5', '-y+0.5,z,-x+0.5',
+      '-y+0.5,-z,x+0.5', '-x+0.75,-y+0.25,-z+0.75', 'x+0.75,y+0.25,-z+0.75', '-x+0.75,y+0.25,z+0.75',
+      'x+0.75,-y+0.25,z+0.75', '-z+0.75,-x+0.25,-y+0.75', 'z+0.75,x+0.25,-y+0.75',
+      '-z+0.75,x+0.25,y+0.75', 'z+0.75,-x+0.25,y+0.75', '-y+0.75,-z+0.25,-x+0.75',
+      '-y+0.75,z+0.25,x+0.75', 'y+0.75,-z+0.25,x+0.75', 'y+0.75,z+0.25,-x+0.75', 'x+0.5,y+0.5,z',
+      '-x+0.5,-y+0.5,z', 'x+0.5,-y+0.5,-z', '-x+0.5,y+0.5,-z', 'z+0.5,x+0.5,y', '-z+0.5,-x+0.5,y',
+      'z+0.5,-x+0.5,-y', '-z+0.5,x+0.5,-y', 'y+0.5,z+0.5,x', 'y+0.5,-z+0.5,-x', '-y+0.5,z+0.5,-x',
+      '-y+0.5,-z+0.5,x', '-x+0.75,-y+0.75,-z+0.25', 'x+0.75,y+0.75,-z+0.25', '-x+0.75,y+0.75,z+0.25',
+      'x+0.75,-y+0.75,z+0.25', '-z+0.75,-x+0.75,-y+0.25', 'z+0.75,x+0.75,-y+0.25',
+      '-z+0.75,x+0.75,y+0.25', 'z+0.75,-x+0.75,y+0.25', '-y+0.75,-z+0.75,-x+0.25',
+      '-y+0.75,z+0.75,x+0.25', 'y+0.75,-z+0.75,x+0.25', 'y+0.75,z+0.75,-x+0.25']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x+0.25,-y+0.25,-z+0.25',
+      'x+0.25,y+0.25,-z+0.25', '-x+0.25,y+0.25,z+0.25', 'x+0.25,-y+0.25,z+0.25', '-z+0.25,-x+0.25,-y+0.25',
+      'z+0.25,x+0.25,-y+0.25', '-z+0.25,x+0.25,y+0.25', 'z+0.25,-x+0.25,y+0.25', '-y+0.25,-z+0.25,-x+0.25',
+      '-y+0.25,z+0.25,x+0.25', 'y+0.25,-z+0.25,x+0.25', 'y+0.25,z+0.25,-x+0.25']
+    number: 203
+    schoenflies: Th^4
+    universal_h_m: F d -3 :1
+  Im-3:
+    spacegroup: Im-3
+    crystal_class: cubic
+    hall: -I 2 2 3
+    hermann_mauguin: I m -3
+    symops: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', '-z,-x,-y', 'z,x,-y', '-z,x,y', 'z,-x,y', '-y,-z,-x', '-y,z,x', 'y,-z,x',
+      'y,z,-x', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5',
+      '-x+0.5,y+0.5,-z+0.5', 'z+0.5,x+0.5,y+0.5', '-z+0.5,-x+0.5,y+0.5', 'z+0.5,-x+0.5,-y+0.5',
+      '-z+0.5,x+0.5,-y+0.5', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,-x+0.5',
+      '-y+0.5,-z+0.5,x+0.5', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5',
+      'x+0.5,-y+0.5,z+0.5', '-z+0.5,-x+0.5,-y+0.5', 'z+0.5,x+0.5,-y+0.5', '-z+0.5,x+0.5,y+0.5',
+      'z+0.5,-x+0.5,y+0.5', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,x+0.5',
+      'y+0.5,z+0.5,-x+0.5']
+    ncsym: ['x,y,z', '-x,-y,z', 'x,-y,-z', '-x,y,-z', 'z,x,y', '-z,-x,y', 'z,-x,-y',
+      '-z,x,-y', 'y,z,x', 'y,-z,-x', '-y,z,-x', '-y,-z,x', '-x,-y,-z', 'x,y,-z', '-x,y,z',
+      'x,-y,z', '-z,-x,-y', 'z,x,-y', '-z,x,y', 'z,-x,y', '-y,-z,-x', '-y,z,x', 'y,-z,x',
+      'y,z,-x']
+    number: 204
+    schoenflies: Th^5
+    universal_h_m: I m -3
+  Pa-3:
+    spacegroup: Pa-3
+    crystal_class: cubic
+    hall: -P 2ac 2ab 3
+    hermann_mauguin: P a -3
+    symops: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5', 'z,x,y',
+      '-z+0.5,-x,y+0.5', 'z+0.5,-x+0.5,-y', '-z,x+0.5,-y+0.5', 'y,z,x', 'y+0.5,-z+0.5,-x',
+      '-y,z+0.5,-x+0.5', '-y+0.5,-z,x+0.5', '-x,-y,-z', 'x-0.5,y,-z-0.5', '-x-0.5,y-0.5,z',
+      'x,-y-0.5,z-0.5', '-z,-x,-y', 'z-0.5,x,-y-0.5', '-z-0.5,x-0.5,y', 'z,-x-0.5,y-0.5',
+      '-y,-z,-x', '-y-0.5,z-0.5,x', 'y,-z-0.5,x-0.5', 'y-0.5,z,-x-0.5']
+    ncsym: ['x,y,z', '-x+0.5,-y,z+0.5', 'x+0.5,-y+0.5,-z', '-x,y+0.5,-z+0.5', 'z,x,y',
+      '-z+0.5,-x,y+0.5', 'z+0.5,-x+0.5,-y', '-z,x+0.5,-y+0.5', 'y,z,x', 'y+0.5,-z+0.5,-x',
+      '-y,z+0.5,-x+0.5', '-y+0.5,-z,x+0.5', '-x,-y,-z', 'x-0.5,y,-z-0.5', '-x-0.5,y-0.5,z',
+      'x,-y-0.5,z-0.5', '-z,-x,-y', 'z-0.5,x,-y-0.5', '-z-0.5,x-0.5,y', 'z,-x-0.5,y-0.5',
+      '-y,-z,-x', '-y-0.5,z-0.5,x', 'y,-z-0.5,x-0.5', 'y-0.5,z,-x-0.5']
+    number: 205
+    schoenflies: Th^6
+    universal_h_m: P a -3
+  Ia-3:
+    spacegroup: Ia-3
+    crystal_class: cubic
+    hall: -I 2b 2c 3
+    hermann_mauguin: I a -3
+    symops: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', 'z,x,y', '-z,-x+0.5,y',
+      'z,-x,-y+0.5', '-z,x+0.5,-y+0.5', 'y,z,x', 'y,-z,-x+0.5', '-y,z+0.5,-x+0.5',
+      '-y+0.5,-z,x+0.5', '-x,-y,-z', 'x,y-0.5,-z', '-x,y,z-0.5', 'x,-y-0.5,z-0.5',
+      '-z,-x,-y', 'z,x-0.5,-y', '-z,x,y-0.5', 'z,-x-0.5,y-0.5', '-y,-z,-x', '-y,z,x-0.5',
+      'y,-z-0.5,x-0.5', 'y-0.5,z,-x-0.5', 'x+0.5,y+0.5,z+0.5', '-x+0.5,-y+1,z+0.5',
+      'x+0.5,-y+0.5,-z+1', '-x+0.5,y+1,-z+1', 'z+0.5,x+0.5,y+0.5', '-z+0.5,-x+1,y+0.5',
+      'z+0.5,-x+0.5,-y+1', '-z+0.5,x+1,-y+1', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+1',
+      '-y+0.5,z+1,-x+1', '-y+1,-z+0.5,x+1', '-x+0.5,-y+0.5,-z+0.5', 'x+0.5,y,-z+0.5',
+      '-x+0.5,y+0.5,z', 'x+0.5,-y,z', '-z+0.5,-x+0.5,-y+0.5', 'z+0.5,x,-y+0.5', '-z+0.5,x+0.5,y',
+      'z+0.5,-x,y', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x', 'y+0.5,-z,x', 'y,z+0.5,-x']
+    ncsym: ['x,y,z', '-x,-y+0.5,z', 'x,-y,-z+0.5', '-x,y+0.5,-z+0.5', 'z,x,y', '-z,-x+0.5,y',
+      'z,-x,-y+0.5', '-z,x+0.5,-y+0.5', 'y,z,x', 'y,-z,-x+0.5', '-y,z+0.5,-x+0.5',
+      '-y+0.5,-z,x+0.5', '-x,-y,-z', 'x,y-0.5,-z', '-x,y,z-0.5', 'x,-y-0.5,z-0.5',
+      '-z,-x,-y', 'z,x-0.5,-y', '-z,x,y-0.5', 'z,-x-0.5,y-0.5', '-y,-z,-x', '-y,z,x-0.5',
+      'y,-z-0.5,x-0.5', 'y-0.5,z,-x-0.5']
+    number: 206
+    schoenflies: Th^7
+    universal_h_m: I a -3
+  P432:
+    spacegroup: P432
+    crystal_class: cubic
+    hall: ' P 4 2 3'
+    hermann_mauguin: P 4 3 2
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x']
+    number: 207
+    schoenflies: O^1
+    universal_h_m: P 4 3 2
+  P4232:
+    spacegroup: P4232
+    crystal_class: cubic
+    hall: ' P 4n 2 3'
+    hermann_mauguin: P 42 3 2
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', 'z,x,y', '-x+0.5,z+0.5,y+0.5',
+      '-z,-x,y', 'x+0.5,-z+0.5,y+0.5', 'z,-x,-y', 'x+0.5,z+0.5,-y+0.5', '-z,x,-y',
+      '-x+0.5,-z+0.5,-y+0.5', 'y,z,x', 'y,-z,-x', 'z+0.5,y+0.5,-x+0.5', '-y,z,-x',
+      '-z+0.5,-y+0.5,-x+0.5', '-y,-z,x', 'z+0.5,-y+0.5,x+0.5', '-z+0.5,y+0.5,x+0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', 'z,x,y', '-x+0.5,z+0.5,y+0.5',
+      '-z,-x,y', 'x+0.5,-z+0.5,y+0.5', 'z,-x,-y', 'x+0.5,z+0.5,-y+0.5', '-z,x,-y',
+      '-x+0.5,-z+0.5,-y+0.5', 'y,z,x', 'y,-z,-x', 'z+0.5,y+0.5,-x+0.5', '-y,z,-x',
+      '-z+0.5,-y+0.5,-x+0.5', '-y,-z,x', 'z+0.5,-y+0.5,x+0.5', '-z+0.5,y+0.5,x+0.5']
+    number: 208
+    schoenflies: O^2
+    universal_h_m: P 42 3 2
+  F432:
+    spacegroup: F432
+    crystal_class: cubic
+    hall: ' F 4 2 3'
+    hermann_mauguin: F 4 3 2
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', 'x,y+0.5,z+0.5', '-y,x+0.5,z+0.5', '-x,-y+0.5,z+0.5', 'y,-x+0.5,z+0.5',
+      'x,-y+0.5,-z+0.5', 'y,x+0.5,-z+0.5', '-x,y+0.5,-z+0.5', '-y,-x+0.5,-z+0.5',
+      'z,x+0.5,y+0.5', '-x,z+0.5,y+0.5', '-z,-x+0.5,y+0.5', 'x,-z+0.5,y+0.5', 'z,-x+0.5,-y+0.5',
+      'x,z+0.5,-y+0.5', '-z,x+0.5,-y+0.5', '-x,-z+0.5,-y+0.5', 'y,z+0.5,x+0.5', 'y,-z+0.5,-x+0.5',
+      'z,y+0.5,-x+0.5', '-y,z+0.5,-x+0.5', '-z,-y+0.5,-x+0.5', '-y,-z+0.5,x+0.5',
+      'z,-y+0.5,x+0.5', '-z,y+0.5,x+0.5', 'x+0.5,y,z+0.5', '-y+0.5,x,z+0.5', '-x+0.5,-y,z+0.5',
+      'y+0.5,-x,z+0.5', 'x+0.5,-y,-z+0.5', 'y+0.5,x,-z+0.5', '-x+0.5,y,-z+0.5', '-y+0.5,-x,-z+0.5',
+      'z+0.5,x,y+0.5', '-x+0.5,z,y+0.5', '-z+0.5,-x,y+0.5', 'x+0.5,-z,y+0.5', 'z+0.5,-x,-y+0.5',
+      'x+0.5,z,-y+0.5', '-z+0.5,x,-y+0.5', '-x+0.5,-z,-y+0.5', 'y+0.5,z,x+0.5', 'y+0.5,-z,-x+0.5',
+      'z+0.5,y,-x+0.5', '-y+0.5,z,-x+0.5', '-z+0.5,-y,-x+0.5', '-y+0.5,-z,x+0.5',
+      'z+0.5,-y,x+0.5', '-z+0.5,y,x+0.5', 'x+0.5,y+0.5,z', '-y+0.5,x+0.5,z', '-x+0.5,-y+0.5,z',
+      'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z', 'y+0.5,x+0.5,-z', '-x+0.5,y+0.5,-z', '-y+0.5,-x+0.5,-z',
+      'z+0.5,x+0.5,y', '-x+0.5,z+0.5,y', '-z+0.5,-x+0.5,y', 'x+0.5,-z+0.5,y', 'z+0.5,-x+0.5,-y',
+      'x+0.5,z+0.5,-y', '-z+0.5,x+0.5,-y', '-x+0.5,-z+0.5,-y', 'y+0.5,z+0.5,x', 'y+0.5,-z+0.5,-x',
+      'z+0.5,y+0.5,-x', '-y+0.5,z+0.5,-x', '-z+0.5,-y+0.5,-x', '-y+0.5,-z+0.5,x',
+      'z+0.5,-y+0.5,x', '-z+0.5,y+0.5,x']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x']
+    number: 209
+    schoenflies: O^3
+    universal_h_m: F 4 3 2
+  F4132:
+    spacegroup: F4132
+    crystal_class: cubic
+    hall: ' F 4d 2 3'
+    hermann_mauguin: F 41 3 2
+    symops: ['x,y,z', '-y+0.25,x+0.25,z+0.25', '-x,-y+0.5,z+0.5', 'y+0.75,-x+0.25,z+0.75',
+      'x,-y,-z', 'y+0.25,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.25,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.25,y+0.25', '-z,-x+0.5,y+0.5', 'x+0.75,-z+0.25,y+0.75',
+      'z,-x,-y', 'x+0.25,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.25,-y+0.75',
+      'y,z,x', 'y+0.5,-z,-x+0.5', 'z+0.25,y+0.75,-x+0.75', '-y+0.5,z+0.5,-x', '-z+0.25,-y+0.25,-x+0.25',
+      '-y,-z,x', 'z+0.25,-y+0.75,x+0.75', '-z+0.75,y+0.75,x+0.25', 'x,y+0.5,z+0.5',
+      '-y+0.25,x+0.75,z+0.75', '-x,-y+1,z+1', 'y+0.75,-x+0.75,z+1.25', 'x,-y+0.5,-z+0.5',
+      'y+0.25,x+0.75,-z+0.75', '-x,y+1,-z+1', '-y+0.75,-x+0.75,-z+1.25', 'z,x+0.5,y+0.5',
+      '-x+0.25,z+0.75,y+0.75', '-z,-x+1,y+1', 'x+0.75,-z+0.75,y+1.25', 'z,-x+0.5,-y+0.5',
+      'x+0.25,z+0.75,-y+0.75', '-z,x+1,-y+1', '-x+0.75,-z+0.75,-y+1.25', 'y,z+0.5,x+0.5',
+      'y+0.5,-z+0.5,-x+1', 'z+0.25,y+1.25,-x+1.25', '-y+0.5,z+1,-x+0.5', '-z+0.25,-y+0.75,-x+0.75',
+      '-y,-z+0.5,x+0.5', 'z+0.25,-y+1.25,x+1.25', '-z+0.75,y+1.25,x+0.75', 'x+0.5,y,z+0.5',
+      '-y+0.75,x+0.25,z+0.75', '-x+0.5,-y+0.5,z+1', 'y+1.25,-x+0.25,z+1.25', 'x+0.5,-y,-z+0.5',
+      'y+0.75,x+0.25,-z+0.75', '-x+0.5,y+0.5,-z+1', '-y+1.25,-x+0.25,-z+1.25', 'z+0.5,x,y+0.5',
+      '-x+0.75,z+0.25,y+0.75', '-z+0.5,-x+0.5,y+1', 'x+1.25,-z+0.25,y+1.25', 'z+0.5,-x,-y+0.5',
+      'x+0.75,z+0.25,-y+0.75', '-z+0.5,x+0.5,-y+1', '-x+1.25,-z+0.25,-y+1.25', 'y+0.5,z,x+0.5',
+      'y+1,-z,-x+1', 'z+0.75,y+0.75,-x+1.25', '-y+1,z+0.5,-x+0.5', '-z+0.75,-y+0.25,-x+0.75',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+1.25', '-z+1.25,y+0.75,x+0.75', 'x+0.5,y+0.5,z',
+      '-y+0.75,x+0.75,z+0.25', '-x+0.5,-y+1,z+0.5', 'y+1.25,-x+0.75,z+0.75', 'x+0.5,-y+0.5,-z',
+      'y+0.75,x+0.75,-z+0.25', '-x+0.5,y+1,-z+0.5', '-y+1.25,-x+0.75,-z+0.75', 'z+0.5,x+0.5,y',
+      '-x+0.75,z+0.75,y+0.25', '-z+0.5,-x+1,y+0.5', 'x+1.25,-z+0.75,y+0.75', 'z+0.5,-x+0.5,-y',
+      'x+0.75,z+0.75,-y+0.25', '-z+0.5,x+1,-y+0.5', '-x+1.25,-z+0.75,-y+0.75', 'y+0.5,z+0.5,x',
+      'y+1,-z+0.5,-x+0.5', 'z+0.75,y+1.25,-x+0.75', '-y+1,z+1,-x', '-z+0.75,-y+0.75,-x+0.25',
+      '-y+0.5,-z+0.5,x', 'z+0.75,-y+1.25,x+0.75', '-z+1.25,y+1.25,x+0.25']
+    ncsym: ['x,y,z', '-y+0.25,x+0.25,z+0.25', '-x,-y+0.5,z+0.5', 'y+0.75,-x+0.25,z+0.75',
+      'x,-y,-z', 'y+0.25,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.25,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.25,y+0.25', '-z,-x+0.5,y+0.5', 'x+0.75,-z+0.25,y+0.75',
+      'z,-x,-y', 'x+0.25,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.25,-y+0.75',
+      'y,z,x', 'y+0.5,-z,-x+0.5', 'z+0.25,y+0.75,-x+0.75', '-y+0.5,z+0.5,-x', '-z+0.25,-y+0.25,-x+0.25',
+      '-y,-z,x', 'z+0.25,-y+0.75,x+0.75', '-z+0.75,y+0.75,x+0.25']
+    number: 210
+    schoenflies: O^4
+    universal_h_m: F 41 3 2
+  I432:
+    spacegroup: I432
+    crystal_class: cubic
+    hall: ' I 4 2 3'
+    hermann_mauguin: I 4 3 2
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,-x+0.5,-z+0.5', 'z+0.5,x+0.5,y+0.5', '-x+0.5,z+0.5,y+0.5', '-z+0.5,-x+0.5,y+0.5',
+      'x+0.5,-z+0.5,y+0.5', 'z+0.5,-x+0.5,-y+0.5', 'x+0.5,z+0.5,-y+0.5', '-z+0.5,x+0.5,-y+0.5',
+      '-x+0.5,-z+0.5,-y+0.5', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+0.5', 'z+0.5,y+0.5,-x+0.5',
+      '-y+0.5,z+0.5,-x+0.5', '-z+0.5,-y+0.5,-x+0.5', '-y+0.5,-z+0.5,x+0.5', 'z+0.5,-y+0.5,x+0.5',
+      '-z+0.5,y+0.5,x+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x']
+    number: 211
+    schoenflies: O^5
+    universal_h_m: I 4 3 2
+  P4332:
+    spacegroup: P4332
+    crystal_class: cubic
+    hall: ' P 4acd 2ab 3'
+    hermann_mauguin: P 43 3 2
+    symops: ['x,y,z', '-y+0.75,x+0.25,z+0.75', '-x+0.5,-y,z+0.5', 'y+0.75,-x+0.75,z+0.25',
+      'x+0.5,-y+0.5,-z', 'y+0.25,x+0.75,-z+0.75', '-x,y+0.5,-z+0.5', '-y+0.25,-x+0.25,-z+0.25',
+      'z,x,y', '-x+0.75,z+0.25,y+0.75', '-z+0.5,-x,y+0.5', 'x+0.75,-z+0.75,y+0.25',
+      'z+0.5,-x+0.5,-y', 'x+0.25,z+0.75,-y+0.75', '-z,x+0.5,-y+0.5', '-x+0.25,-z+0.25,-y+0.25',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.25,y+0.75,-x+0.75', '-y,z+0.5,-x+0.5', '-z+0.25,-y+0.25,-x+0.25',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+0.25', '-z+0.75,y+0.25,x+0.75']
+    ncsym: ['x,y,z', '-y+0.75,x+0.25,z+0.75', '-x+0.5,-y,z+0.5', 'y+0.75,-x+0.75,z+0.25',
+      'x+0.5,-y+0.5,-z', 'y+0.25,x+0.75,-z+0.75', '-x,y+0.5,-z+0.5', '-y+0.25,-x+0.25,-z+0.25',
+      'z,x,y', '-x+0.75,z+0.25,y+0.75', '-z+0.5,-x,y+0.5', 'x+0.75,-z+0.75,y+0.25',
+      'z+0.5,-x+0.5,-y', 'x+0.25,z+0.75,-y+0.75', '-z,x+0.5,-y+0.5', '-x+0.25,-z+0.25,-y+0.25',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.25,y+0.75,-x+0.75', '-y,z+0.5,-x+0.5', '-z+0.25,-y+0.25,-x+0.25',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+0.25', '-z+0.75,y+0.25,x+0.75']
+    number: 212
+    schoenflies: O^6
+    universal_h_m: P 43 3 2
+  P4132:
+    spacegroup: P4132
+    crystal_class: cubic
+    hall: ' P 4bd 2ab 3'
+    hermann_mauguin: P 41 3 2
+    symops: ['x,y,z', '-y+0.25,x+0.75,z+0.25', '-x+0.5,-y,z+0.5', 'y+0.25,-x+0.25,z+0.75',
+      'x+0.5,-y+0.5,-z', 'y+0.75,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.75,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.75,y+0.25', '-z+0.5,-x,y+0.5', 'x+0.25,-z+0.25,y+0.75',
+      'z+0.5,-x+0.5,-y', 'x+0.75,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.75,-y+0.75',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.75,y+0.25,-x+0.25', '-y,z+0.5,-x+0.5', '-z+0.75,-y+0.75,-x+0.75',
+      '-y+0.5,-z,x+0.5', 'z+0.25,-y+0.25,x+0.75', '-z+0.25,y+0.75,x+0.25']
+    ncsym: ['x,y,z', '-y+0.25,x+0.75,z+0.25', '-x+0.5,-y,z+0.5', 'y+0.25,-x+0.25,z+0.75',
+      'x+0.5,-y+0.5,-z', 'y+0.75,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.75,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.75,y+0.25', '-z+0.5,-x,y+0.5', 'x+0.25,-z+0.25,y+0.75',
+      'z+0.5,-x+0.5,-y', 'x+0.75,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.75,-y+0.75',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.75,y+0.25,-x+0.25', '-y,z+0.5,-x+0.5', '-z+0.75,-y+0.75,-x+0.75',
+      '-y+0.5,-z,x+0.5', 'z+0.25,-y+0.25,x+0.75', '-z+0.25,y+0.75,x+0.25']
+    number: 213
+    schoenflies: O^7
+    universal_h_m: P 41 3 2
+  I4132:
+    spacegroup: I4132
+    crystal_class: cubic
+    hall: ' I 4bd 2c 3'
+    hermann_mauguin: I 41 3 2
+    symops: ['x,y,z', '-y+0.25,x+0.75,z+0.25', '-x+0.5,-y,z+0.5', 'y+0.25,-x+0.25,z+0.75',
+      'x,-y,-z+0.5', 'y+0.25,x+0.75,-z+0.75', '-x+0.5,y,-z', '-y+0.25,-x+0.25,-z+0.25',
+      'z,x,y', '-x+0.25,z+0.75,y+0.25', '-z+0.5,-x,y+0.5', 'x+0.25,-z+0.25,y+0.75',
+      'z,-x,-y+0.5', 'x+0.25,z+0.75,-y+0.75', '-z+0.5,x,-y', '-x+0.25,-z+0.25,-y+0.25',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.75,y+0.25,-x+0.25', '-y,z+0.5,-x+0.5', '-z+0.25,-y+0.25,-x+0.25',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+0.25', '-z+0.75,y+0.25,x+0.75', 'x+0.5,y+0.5,z+0.5',
+      '-y+0.75,x+1.25,z+0.75', '-x+1,-y+0.5,z+1', 'y+0.75,-x+0.75,z+1.25', 'x+0.5,-y+0.5,-z+1',
+      'y+0.75,x+1.25,-z+1.25', '-x+1,y+0.5,-z+0.5', '-y+0.75,-x+0.75,-z+0.75', 'z+0.5,x+0.5,y+0.5',
+      '-x+0.75,z+1.25,y+0.75', '-z+1,-x+0.5,y+1', 'x+0.75,-z+0.75,y+1.25', 'z+0.5,-x+0.5,-y+1',
+      'x+0.75,z+1.25,-y+1.25', '-z+1,x+0.5,-y+0.5', '-x+0.75,-z+0.75,-y+0.75', 'y+0.5,z+0.5,x+0.5',
+      'y+1,-z+1,-x+0.5', 'z+1.25,y+0.75,-x+0.75', '-y+0.5,z+1,-x+1', '-z+0.75,-y+0.75,-x+0.75',
+      '-y+1,-z+0.5,x+1', 'z+1.25,-y+1.25,x+0.75', '-z+1.25,y+0.75,x+1.25']
+    ncsym: ['x,y,z', '-y+0.25,x+0.75,z+0.25', '-x+0.5,-y,z+0.5', 'y+0.25,-x+0.25,z+0.75',
+      'x,-y,-z+0.5', 'y+0.25,x+0.75,-z+0.75', '-x+0.5,y,-z', '-y+0.25,-x+0.25,-z+0.25',
+      'z,x,y', '-x+0.25,z+0.75,y+0.25', '-z+0.5,-x,y+0.5', 'x+0.25,-z+0.25,y+0.75',
+      'z,-x,-y+0.5', 'x+0.25,z+0.75,-y+0.75', '-z+0.5,x,-y', '-x+0.25,-z+0.25,-y+0.25',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.75,y+0.25,-x+0.25', '-y,z+0.5,-x+0.5', '-z+0.25,-y+0.25,-x+0.25',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+0.25', '-z+0.75,y+0.25,x+0.75']
+    number: 214
+    schoenflies: O^8
+    universal_h_m: I 41 3 2
+  P-43m:
+    spacegroup: P-43m
+    crystal_class: cubic
+    hall: ' P -4 2 3'
+    hermann_mauguin: P -4 3 m
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'z,x,y', 'x,-z,-y', '-z,-x,y', '-x,z,-y', 'z,-x,-y', '-x,-z,y', '-z,x,-y',
+      'x,z,y', 'y,z,x', 'y,-z,-x', '-z,-y,x', '-y,z,-x', 'z,y,x', '-y,-z,x', '-z,y,-x',
+      'z,-y,-x']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'z,x,y', 'x,-z,-y', '-z,-x,y', '-x,z,-y', 'z,-x,-y', '-x,-z,y', '-z,x,-y',
+      'x,z,y', 'y,z,x', 'y,-z,-x', '-z,-y,x', '-y,z,-x', 'z,y,x', '-y,-z,x', '-z,y,-x',
+      'z,-y,-x']
+    number: 215
+    schoenflies: Td^1
+    universal_h_m: P -4 3 m
+  F-43m:
+    spacegroup: F-43m
+    crystal_class: cubic
+    hall: ' F -4 2 3'
+    hermann_mauguin: F -4 3 m
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'z,x,y', 'x,-z,-y', '-z,-x,y', '-x,z,-y', 'z,-x,-y', '-x,-z,y', '-z,x,-y',
+      'x,z,y', 'y,z,x', 'y,-z,-x', '-z,-y,x', '-y,z,-x', 'z,y,x', '-y,-z,x', '-z,y,-x',
+      'z,-y,-x', 'x,y+0.5,z+0.5', 'y,-x+0.5,-z+0.5', '-x,-y+0.5,z+0.5', '-y,x+0.5,-z+0.5',
+      'x,-y+0.5,-z+0.5', '-y,-x+0.5,z+0.5', '-x,y+0.5,-z+0.5', 'y,x+0.5,z+0.5', 'z,x+0.5,y+0.5',
+      'x,-z+0.5,-y+0.5', '-z,-x+0.5,y+0.5', '-x,z+0.5,-y+0.5', 'z,-x+0.5,-y+0.5',
+      '-x,-z+0.5,y+0.5', '-z,x+0.5,-y+0.5', 'x,z+0.5,y+0.5', 'y,z+0.5,x+0.5', 'y,-z+0.5,-x+0.5',
+      '-z,-y+0.5,x+0.5', '-y,z+0.5,-x+0.5', 'z,y+0.5,x+0.5', '-y,-z+0.5,x+0.5', '-z,y+0.5,-x+0.5',
+      'z,-y+0.5,-x+0.5', 'x+0.5,y,z+0.5', 'y+0.5,-x,-z+0.5', '-x+0.5,-y,z+0.5', '-y+0.5,x,-z+0.5',
+      'x+0.5,-y,-z+0.5', '-y+0.5,-x,z+0.5', '-x+0.5,y,-z+0.5', 'y+0.5,x,z+0.5', 'z+0.5,x,y+0.5',
+      'x+0.5,-z,-y+0.5', '-z+0.5,-x,y+0.5', '-x+0.5,z,-y+0.5', 'z+0.5,-x,-y+0.5',
+      '-x+0.5,-z,y+0.5', '-z+0.5,x,-y+0.5', 'x+0.5,z,y+0.5', 'y+0.5,z,x+0.5', 'y+0.5,-z,-x+0.5',
+      '-z+0.5,-y,x+0.5', '-y+0.5,z,-x+0.5', 'z+0.5,y,x+0.5', '-y+0.5,-z,x+0.5', '-z+0.5,y,-x+0.5',
+      'z+0.5,-y,-x+0.5', 'x+0.5,y+0.5,z', 'y+0.5,-x+0.5,-z', '-x+0.5,-y+0.5,z', '-y+0.5,x+0.5,-z',
+      'x+0.5,-y+0.5,-z', '-y+0.5,-x+0.5,z', '-x+0.5,y+0.5,-z', 'y+0.5,x+0.5,z', 'z+0.5,x+0.5,y',
+      'x+0.5,-z+0.5,-y', '-z+0.5,-x+0.5,y', '-x+0.5,z+0.5,-y', 'z+0.5,-x+0.5,-y',
+      '-x+0.5,-z+0.5,y', '-z+0.5,x+0.5,-y', 'x+0.5,z+0.5,y', 'y+0.5,z+0.5,x', 'y+0.5,-z+0.5,-x',
+      '-z+0.5,-y+0.5,x', '-y+0.5,z+0.5,-x', 'z+0.5,y+0.5,x', '-y+0.5,-z+0.5,x', '-z+0.5,y+0.5,-x',
+      'z+0.5,-y+0.5,-x']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'z,x,y', 'x,-z,-y', '-z,-x,y', '-x,z,-y', 'z,-x,-y', '-x,-z,y', '-z,x,-y',
+      'x,z,y', 'y,z,x', 'y,-z,-x', '-z,-y,x', '-y,z,-x', 'z,y,x', '-y,-z,x', '-z,y,-x',
+      'z,-y,-x']
+    number: 216
+    schoenflies: Td^2
+    universal_h_m: F -4 3 m
+  I-43m:
+    spacegroup: I-43m
+    crystal_class: cubic
+    hall: ' I -4 2 3'
+    hermann_mauguin: I -4 3 m
+    symops: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'z,x,y', 'x,-z,-y', '-z,-x,y', '-x,z,-y', 'z,-x,-y', '-x,-z,y', '-z,x,-y',
+      'x,z,y', 'y,z,x', 'y,-z,-x', '-z,-y,x', '-y,z,-x', 'z,y,x', '-y,-z,x', '-z,y,-x',
+      'z,-y,-x', 'x+0.5,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', 'x+0.5,-y+0.5,-z+0.5', '-y+0.5,-x+0.5,z+0.5', '-x+0.5,y+0.5,-z+0.5',
+      'y+0.5,x+0.5,z+0.5', 'z+0.5,x+0.5,y+0.5', 'x+0.5,-z+0.5,-y+0.5', '-z+0.5,-x+0.5,y+0.5',
+      '-x+0.5,z+0.5,-y+0.5', 'z+0.5,-x+0.5,-y+0.5', '-x+0.5,-z+0.5,y+0.5', '-z+0.5,x+0.5,-y+0.5',
+      'x+0.5,z+0.5,y+0.5', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+0.5', '-z+0.5,-y+0.5,x+0.5',
+      '-y+0.5,z+0.5,-x+0.5', 'z+0.5,y+0.5,x+0.5', '-y+0.5,-z+0.5,x+0.5', '-z+0.5,y+0.5,-x+0.5',
+      'z+0.5,-y+0.5,-x+0.5']
+    ncsym: ['x,y,z', 'y,-x,-z', '-x,-y,z', '-y,x,-z', 'x,-y,-z', '-y,-x,z', '-x,y,-z',
+      'y,x,z', 'z,x,y', 'x,-z,-y', '-z,-x,y', '-x,z,-y', 'z,-x,-y', '-x,-z,y', '-z,x,-y',
+      'x,z,y', 'y,z,x', 'y,-z,-x', '-z,-y,x', '-y,z,-x', 'z,y,x', '-y,-z,x', '-z,y,-x',
+      'z,-y,-x']
+    number: 217
+    schoenflies: Td^3
+    universal_h_m: I -4 3 m
+  P-43n:
+    spacegroup: P-43n
+    crystal_class: cubic
+    hall: ' P -4n 2 3'
+    hermann_mauguin: P -4 3 n
+    symops: ['x,y,z', 'y+0.5,-x+0.5,-z+0.5', '-x,-y,z', '-y+0.5,x+0.5,-z+0.5', 'x,-y,-z',
+      '-y+0.5,-x+0.5,z+0.5', '-x,y,-z', 'y+0.5,x+0.5,z+0.5', 'z,x,y', 'x+0.5,-z+0.5,-y+0.5',
+      '-z,-x,y', '-x+0.5,z+0.5,-y+0.5', 'z,-x,-y', '-x+0.5,-z+0.5,y+0.5', '-z,x,-y',
+      'x+0.5,z+0.5,y+0.5', 'y,z,x', 'y,-z,-x', '-z+0.5,-y+0.5,x+0.5', '-y,z,-x', 'z+0.5,y+0.5,x+0.5',
+      '-y,-z,x', '-z+0.5,y+0.5,-x+0.5', 'z+0.5,-y+0.5,-x+0.5']
+    ncsym: ['x,y,z', 'y+0.5,-x+0.5,-z+0.5', '-x,-y,z', '-y+0.5,x+0.5,-z+0.5', 'x,-y,-z',
+      '-y+0.5,-x+0.5,z+0.5', '-x,y,-z', 'y+0.5,x+0.5,z+0.5', 'z,x,y', 'x+0.5,-z+0.5,-y+0.5',
+      '-z,-x,y', '-x+0.5,z+0.5,-y+0.5', 'z,-x,-y', '-x+0.5,-z+0.5,y+0.5', '-z,x,-y',
+      'x+0.5,z+0.5,y+0.5', 'y,z,x', 'y,-z,-x', '-z+0.5,-y+0.5,x+0.5', '-y,z,-x', 'z+0.5,y+0.5,x+0.5',
+      '-y,-z,x', '-z+0.5,y+0.5,-x+0.5', 'z+0.5,-y+0.5,-x+0.5']
+    number: 218
+    schoenflies: Td^4
+    universal_h_m: P -4 3 n
+  F-43c:
+    spacegroup: F-43c
+    crystal_class: cubic
+    hall: ' F -4a 2 3'
+    hermann_mauguin: F -4 3 c
+    symops: ['x,y,z', 'y+0.5,-x,-z', '-x+0.5,-y+0.5,z', '-y,x+0.5,-z', 'x,-y,-z',
+      '-y+0.5,-x,z', '-x+0.5,y+0.5,-z', 'y,x+0.5,z', 'z,x,y', 'x+0.5,-z,-y', '-z+0.5,-x+0.5,y',
+      '-x,z+0.5,-y', 'z,-x,-y', '-x+0.5,-z,y', '-z+0.5,x+0.5,-y', 'x,z+0.5,y', 'y,z,x',
+      'y,-z+0.5,-x+0.5', '-z,-y,x+0.5', '-y+0.5,z,-x+0.5', 'z+0.5,y,x', '-y,-z,x',
+      '-z,y,-x+0.5', 'z+0.5,-y+0.5,-x+0.5', 'x,y+0.5,z+0.5', 'y+0.5,-x+0.5,-z+0.5',
+      '-x+0.5,-y+1,z+0.5', '-y,x+1,-z+0.5', 'x,-y+0.5,-z+0.5', '-y+0.5,-x+0.5,z+0.5',
+      '-x+0.5,y+1,-z+0.5', 'y,x+1,z+0.5', 'z,x+0.5,y+0.5', 'x+0.5,-z+0.5,-y+0.5',
+      '-z+0.5,-x+1,y+0.5', '-x,z+1,-y+0.5', 'z,-x+0.5,-y+0.5', '-x+0.5,-z+0.5,y+0.5',
+      '-z+0.5,x+1,-y+0.5', 'x,z+1,y+0.5', 'y,z+0.5,x+0.5', 'y,-z+1,-x+1', '-z,-y+0.5,x+1',
+      '-y+0.5,z+0.5,-x+1', 'z+0.5,y+0.5,x+0.5', '-y,-z+0.5,x+0.5', '-z,y+0.5,-x+1',
+      'z+0.5,-y+1,-x+1', 'x+0.5,y,z+0.5', 'y+1,-x,-z+0.5', '-x+1,-y+0.5,z+0.5', '-y+0.5,x+0.5,-z+0.5',
+      'x+0.5,-y,-z+0.5', '-y+1,-x,z+0.5', '-x+1,y+0.5,-z+0.5', 'y+0.5,x+0.5,z+0.5',
+      'z+0.5,x,y+0.5', 'x+1,-z,-y+0.5', '-z+1,-x+0.5,y+0.5', '-x+0.5,z+0.5,-y+0.5',
+      'z+0.5,-x,-y+0.5', '-x+1,-z,y+0.5', '-z+1,x+0.5,-y+0.5', 'x+0.5,z+0.5,y+0.5',
+      'y+0.5,z,x+0.5', 'y+0.5,-z+0.5,-x+1', '-z+0.5,-y,x+1', '-y+1,z,-x+1', 'z+1,y,x+0.5',
+      '-y+0.5,-z,x+0.5', '-z+0.5,y,-x+1', 'z+1,-y+0.5,-x+1', 'x+0.5,y+0.5,z', 'y+1,-x+0.5,-z',
+      '-x+1,-y+1,z', '-y+0.5,x+1,-z', 'x+0.5,-y+0.5,-z', '-y+1,-x+0.5,z', '-x+1,y+1,-z',
+      'y+0.5,x+1,z', 'z+0.5,x+0.5,y', 'x+1,-z+0.5,-y', '-z+1,-x+1,y', '-x+0.5,z+1,-y',
+      'z+0.5,-x+0.5,-y', '-x+1,-z+0.5,y', '-z+1,x+1,-y', 'x+0.5,z+1,y', 'y+0.5,z+0.5,x',
+      'y+0.5,-z+1,-x+0.5', '-z+0.5,-y+0.5,x+0.5', '-y+1,z+0.5,-x+0.5', 'z+1,y+0.5,x',
+      '-y+0.5,-z+0.5,x', '-z+0.5,y+0.5,-x+0.5', 'z+1,-y+1,-x+0.5']
+    ncsym: ['x,y,z', 'y+0.5,-x,-z', '-x+0.5,-y+0.5,z', '-y,x+0.5,-z', 'x,-y,-z', '-y+0.5,-x,z',
+      '-x+0.5,y+0.5,-z', 'y,x+0.5,z', 'z,x,y', 'x+0.5,-z,-y', '-z+0.5,-x+0.5,y', '-x,z+0.5,-y',
+      'z,-x,-y', '-x+0.5,-z,y', '-z+0.5,x+0.5,-y', 'x,z+0.5,y', 'y,z,x', 'y,-z+0.5,-x+0.5',
+      '-z,-y,x+0.5', '-y+0.5,z,-x+0.5', 'z+0.5,y,x', '-y,-z,x', '-z,y,-x+0.5', 'z+0.5,-y+0.5,-x+0.5']
+    number: 219
+    schoenflies: Td^5
+    universal_h_m: F -4 3 c
+  I-43d:
+    spacegroup: I-43d
+    crystal_class: cubic
+    hall: ' I -4bd 2c 3'
+    hermann_mauguin: I -4 3 d
+    symops: ['x,y,z', 'y+0.25,-x+0.75,-z+0.25', '-x,-y+0.5,z', '-y+0.75,x+0.75,-z+0.25',
+      'x,-y,-z+0.5', '-y+0.25,-x+0.75,z+0.75', '-x,y+0.5,-z+0.5', 'y+0.75,x+0.75,z+0.75',
+      'z,x,y', 'x+0.25,-z+0.75,-y+0.25', '-z,-x+0.5,y', '-x+0.75,z+0.75,-y+0.25',
+      'z,-x,-y+0.5', '-x+0.25,-z+0.75,y+0.75', '-z,x+0.5,-y+0.5', 'x+0.75,z+0.75,y+0.75',
+      'y,z,x', 'y,-z,-x+0.5', '-z+0.25,-y+0.75,x+0.75', '-y,z+0.5,-x+0.5', 'z+0.25,y+0.25,x+0.25',
+      '-y+0.5,-z,x+0.5', '-z+0.25,y+0.25,-x+0.75', 'z+0.75,-y+0.25,-x+0.75', 'x+0.5,y+0.5,z+0.5',
+      'y+0.75,-x+1.25,-z+0.75', '-x+0.5,-y+1,z+0.5', '-y+1.25,x+1.25,-z+0.75', 'x+0.5,-y+0.5,-z+1',
+      '-y+0.75,-x+1.25,z+1.25', '-x+0.5,y+1,-z+1', 'y+1.25,x+1.25,z+1.25', 'z+0.5,x+0.5,y+0.5',
+      'x+0.75,-z+1.25,-y+0.75', '-z+0.5,-x+1,y+0.5', '-x+1.25,z+1.25,-y+0.75', 'z+0.5,-x+0.5,-y+1',
+      '-x+0.75,-z+1.25,y+1.25', '-z+0.5,x+1,-y+1', 'x+1.25,z+1.25,y+1.25', 'y+0.5,z+0.5,x+0.5',
+      'y+0.5,-z+0.5,-x+1', '-z+0.75,-y+1.25,x+1.25', '-y+0.5,z+1,-x+1', 'z+0.75,y+0.75,x+0.75',
+      '-y+1,-z+0.5,x+1', '-z+0.75,y+0.75,-x+1.25', 'z+1.25,-y+0.75,-x+1.25']
+    ncsym: ['x,y,z', 'y+0.25,-x+0.75,-z+0.25', '-x,-y+0.5,z', '-y+0.75,x+0.75,-z+0.25',
+      'x,-y,-z+0.5', '-y+0.25,-x+0.75,z+0.75', '-x,y+0.5,-z+0.5', 'y+0.75,x+0.75,z+0.75',
+      'z,x,y', 'x+0.25,-z+0.75,-y+0.25', '-z,-x+0.5,y', '-x+0.75,z+0.75,-y+0.25',
+      'z,-x,-y+0.5', '-x+0.25,-z+0.75,y+0.75', '-z,x+0.5,-y+0.5', 'x+0.75,z+0.75,y+0.75',
+      'y,z,x', 'y,-z,-x+0.5', '-z+0.25,-y+0.75,x+0.75', '-y,z+0.5,-x+0.5', 'z+0.25,y+0.25,x+0.25',
+      '-y+0.5,-z,x+0.5', '-z+0.25,y+0.25,-x+0.75', 'z+0.75,-y+0.25,-x+0.75']
+    number: 220
+    schoenflies: Td^6
+    universal_h_m: I -4 3 d
+  Pm-3m:
+    spacegroup: Pm-3m
+    crystal_class: cubic
+    hall: -P 4 2 3
+    hermann_mauguin: P m -3 m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', '-z,-x,-y', 'x,-z,-y', 'z,x,-y', '-x,z,-y', '-z,x,y', '-x,-z,y',
+      'z,-x,y', 'x,z,y', '-y,-z,-x', '-y,z,x', '-z,-y,x', 'y,-z,x', 'z,y,x', 'y,z,-x',
+      '-z,y,-x', 'z,-y,-x']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', '-z,-x,-y', 'x,-z,-y', 'z,x,-y', '-x,z,-y', '-z,x,y', '-x,-z,y',
+      'z,-x,y', 'x,z,y', '-y,-z,-x', '-y,z,x', '-z,-y,x', 'y,-z,x', 'z,y,x', 'y,z,-x',
+      '-z,y,-x', 'z,-y,-x']
+    number: 221
+    schoenflies: Oh^1
+    universal_h_m: P m -3 m
+  Pn-3n:
+    spacegroup: Pn-3n
+    crystal_class: cubic
+    hall: ' P 4 2 3 -1n'
+    hermann_mauguin: P n -3 n
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      'y+0.5,x+0.5,z+0.5', '-z+0.5,-x+0.5,-y+0.5', 'x+0.5,-z+0.5,-y+0.5', 'z+0.5,x+0.5,-y+0.5',
+      '-x+0.5,z+0.5,-y+0.5', '-z+0.5,x+0.5,y+0.5', '-x+0.5,-z+0.5,y+0.5', 'z+0.5,-x+0.5,y+0.5',
+      'x+0.5,z+0.5,y+0.5', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x+0.5', '-z+0.5,-y+0.5,x+0.5',
+      'y+0.5,-z+0.5,x+0.5', 'z+0.5,y+0.5,x+0.5', 'y+0.5,z+0.5,-x+0.5', '-z+0.5,y+0.5,-x+0.5',
+      'z+0.5,-y+0.5,-x+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      'y+0.5,x+0.5,z+0.5', '-z+0.5,-x+0.5,-y+0.5', 'x+0.5,-z+0.5,-y+0.5', 'z+0.5,x+0.5,-y+0.5',
+      '-x+0.5,z+0.5,-y+0.5', '-z+0.5,x+0.5,y+0.5', '-x+0.5,-z+0.5,y+0.5', 'z+0.5,-x+0.5,y+0.5',
+      'x+0.5,z+0.5,y+0.5', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x+0.5', '-z+0.5,-y+0.5,x+0.5',
+      'y+0.5,-z+0.5,x+0.5', 'z+0.5,y+0.5,x+0.5', 'y+0.5,z+0.5,-x+0.5', '-z+0.5,y+0.5,-x+0.5',
+      'z+0.5,-y+0.5,-x+0.5']
+    number: 222
+    schoenflies: Oh^2
+    universal_h_m: P n -3 n :1
+  Pm-3n:
+    spacegroup: Pm-3n
+    crystal_class: cubic
+    hall: -P 4n 2 3
+    hermann_mauguin: P m -3 n
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', 'z,x,y', '-x+0.5,z+0.5,y+0.5',
+      '-z,-x,y', 'x+0.5,-z+0.5,y+0.5', 'z,-x,-y', 'x+0.5,z+0.5,-y+0.5', '-z,x,-y',
+      '-x+0.5,-z+0.5,-y+0.5', 'y,z,x', 'y,-z,-x', 'z+0.5,y+0.5,-x+0.5', '-y,z,-x',
+      '-z+0.5,-y+0.5,-x+0.5', '-y,-z,x', 'z+0.5,-y+0.5,x+0.5', '-z+0.5,y+0.5,x+0.5',
+      '-x,-y,-z', 'y-0.5,-x-0.5,-z-0.5', 'x,y,-z', '-y-0.5,x-0.5,-z-0.5', '-x,y,z',
+      '-y-0.5,-x-0.5,z-0.5', 'x,-y,z', 'y-0.5,x-0.5,z-0.5', '-z,-x,-y', 'x-0.5,-z-0.5,-y-0.5',
+      'z,x,-y', '-x-0.5,z-0.5,-y-0.5', '-z,x,y', '-x-0.5,-z-0.5,y-0.5', 'z,-x,y',
+      'x-0.5,z-0.5,y-0.5', '-y,-z,-x', '-y,z,x', '-z-0.5,-y-0.5,x-0.5', 'y,-z,x',
+      'z-0.5,y-0.5,x-0.5', 'y,z,-x', '-z-0.5,y-0.5,-x-0.5', 'z-0.5,-y-0.5,-x-0.5']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', 'z,x,y', '-x+0.5,z+0.5,y+0.5',
+      '-z,-x,y', 'x+0.5,-z+0.5,y+0.5', 'z,-x,-y', 'x+0.5,z+0.5,-y+0.5', '-z,x,-y',
+      '-x+0.5,-z+0.5,-y+0.5', 'y,z,x', 'y,-z,-x', 'z+0.5,y+0.5,-x+0.5', '-y,z,-x',
+      '-z+0.5,-y+0.5,-x+0.5', '-y,-z,x', 'z+0.5,-y+0.5,x+0.5', '-z+0.5,y+0.5,x+0.5',
+      '-x,-y,-z', 'y-0.5,-x-0.5,-z-0.5', 'x,y,-z', '-y-0.5,x-0.5,-z-0.5', '-x,y,z',
+      '-y-0.5,-x-0.5,z-0.5', 'x,-y,z', 'y-0.5,x-0.5,z-0.5', '-z,-x,-y', 'x-0.5,-z-0.5,-y-0.5',
+      'z,x,-y', '-x-0.5,z-0.5,-y-0.5', '-z,x,y', '-x-0.5,-z-0.5,y-0.5', 'z,-x,y',
+      'x-0.5,z-0.5,y-0.5', '-y,-z,-x', '-y,z,x', '-z-0.5,-y-0.5,x-0.5', 'y,-z,x',
+      'z-0.5,y-0.5,x-0.5', 'y,z,-x', '-z-0.5,y-0.5,-x-0.5', 'z-0.5,-y-0.5,-x-0.5']
+    number: 223
+    schoenflies: Oh^3
+    universal_h_m: P m -3 n
+  Pn-3m:
+    spacegroup: Pn-3m
+    crystal_class: cubic
+    hall: ' P 4n 2 3 -1n'
+    hermann_mauguin: P n -3 m
+    symops: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', 'z,x,y', '-x+0.5,z+0.5,y+0.5',
+      '-z,-x,y', 'x+0.5,-z+0.5,y+0.5', 'z,-x,-y', 'x+0.5,z+0.5,-y+0.5', '-z,x,-y',
+      '-x+0.5,-z+0.5,-y+0.5', 'y,z,x', 'y,-z,-x', 'z+0.5,y+0.5,-x+0.5', '-y,z,-x',
+      '-z+0.5,-y+0.5,-x+0.5', '-y,-z,x', 'z+0.5,-y+0.5,x+0.5', '-z+0.5,y+0.5,x+0.5',
+      '-x+0.5,-y+0.5,-z+0.5', 'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x+0.5,y+0.5,z+0.5',
+      '-y,-x,z', 'x+0.5,-y+0.5,z+0.5', 'y,x,z', '-z+0.5,-x+0.5,-y+0.5', 'x,-z,-y',
+      'z+0.5,x+0.5,-y+0.5', '-x,z,-y', '-z+0.5,x+0.5,y+0.5', '-x,-z,y', 'z+0.5,-x+0.5,y+0.5',
+      'x,z,y', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x+0.5', '-z,-y,x', 'y+0.5,-z+0.5,x+0.5',
+      'z,y,x', 'y+0.5,z+0.5,-x+0.5', '-z,y,-x', 'z,-y,-x']
+    ncsym: ['x,y,z', '-y+0.5,x+0.5,z+0.5', '-x,-y,z', 'y+0.5,-x+0.5,z+0.5', 'x,-y,-z',
+      'y+0.5,x+0.5,-z+0.5', '-x,y,-z', '-y+0.5,-x+0.5,-z+0.5', 'z,x,y', '-x+0.5,z+0.5,y+0.5',
+      '-z,-x,y', 'x+0.5,-z+0.5,y+0.5', 'z,-x,-y', 'x+0.5,z+0.5,-y+0.5', '-z,x,-y',
+      '-x+0.5,-z+0.5,-y+0.5', 'y,z,x', 'y,-z,-x', 'z+0.5,y+0.5,-x+0.5', '-y,z,-x',
+      '-z+0.5,-y+0.5,-x+0.5', '-y,-z,x', 'z+0.5,-y+0.5,x+0.5', '-z+0.5,y+0.5,x+0.5',
+      '-x+0.5,-y+0.5,-z+0.5', 'y,-x,-z', 'x+0.5,y+0.5,-z+0.5', '-y,x,-z', '-x+0.5,y+0.5,z+0.5',
+      '-y,-x,z', 'x+0.5,-y+0.5,z+0.5', 'y,x,z', '-z+0.5,-x+0.5,-y+0.5', 'x,-z,-y',
+      'z+0.5,x+0.5,-y+0.5', '-x,z,-y', '-z+0.5,x+0.5,y+0.5', '-x,-z,y', 'z+0.5,-x+0.5,y+0.5',
+      'x,z,y', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x+0.5', '-z,-y,x', 'y+0.5,-z+0.5,x+0.5',
+      'z,y,x', 'y+0.5,z+0.5,-x+0.5', '-z,y,-x', 'z,-y,-x']
+    number: 224
+    schoenflies: Oh^4
+    universal_h_m: P n -3 m :1
+  Fm-3m:
+    spacegroup: Fm-3m
+    crystal_class: cubic
+    hall: -F 4 2 3
+    hermann_mauguin: F m -3 m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', '-z,-x,-y', 'x,-z,-y', 'z,x,-y', '-x,z,-y', '-z,x,y', '-x,-z,y',
+      'z,-x,y', 'x,z,y', '-y,-z,-x', '-y,z,x', '-z,-y,x', 'y,-z,x', 'z,y,x', 'y,z,-x',
+      '-z,y,-x', 'z,-y,-x', 'x,y+0.5,z+0.5', '-y,x+0.5,z+0.5', '-x,-y+0.5,z+0.5',
+      'y,-x+0.5,z+0.5', 'x,-y+0.5,-z+0.5', 'y,x+0.5,-z+0.5', '-x,y+0.5,-z+0.5', '-y,-x+0.5,-z+0.5',
+      'z,x+0.5,y+0.5', '-x,z+0.5,y+0.5', '-z,-x+0.5,y+0.5', 'x,-z+0.5,y+0.5', 'z,-x+0.5,-y+0.5',
+      'x,z+0.5,-y+0.5', '-z,x+0.5,-y+0.5', '-x,-z+0.5,-y+0.5', 'y,z+0.5,x+0.5', 'y,-z+0.5,-x+0.5',
+      'z,y+0.5,-x+0.5', '-y,z+0.5,-x+0.5', '-z,-y+0.5,-x+0.5', '-y,-z+0.5,x+0.5',
+      'z,-y+0.5,x+0.5', '-z,y+0.5,x+0.5', '-x,-y+0.5,-z+0.5', 'y,-x+0.5,-z+0.5', 'x,y+0.5,-z+0.5',
+      '-y,x+0.5,-z+0.5', '-x,y+0.5,z+0.5', '-y,-x+0.5,z+0.5', 'x,-y+0.5,z+0.5', 'y,x+0.5,z+0.5',
+      '-z,-x+0.5,-y+0.5', 'x,-z+0.5,-y+0.5', 'z,x+0.5,-y+0.5', '-x,z+0.5,-y+0.5',
+      '-z,x+0.5,y+0.5', '-x,-z+0.5,y+0.5', 'z,-x+0.5,y+0.5', 'x,z+0.5,y+0.5', '-y,-z+0.5,-x+0.5',
+      '-y,z+0.5,x+0.5', '-z,-y+0.5,x+0.5', 'y,-z+0.5,x+0.5', 'z,y+0.5,x+0.5', 'y,z+0.5,-x+0.5',
+      '-z,y+0.5,-x+0.5', 'z,-y+0.5,-x+0.5', 'x+0.5,y,z+0.5', '-y+0.5,x,z+0.5', '-x+0.5,-y,z+0.5',
+      'y+0.5,-x,z+0.5', 'x+0.5,-y,-z+0.5', 'y+0.5,x,-z+0.5', '-x+0.5,y,-z+0.5', '-y+0.5,-x,-z+0.5',
+      'z+0.5,x,y+0.5', '-x+0.5,z,y+0.5', '-z+0.5,-x,y+0.5', 'x+0.5,-z,y+0.5', 'z+0.5,-x,-y+0.5',
+      'x+0.5,z,-y+0.5', '-z+0.5,x,-y+0.5', '-x+0.5,-z,-y+0.5', 'y+0.5,z,x+0.5', 'y+0.5,-z,-x+0.5',
+      'z+0.5,y,-x+0.5', '-y+0.5,z,-x+0.5', '-z+0.5,-y,-x+0.5', '-y+0.5,-z,x+0.5',
+      'z+0.5,-y,x+0.5', '-z+0.5,y,x+0.5', '-x+0.5,-y,-z+0.5', 'y+0.5,-x,-z+0.5', 'x+0.5,y,-z+0.5',
+      '-y+0.5,x,-z+0.5', '-x+0.5,y,z+0.5', '-y+0.5,-x,z+0.5', 'x+0.5,-y,z+0.5', 'y+0.5,x,z+0.5',
+      '-z+0.5,-x,-y+0.5', 'x+0.5,-z,-y+0.5', 'z+0.5,x,-y+0.5', '-x+0.5,z,-y+0.5',
+      '-z+0.5,x,y+0.5', '-x+0.5,-z,y+0.5', 'z+0.5,-x,y+0.5', 'x+0.5,z,y+0.5', '-y+0.5,-z,-x+0.5',
+      '-y+0.5,z,x+0.5', '-z+0.5,-y,x+0.5', 'y+0.5,-z,x+0.5', 'z+0.5,y,x+0.5', 'y+0.5,z,-x+0.5',
+      '-z+0.5,y,-x+0.5', 'z+0.5,-y,-x+0.5', 'x+0.5,y+0.5,z', '-y+0.5,x+0.5,z', '-x+0.5,-y+0.5,z',
+      'y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,-z', 'y+0.5,x+0.5,-z', '-x+0.5,y+0.5,-z', '-y+0.5,-x+0.5,-z',
+      'z+0.5,x+0.5,y', '-x+0.5,z+0.5,y', '-z+0.5,-x+0.5,y', 'x+0.5,-z+0.5,y', 'z+0.5,-x+0.5,-y',
+      'x+0.5,z+0.5,-y', '-z+0.5,x+0.5,-y', '-x+0.5,-z+0.5,-y', 'y+0.5,z+0.5,x', 'y+0.5,-z+0.5,-x',
+      'z+0.5,y+0.5,-x', '-y+0.5,z+0.5,-x', '-z+0.5,-y+0.5,-x', '-y+0.5,-z+0.5,x',
+      'z+0.5,-y+0.5,x', '-z+0.5,y+0.5,x', '-x+0.5,-y+0.5,-z', 'y+0.5,-x+0.5,-z', 'x+0.5,y+0.5,-z',
+      '-y+0.5,x+0.5,-z', '-x+0.5,y+0.5,z', '-y+0.5,-x+0.5,z', 'x+0.5,-y+0.5,z', 'y+0.5,x+0.5,z',
+      '-z+0.5,-x+0.5,-y', 'x+0.5,-z+0.5,-y', 'z+0.5,x+0.5,-y', '-x+0.5,z+0.5,-y',
+      '-z+0.5,x+0.5,y', '-x+0.5,-z+0.5,y', 'z+0.5,-x+0.5,y', 'x+0.5,z+0.5,y', '-y+0.5,-z+0.5,-x',
+      '-y+0.5,z+0.5,x', '-z+0.5,-y+0.5,x', 'y+0.5,-z+0.5,x', 'z+0.5,y+0.5,x', 'y+0.5,z+0.5,-x',
+      '-z+0.5,y+0.5,-x', 'z+0.5,-y+0.5,-x']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', '-z,-x,-y', 'x,-z,-y', 'z,x,-y', '-x,z,-y', '-z,x,y', '-x,-z,y',
+      'z,-x,y', 'x,z,y', '-y,-z,-x', '-y,z,x', '-z,-y,x', 'y,-z,x', 'z,y,x', 'y,z,-x',
+      '-z,y,-x', 'z,-y,-x']
+    number: 225
+    schoenflies: Oh^5
+    universal_h_m: F m -3 m
+  Fm-3c:
+    spacegroup: Fm-3c
+    crystal_class: cubic
+    hall: -F 4a 2 3
+    hermann_mauguin: F m -3 c
+    symops: ['x,y,z', '-y+0.5,x,z', '-x+0.5,-y+0.5,z', 'y,-x+0.5,z', 'x,-y,-z', 'y+0.5,x,-z',
+      '-x+0.5,y+0.5,-z', '-y,-x+0.5,-z', 'z,x,y', '-x+0.5,z,y', '-z+0.5,-x+0.5,y',
+      'x,-z+0.5,y', 'z,-x,-y', 'x+0.5,z,-y', '-z+0.5,x+0.5,-y', '-x,-z+0.5,-y', 'y,z,x',
+      'y,-z+0.5,-x+0.5', 'z,y,-x+0.5', '-y+0.5,z,-x+0.5', '-z+0.5,-y,-x', '-y,-z,x',
+      'z,-y,x+0.5', '-z+0.5,y+0.5,x+0.5', '-x,-y,-z', 'y-0.5,-x,-z', 'x-0.5,y-0.5,-z',
+      '-y,x-0.5,-z', '-x,y,z', '-y-0.5,-x,z', 'x-0.5,-y-0.5,z', 'y,x-0.5,z', '-z,-x,-y',
+      'x-0.5,-z,-y', 'z-0.5,x-0.5,-y', '-x,z-0.5,-y', '-z,x,y', '-x-0.5,-z,y', 'z-0.5,-x-0.5,y',
+      'x,z-0.5,y', '-y,-z,-x', '-y,z-0.5,x-0.5', '-z,-y,x-0.5', 'y-0.5,-z,x-0.5',
+      'z-0.5,y,x', 'y,z,-x', '-z,y,-x-0.5', 'z-0.5,-y-0.5,-x-0.5', 'x,y+0.5,z+0.5',
+      '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+1,z+0.5', 'y,-x+1,z+0.5', 'x,-y+0.5,-z+0.5',
+      'y+0.5,x+0.5,-z+0.5', '-x+0.5,y+1,-z+0.5', '-y,-x+1,-z+0.5', 'z,x+0.5,y+0.5',
+      '-x+0.5,z+0.5,y+0.5', '-z+0.5,-x+1,y+0.5', 'x,-z+1,y+0.5', 'z,-x+0.5,-y+0.5',
+      'x+0.5,z+0.5,-y+0.5', '-z+0.5,x+1,-y+0.5', '-x,-z+1,-y+0.5', 'y,z+0.5,x+0.5',
+      'y,-z+1,-x+1', 'z,y+0.5,-x+1', '-y+0.5,z+0.5,-x+1', '-z+0.5,-y+0.5,-x+0.5',
+      '-y,-z+0.5,x+0.5', 'z,-y+0.5,x+1', '-z+0.5,y+1,x+1', '-x,-y+0.5,-z+0.5', 'y-0.5,-x+0.5,-z+0.5',
+      'x-0.5,y,-z+0.5', '-y,x,-z+0.5', '-x,y+0.5,z+0.5', '-y-0.5,-x+0.5,z+0.5', 'x-0.5,-y,z+0.5',
+      'y,x,z+0.5', '-z,-x+0.5,-y+0.5', 'x-0.5,-z+0.5,-y+0.5', 'z-0.5,x,-y+0.5', '-x,z,-y+0.5',
+      '-z,x+0.5,y+0.5', '-x-0.5,-z+0.5,y+0.5', 'z-0.5,-x,y+0.5', 'x,z,y+0.5', '-y,-z+0.5,-x+0.5',
+      '-y,z,x', '-z,-y+0.5,x', 'y-0.5,-z+0.5,x', 'z-0.5,y+0.5,x+0.5', 'y,z+0.5,-x+0.5',
+      '-z,y+0.5,-x', 'z-0.5,-y,-x', 'x+0.5,y,z+0.5', '-y+1,x,z+0.5', '-x+1,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y,-z+0.5', 'y+1,x,-z+0.5', '-x+1,y+0.5,-z+0.5',
+      '-y+0.5,-x+0.5,-z+0.5', 'z+0.5,x,y+0.5', '-x+1,z,y+0.5', '-z+1,-x+0.5,y+0.5',
+      'x+0.5,-z+0.5,y+0.5', 'z+0.5,-x,-y+0.5', 'x+1,z,-y+0.5', '-z+1,x+0.5,-y+0.5',
+      '-x+0.5,-z+0.5,-y+0.5', 'y+0.5,z,x+0.5', 'y+0.5,-z+0.5,-x+1', 'z+0.5,y,-x+1',
+      '-y+1,z,-x+1', '-z+1,-y,-x+0.5', '-y+0.5,-z,x+0.5', 'z+0.5,-y,x+1', '-z+1,y+0.5,x+1',
+      '-x+0.5,-y,-z+0.5', 'y,-x,-z+0.5', 'x,y-0.5,-z+0.5', '-y+0.5,x-0.5,-z+0.5',
+      '-x+0.5,y,z+0.5', '-y,-x,z+0.5', 'x,-y-0.5,z+0.5', 'y+0.5,x-0.5,z+0.5', '-z+0.5,-x,-y+0.5',
+      'x,-z,-y+0.5', 'z,x-0.5,-y+0.5', '-x+0.5,z-0.5,-y+0.5', '-z+0.5,x,y+0.5', '-x,-z,y+0.5',
+      'z,-x-0.5,y+0.5', 'x+0.5,z-0.5,y+0.5', '-y+0.5,-z,-x+0.5', '-y+0.5,z-0.5,x',
+      '-z+0.5,-y,x', 'y,-z,x', 'z,y,x+0.5', 'y+0.5,z,-x+0.5', '-z+0.5,y,-x', 'z,-y-0.5,-x',
+      'x+0.5,y+0.5,z', '-y+1,x+0.5,z', '-x+1,-y+1,z', 'y+0.5,-x+1,z', 'x+0.5,-y+0.5,-z',
+      'y+1,x+0.5,-z', '-x+1,y+1,-z', '-y+0.5,-x+1,-z', 'z+0.5,x+0.5,y', '-x+1,z+0.5,y',
+      '-z+1,-x+1,y', 'x+0.5,-z+1,y', 'z+0.5,-x+0.5,-y', 'x+1,z+0.5,-y', '-z+1,x+1,-y',
+      '-x+0.5,-z+1,-y', 'y+0.5,z+0.5,x', 'y+0.5,-z+1,-x+0.5', 'z+0.5,y+0.5,-x+0.5',
+      '-y+1,z+0.5,-x+0.5', '-z+1,-y+0.5,-x', '-y+0.5,-z+0.5,x', 'z+0.5,-y+0.5,x+0.5',
+      '-z+1,y+1,x+0.5', '-x+0.5,-y+0.5,-z', 'y,-x+0.5,-z', 'x,y,-z', '-y+0.5,x,-z',
+      '-x+0.5,y+0.5,z', '-y,-x+0.5,z', 'x,-y,z', 'y+0.5,x,z', '-z+0.5,-x+0.5,-y',
+      'x,-z+0.5,-y', 'z,x,-y', '-x+0.5,z,-y', '-z+0.5,x+0.5,y', '-x,-z+0.5,y', 'z,-x,y',
+      'x+0.5,z,y', '-y+0.5,-z+0.5,-x', '-y+0.5,z,x-0.5', '-z+0.5,-y+0.5,x-0.5', 'y,-z+0.5,x-0.5',
+      'z,y+0.5,x', 'y+0.5,z+0.5,-x', '-z+0.5,y+0.5,-x-0.5', 'z,-y,-x-0.5']
+    ncsym: ['x,y,z', '-y+0.5,x,z', '-x+0.5,-y+0.5,z', 'y,-x+0.5,z', 'x,-y,-z', 'y+0.5,x,-z',
+      '-x+0.5,y+0.5,-z', '-y,-x+0.5,-z', 'z,x,y', '-x+0.5,z,y', '-z+0.5,-x+0.5,y',
+      'x,-z+0.5,y', 'z,-x,-y', 'x+0.5,z,-y', '-z+0.5,x+0.5,-y', '-x,-z+0.5,-y', 'y,z,x',
+      'y,-z+0.5,-x+0.5', 'z,y,-x+0.5', '-y+0.5,z,-x+0.5', '-z+0.5,-y,-x', '-y,-z,x',
+      'z,-y,x+0.5', '-z+0.5,y+0.5,x+0.5', '-x,-y,-z', 'y-0.5,-x,-z', 'x-0.5,y-0.5,-z',
+      '-y,x-0.5,-z', '-x,y,z', '-y-0.5,-x,z', 'x-0.5,-y-0.5,z', 'y,x-0.5,z', '-z,-x,-y',
+      'x-0.5,-z,-y', 'z-0.5,x-0.5,-y', '-x,z-0.5,-y', '-z,x,y', '-x-0.5,-z,y', 'z-0.5,-x-0.5,y',
+      'x,z-0.5,y', '-y,-z,-x', '-y,z-0.5,x-0.5', '-z,-y,x-0.5', 'y-0.5,-z,x-0.5',
+      'z-0.5,y,x', 'y,z,-x', '-z,y,-x-0.5', 'z-0.5,-y-0.5,-x-0.5']
+    number: 226
+    schoenflies: Oh^6
+    universal_h_m: F m -3 c
+  Fd-3m:
+    spacegroup: Fd-3m
+    crystal_class: cubic
+    hall: ' F 4d 2 3 -1d'
+    hermann_mauguin: F d -3 m
+    symops: ['x,y,z', '-y+0.25,x+0.25,z+0.25', '-x,-y+0.5,z+0.5', 'y+0.75,-x+0.25,z+0.75',
+      'x,-y,-z', 'y+0.25,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.25,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.25,y+0.25', '-z,-x+0.5,y+0.5', 'x+0.75,-z+0.25,y+0.75',
+      'z,-x,-y', 'x+0.25,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.25,-y+0.75',
+      'y,z,x', 'y+0.5,-z,-x+0.5', 'z+0.25,y+0.75,-x+0.75', '-y+0.5,z+0.5,-x', '-z+0.25,-y+0.25,-x+0.25',
+      '-y,-z,x', 'z+0.25,-y+0.75,x+0.75', '-z+0.75,y+0.75,x+0.25', '-x+0.25,-y+0.25,-z+0.25',
+      'y,-x,-z', 'x+0.25,y-0.25,-z-0.25', '-y-0.5,x,-z-0.5', '-x+0.25,y+0.25,z+0.25',
+      '-y,-x,z', 'x+0.25,-y-0.25,z-0.25', 'y-0.5,x,z-0.5', '-z+0.25,-x+0.25,-y+0.25',
+      'x,-z,-y', 'z+0.25,x-0.25,-y-0.25', '-x-0.5,z,-y-0.5', '-z+0.25,x+0.25,y+0.25',
+      '-x,-z,y', 'z+0.25,-x-0.25,y-0.25', 'x-0.5,z,y-0.5', '-y+0.25,-z+0.25,-x+0.25',
+      '-y-0.25,z+0.25,x-0.25', '-z,-y-0.5,x-0.5', 'y-0.25,-z-0.25,x+0.25', 'z,y,x',
+      'y+0.25,z+0.25,-x+0.25', '-z,y-0.5,-x-0.5', 'z-0.5,-y-0.5,-x', 'x,y+0.5,z+0.5',
+      '-y+0.25,x+0.75,z+0.75', '-x,-y+1,z+1', 'y+0.75,-x+0.75,z+1.25', 'x,-y+0.5,-z+0.5',
+      'y+0.25,x+0.75,-z+0.75', '-x,y+1,-z+1', '-y+0.75,-x+0.75,-z+1.25', 'z,x+0.5,y+0.5',
+      '-x+0.25,z+0.75,y+0.75', '-z,-x+1,y+1', 'x+0.75,-z+0.75,y+1.25', 'z,-x+0.5,-y+0.5',
+      'x+0.25,z+0.75,-y+0.75', '-z,x+1,-y+1', '-x+0.75,-z+0.75,-y+1.25', 'y,z+0.5,x+0.5',
+      'y+0.5,-z+0.5,-x+1', 'z+0.25,y+1.25,-x+1.25', '-y+0.5,z+1,-x+0.5', '-z+0.25,-y+0.75,-x+0.75',
+      '-y,-z+0.5,x+0.5', 'z+0.25,-y+1.25,x+1.25', '-z+0.75,y+1.25,x+0.75', '-x+0.25,-y+0.75,-z+0.75',
+      'y,-x+0.5,-z+0.5', 'x+0.25,y+0.25,-z+0.25', '-y-0.5,x+0.5,-z', '-x+0.25,y+0.75,z+0.75',
+      '-y,-x+0.5,z+0.5', 'x+0.25,-y+0.25,z+0.25', 'y-0.5,x+0.5,z', '-z+0.25,-x+0.75,-y+0.75',
+      'x,-z+0.5,-y+0.5', 'z+0.25,x+0.25,-y+0.25', '-x-0.5,z+0.5,-y', '-z+0.25,x+0.75,y+0.75',
+      '-x,-z+0.5,y+0.5', 'z+0.25,-x+0.25,y+0.25', 'x-0.5,z+0.5,y', '-y+0.25,-z+0.75,-x+0.75',
+      '-y-0.25,z+0.75,x+0.25', '-z,-y,x', 'y-0.25,-z+0.25,x+0.75', 'z,y+0.5,x+0.5',
+      'y+0.25,z+0.75,-x+0.75', '-z,y,-x', 'z-0.5,-y,-x+0.5', 'x+0.5,y,z+0.5', '-y+0.75,x+0.25,z+0.75',
+      '-x+0.5,-y+0.5,z+1', 'y+1.25,-x+0.25,z+1.25', 'x+0.5,-y,-z+0.5', 'y+0.75,x+0.25,-z+0.75',
+      '-x+0.5,y+0.5,-z+1', '-y+1.25,-x+0.25,-z+1.25', 'z+0.5,x,y+0.5', '-x+0.75,z+0.25,y+0.75',
+      '-z+0.5,-x+0.5,y+1', 'x+1.25,-z+0.25,y+1.25', 'z+0.5,-x,-y+0.5', 'x+0.75,z+0.25,-y+0.75',
+      '-z+0.5,x+0.5,-y+1', '-x+1.25,-z+0.25,-y+1.25', 'y+0.5,z,x+0.5', 'y+1,-z,-x+1',
+      'z+0.75,y+0.75,-x+1.25', '-y+1,z+0.5,-x+0.5', '-z+0.75,-y+0.25,-x+0.75', '-y+0.5,-z,x+0.5',
+      'z+0.75,-y+0.75,x+1.25', '-z+1.25,y+0.75,x+0.75', '-x+0.75,-y+0.25,-z+0.75',
+      'y+0.5,-x,-z+0.5', 'x+0.75,y-0.25,-z+0.25', '-y,x,-z', '-x+0.75,y+0.25,z+0.75',
+      '-y+0.5,-x,z+0.5', 'x+0.75,-y-0.25,z+0.25', 'y,x,z', '-z+0.75,-x+0.25,-y+0.75',
+      'x+0.5,-z,-y+0.5', 'z+0.75,x-0.25,-y+0.25', '-x,z,-y', '-z+0.75,x+0.25,y+0.75',
+      '-x+0.5,-z,y+0.5', 'z+0.75,-x-0.25,y+0.25', 'x,z,y', '-y+0.75,-z+0.25,-x+0.75',
+      '-y+0.25,z+0.25,x+0.25', '-z+0.5,-y-0.5,x', 'y+0.25,-z-0.25,x+0.75', 'z+0.5,y,x+0.5',
+      'y+0.75,z+0.25,-x+0.75', '-z+0.5,y-0.5,-x', 'z,-y-0.5,-x+0.5', 'x+0.5,y+0.5,z',
+      '-y+0.75,x+0.75,z+0.25', '-x+0.5,-y+1,z+0.5', 'y+1.25,-x+0.75,z+0.75', 'x+0.5,-y+0.5,-z',
+      'y+0.75,x+0.75,-z+0.25', '-x+0.5,y+1,-z+0.5', '-y+1.25,-x+0.75,-z+0.75', 'z+0.5,x+0.5,y',
+      '-x+0.75,z+0.75,y+0.25', '-z+0.5,-x+1,y+0.5', 'x+1.25,-z+0.75,y+0.75', 'z+0.5,-x+0.5,-y',
+      'x+0.75,z+0.75,-y+0.25', '-z+0.5,x+1,-y+0.5', '-x+1.25,-z+0.75,-y+0.75', 'y+0.5,z+0.5,x',
+      'y+1,-z+0.5,-x+0.5', 'z+0.75,y+1.25,-x+0.75', '-y+1,z+1,-x', '-z+0.75,-y+0.75,-x+0.25',
+      '-y+0.5,-z+0.5,x', 'z+0.75,-y+1.25,x+0.75', '-z+1.25,y+1.25,x+0.25', '-x+0.75,-y+0.75,-z+0.25',
+      'y+0.5,-x+0.5,-z', 'x+0.75,y+0.25,-z-0.25', '-y,x+0.5,-z-0.5', '-x+0.75,y+0.75,z+0.25',
+      '-y+0.5,-x+0.5,z', 'x+0.75,-y+0.25,z-0.25', 'y,x+0.5,z-0.5', '-z+0.75,-x+0.75,-y+0.25',
+      'x+0.5,-z+0.5,-y', 'z+0.75,x+0.25,-y-0.25', '-x,z+0.5,-y-0.5', '-z+0.75,x+0.75,y+0.25',
+      '-x+0.5,-z+0.5,y', 'z+0.75,-x+0.25,y-0.25', 'x,z+0.5,y-0.5', '-y+0.75,-z+0.75,-x+0.25',
+      '-y+0.25,z+0.75,x-0.25', '-z+0.5,-y,x-0.5', 'y+0.25,-z+0.25,x+0.25', 'z+0.5,y+0.5,x',
+      'y+0.75,z+0.75,-x+0.25', '-z+0.5,y,-x-0.5', 'z,-y,-x']
+    ncsym: ['x,y,z', '-y+0.25,x+0.25,z+0.25', '-x,-y+0.5,z+0.5', 'y+0.75,-x+0.25,z+0.75',
+      'x,-y,-z', 'y+0.25,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.25,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.25,y+0.25', '-z,-x+0.5,y+0.5', 'x+0.75,-z+0.25,y+0.75',
+      'z,-x,-y', 'x+0.25,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.25,-y+0.75',
+      'y,z,x', 'y+0.5,-z,-x+0.5', 'z+0.25,y+0.75,-x+0.75', '-y+0.5,z+0.5,-x', '-z+0.25,-y+0.25,-x+0.25',
+      '-y,-z,x', 'z+0.25,-y+0.75,x+0.75', '-z+0.75,y+0.75,x+0.25', '-x+0.25,-y+0.25,-z+0.25',
+      'y,-x,-z', 'x+0.25,y-0.25,-z-0.25', '-y-0.5,x,-z-0.5', '-x+0.25,y+0.25,z+0.25',
+      '-y,-x,z', 'x+0.25,-y-0.25,z-0.25', 'y-0.5,x,z-0.5', '-z+0.25,-x+0.25,-y+0.25',
+      'x,-z,-y', 'z+0.25,x-0.25,-y-0.25', '-x-0.5,z,-y-0.5', '-z+0.25,x+0.25,y+0.25',
+      '-x,-z,y', 'z+0.25,-x-0.25,y-0.25', 'x-0.5,z,y-0.5', '-y+0.25,-z+0.25,-x+0.25',
+      '-y-0.25,z+0.25,x-0.25', '-z,-y-0.5,x-0.5', 'y-0.25,-z-0.25,x+0.25', 'z,y,x',
+      'y+0.25,z+0.25,-x+0.25', '-z,y-0.5,-x-0.5', 'z-0.5,-y-0.5,-x']
+    number: 227
+    schoenflies: Oh^7
+    universal_h_m: F d -3 m :1
+  Fd-3c:
+    spacegroup: Fd-3c
+    crystal_class: cubic
+    hall: ' F 4d 2 3 -1ad'
+    hermann_mauguin: F d -3 c
+    symops: ['x,y,z', '-y+0.25,x+0.25,z+0.25', '-x,-y+0.5,z+0.5', 'y+0.75,-x+0.25,z+0.75',
+      'x,-y,-z', 'y+0.25,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.25,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.25,y+0.25', '-z,-x+0.5,y+0.5', 'x+0.75,-z+0.25,y+0.75',
+      'z,-x,-y', 'x+0.25,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.25,-y+0.75',
+      'y,z,x', 'y+0.5,-z,-x+0.5', 'z+0.25,y+0.75,-x+0.75', '-y+0.5,z+0.5,-x', '-z+0.25,-y+0.25,-x+0.25',
+      '-y,-z,x', 'z+0.25,-y+0.75,x+0.75', '-z+0.75,y+0.75,x+0.25', '-x+0.75,-y+0.25,-z+0.25',
+      'y+0.5,-x,-z', 'x+0.75,y-0.25,-z-0.25', '-y,x,-z-0.5', '-x+0.75,y+0.25,z+0.25',
+      '-y+0.5,-x,z', 'x+0.75,-y-0.25,z-0.25', 'y,x,z-0.5', '-z+0.75,-x+0.25,-y+0.25',
+      'x+0.5,-z,-y', 'z+0.75,x-0.25,-y-0.25', '-x,z,-y-0.5', '-z+0.75,x+0.25,y+0.25',
+      '-x+0.5,-z,y', 'z+0.75,-x-0.25,y-0.25', 'x,z,y-0.5', '-y+0.75,-z+0.25,-x+0.25',
+      '-y+0.25,z+0.25,x-0.25', '-z+0.5,-y-0.5,x-0.5', 'y+0.25,-z-0.25,x+0.25', 'z+0.5,y,x',
+      'y+0.75,z+0.25,-x+0.25', '-z+0.5,y-0.5,-x-0.5', 'z,-y-0.5,-x', 'x,y+0.5,z+0.5',
+      '-y+0.25,x+0.75,z+0.75', '-x,-y+1,z+1', 'y+0.75,-x+0.75,z+1.25', 'x,-y+0.5,-z+0.5',
+      'y+0.25,x+0.75,-z+0.75', '-x,y+1,-z+1', '-y+0.75,-x+0.75,-z+1.25', 'z,x+0.5,y+0.5',
+      '-x+0.25,z+0.75,y+0.75', '-z,-x+1,y+1', 'x+0.75,-z+0.75,y+1.25', 'z,-x+0.5,-y+0.5',
+      'x+0.25,z+0.75,-y+0.75', '-z,x+1,-y+1', '-x+0.75,-z+0.75,-y+1.25', 'y,z+0.5,x+0.5',
+      'y+0.5,-z+0.5,-x+1', 'z+0.25,y+1.25,-x+1.25', '-y+0.5,z+1,-x+0.5', '-z+0.25,-y+0.75,-x+0.75',
+      '-y,-z+0.5,x+0.5', 'z+0.25,-y+1.25,x+1.25', '-z+0.75,y+1.25,x+0.75', '-x+0.75,-y+0.75,-z+0.75',
+      'y+0.5,-x+0.5,-z+0.5', 'x+0.75,y+0.25,-z+0.25', '-y,x+0.5,-z', '-x+0.75,y+0.75,z+0.75',
+      '-y+0.5,-x+0.5,z+0.5', 'x+0.75,-y+0.25,z+0.25', 'y,x+0.5,z', '-z+0.75,-x+0.75,-y+0.75',
+      'x+0.5,-z+0.5,-y+0.5', 'z+0.75,x+0.25,-y+0.25', '-x,z+0.5,-y', '-z+0.75,x+0.75,y+0.75',
+      '-x+0.5,-z+0.5,y+0.5', 'z+0.75,-x+0.25,y+0.25', 'x,z+0.5,y', '-y+0.75,-z+0.75,-x+0.75',
+      '-y+0.25,z+0.75,x+0.25', '-z+0.5,-y,x', 'y+0.25,-z+0.25,x+0.75', 'z+0.5,y+0.5,x+0.5',
+      'y+0.75,z+0.75,-x+0.75', '-z+0.5,y,-x', 'z,-y,-x+0.5', 'x+0.5,y,z+0.5', '-y+0.75,x+0.25,z+0.75',
+      '-x+0.5,-y+0.5,z+1', 'y+1.25,-x+0.25,z+1.25', 'x+0.5,-y,-z+0.5', 'y+0.75,x+0.25,-z+0.75',
+      '-x+0.5,y+0.5,-z+1', '-y+1.25,-x+0.25,-z+1.25', 'z+0.5,x,y+0.5', '-x+0.75,z+0.25,y+0.75',
+      '-z+0.5,-x+0.5,y+1', 'x+1.25,-z+0.25,y+1.25', 'z+0.5,-x,-y+0.5', 'x+0.75,z+0.25,-y+0.75',
+      '-z+0.5,x+0.5,-y+1', '-x+1.25,-z+0.25,-y+1.25', 'y+0.5,z,x+0.5', 'y+1,-z,-x+1',
+      'z+0.75,y+0.75,-x+1.25', '-y+1,z+0.5,-x+0.5', '-z+0.75,-y+0.25,-x+0.75', '-y+0.5,-z,x+0.5',
+      'z+0.75,-y+0.75,x+1.25', '-z+1.25,y+0.75,x+0.75', '-x+1.25,-y+0.25,-z+0.75',
+      'y+1,-x,-z+0.5', 'x+1.25,y-0.25,-z+0.25', '-y+0.5,x,-z', '-x+1.25,y+0.25,z+0.75',
+      '-y+1,-x,z+0.5', 'x+1.25,-y-0.25,z+0.25', 'y+0.5,x,z', '-z+1.25,-x+0.25,-y+0.75',
+      'x+1,-z,-y+0.5', 'z+1.25,x-0.25,-y+0.25', '-x+0.5,z,-y', '-z+1.25,x+0.25,y+0.75',
+      '-x+1,-z,y+0.5', 'z+1.25,-x-0.25,y+0.25', 'x+0.5,z,y', '-y+1.25,-z+0.25,-x+0.75',
+      '-y+0.75,z+0.25,x+0.25', '-z+1,-y-0.5,x', 'y+0.75,-z-0.25,x+0.75', 'z+1,y,x+0.5',
+      'y+1.25,z+0.25,-x+0.75', '-z+1,y-0.5,-x', 'z+0.5,-y-0.5,-x+0.5', 'x+0.5,y+0.5,z',
+      '-y+0.75,x+0.75,z+0.25', '-x+0.5,-y+1,z+0.5', 'y+1.25,-x+0.75,z+0.75', 'x+0.5,-y+0.5,-z',
+      'y+0.75,x+0.75,-z+0.25', '-x+0.5,y+1,-z+0.5', '-y+1.25,-x+0.75,-z+0.75', 'z+0.5,x+0.5,y',
+      '-x+0.75,z+0.75,y+0.25', '-z+0.5,-x+1,y+0.5', 'x+1.25,-z+0.75,y+0.75', 'z+0.5,-x+0.5,-y',
+      'x+0.75,z+0.75,-y+0.25', '-z+0.5,x+1,-y+0.5', '-x+1.25,-z+0.75,-y+0.75', 'y+0.5,z+0.5,x',
+      'y+1,-z+0.5,-x+0.5', 'z+0.75,y+1.25,-x+0.75', '-y+1,z+1,-x', '-z+0.75,-y+0.75,-x+0.25',
+      '-y+0.5,-z+0.5,x', 'z+0.75,-y+1.25,x+0.75', '-z+1.25,y+1.25,x+0.25', '-x+1.25,-y+0.75,-z+0.25',
+      'y+1,-x+0.5,-z', 'x+1.25,y+0.25,-z-0.25', '-y+0.5,x+0.5,-z-0.5', '-x+1.25,y+0.75,z+0.25',
+      '-y+1,-x+0.5,z', 'x+1.25,-y+0.25,z-0.25', 'y+0.5,x+0.5,z-0.5', '-z+1.25,-x+0.75,-y+0.25',
+      'x+1,-z+0.5,-y', 'z+1.25,x+0.25,-y-0.25', '-x+0.5,z+0.5,-y-0.5', '-z+1.25,x+0.75,y+0.25',
+      '-x+1,-z+0.5,y', 'z+1.25,-x+0.25,y-0.25', 'x+0.5,z+0.5,y-0.5', '-y+1.25,-z+0.75,-x+0.25',
+      '-y+0.75,z+0.75,x-0.25', '-z+1,-y,x-0.5', 'y+0.75,-z+0.25,x+0.25', 'z+1,y+0.5,x',
+      'y+1.25,z+0.75,-x+0.25', '-z+1,y,-x-0.5', 'z+0.5,-y,-x']
+    ncsym: ['x,y,z', '-y+0.25,x+0.25,z+0.25', '-x,-y+0.5,z+0.5', 'y+0.75,-x+0.25,z+0.75',
+      'x,-y,-z', 'y+0.25,x+0.25,-z+0.25', '-x,y+0.5,-z+0.5', '-y+0.75,-x+0.25,-z+0.75',
+      'z,x,y', '-x+0.25,z+0.25,y+0.25', '-z,-x+0.5,y+0.5', 'x+0.75,-z+0.25,y+0.75',
+      'z,-x,-y', 'x+0.25,z+0.25,-y+0.25', '-z,x+0.5,-y+0.5', '-x+0.75,-z+0.25,-y+0.75',
+      'y,z,x', 'y+0.5,-z,-x+0.5', 'z+0.25,y+0.75,-x+0.75', '-y+0.5,z+0.5,-x', '-z+0.25,-y+0.25,-x+0.25',
+      '-y,-z,x', 'z+0.25,-y+0.75,x+0.75', '-z+0.75,y+0.75,x+0.25', '-x+0.75,-y+0.25,-z+0.25',
+      'y+0.5,-x,-z', 'x+0.75,y-0.25,-z-0.25', '-y,x,-z-0.5', '-x+0.75,y+0.25,z+0.25',
+      '-y+0.5,-x,z', 'x+0.75,-y-0.25,z-0.25', 'y,x,z-0.5', '-z+0.75,-x+0.25,-y+0.25',
+      'x+0.5,-z,-y', 'z+0.75,x-0.25,-y-0.25', '-x,z,-y-0.5', '-z+0.75,x+0.25,y+0.25',
+      '-x+0.5,-z,y', 'z+0.75,-x-0.25,y-0.25', 'x,z,y-0.5', '-y+0.75,-z+0.25,-x+0.25',
+      '-y+0.25,z+0.25,x-0.25', '-z+0.5,-y-0.5,x-0.5', 'y+0.25,-z-0.25,x+0.25', 'z+0.5,y,x',
+      'y+0.75,z+0.25,-x+0.25', '-z+0.5,y-0.5,-x-0.5', 'z,-y-0.5,-x']
+    number: 228
+    schoenflies: Oh^8
+    universal_h_m: F d -3 c :1
+  Im-3m:
+    spacegroup: Im-3m
+    crystal_class: cubic
+    hall: -I 4 2 3
+    hermann_mauguin: I m -3 m
+    symops: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', '-z,-x,-y', 'x,-z,-y', 'z,x,-y', '-x,z,-y', '-z,x,y', '-x,-z,y',
+      'z,-x,y', 'x,z,y', '-y,-z,-x', '-y,z,x', '-z,-y,x', 'y,-z,x', 'z,y,x', 'y,z,-x',
+      '-z,y,-x', 'z,-y,-x', 'x+0.5,y+0.5,z+0.5', '-y+0.5,x+0.5,z+0.5', '-x+0.5,-y+0.5,z+0.5',
+      'y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,-z+0.5', 'y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,-x+0.5,-z+0.5', 'z+0.5,x+0.5,y+0.5', '-x+0.5,z+0.5,y+0.5', '-z+0.5,-x+0.5,y+0.5',
+      'x+0.5,-z+0.5,y+0.5', 'z+0.5,-x+0.5,-y+0.5', 'x+0.5,z+0.5,-y+0.5', '-z+0.5,x+0.5,-y+0.5',
+      '-x+0.5,-z+0.5,-y+0.5', 'y+0.5,z+0.5,x+0.5', 'y+0.5,-z+0.5,-x+0.5', 'z+0.5,y+0.5,-x+0.5',
+      '-y+0.5,z+0.5,-x+0.5', '-z+0.5,-y+0.5,-x+0.5', '-y+0.5,-z+0.5,x+0.5', 'z+0.5,-y+0.5,x+0.5',
+      '-z+0.5,y+0.5,x+0.5', '-x+0.5,-y+0.5,-z+0.5', 'y+0.5,-x+0.5,-z+0.5', 'x+0.5,y+0.5,-z+0.5',
+      '-y+0.5,x+0.5,-z+0.5', '-x+0.5,y+0.5,z+0.5', '-y+0.5,-x+0.5,z+0.5', 'x+0.5,-y+0.5,z+0.5',
+      'y+0.5,x+0.5,z+0.5', '-z+0.5,-x+0.5,-y+0.5', 'x+0.5,-z+0.5,-y+0.5', 'z+0.5,x+0.5,-y+0.5',
+      '-x+0.5,z+0.5,-y+0.5', '-z+0.5,x+0.5,y+0.5', '-x+0.5,-z+0.5,y+0.5', 'z+0.5,-x+0.5,y+0.5',
+      'x+0.5,z+0.5,y+0.5', '-y+0.5,-z+0.5,-x+0.5', '-y+0.5,z+0.5,x+0.5', '-z+0.5,-y+0.5,x+0.5',
+      'y+0.5,-z+0.5,x+0.5', 'z+0.5,y+0.5,x+0.5', 'y+0.5,z+0.5,-x+0.5', '-z+0.5,y+0.5,-x+0.5',
+      'z+0.5,-y+0.5,-x+0.5']
+    ncsym: ['x,y,z', '-y,x,z', '-x,-y,z', 'y,-x,z', 'x,-y,-z', 'y,x,-z', '-x,y,-z',
+      '-y,-x,-z', 'z,x,y', '-x,z,y', '-z,-x,y', 'x,-z,y', 'z,-x,-y', 'x,z,-y', '-z,x,-y',
+      '-x,-z,-y', 'y,z,x', 'y,-z,-x', 'z,y,-x', '-y,z,-x', '-z,-y,-x', '-y,-z,x',
+      'z,-y,x', '-z,y,x', '-x,-y,-z', 'y,-x,-z', 'x,y,-z', '-y,x,-z', '-x,y,z', '-y,-x,z',
+      'x,-y,z', 'y,x,z', '-z,-x,-y', 'x,-z,-y', 'z,x,-y', '-x,z,-y', '-z,x,y', '-x,-z,y',
+      'z,-x,y', 'x,z,y', '-y,-z,-x', '-y,z,x', '-z,-y,x', 'y,-z,x', 'z,y,x', 'y,z,-x',
+      '-z,y,-x', 'z,-y,-x']
+    number: 229
+    schoenflies: Oh^9
+    universal_h_m: I m -3 m
+  Ia-3d:
+    spacegroup: Ia-3d
+    crystal_class: cubic
+    hall: -I 4bd 2c 3
+    hermann_mauguin: I a -3 d
+    symops: ['x,y,z', '-y+0.25,x+0.75,z+0.25', '-x+0.5,-y,z+0.5', 'y+0.25,-x+0.25,z+0.75',
+      'x,-y,-z+0.5', 'y+0.25,x+0.75,-z+0.75', '-x+0.5,y,-z', '-y+0.25,-x+0.25,-z+0.25',
+      'z,x,y', '-x+0.25,z+0.75,y+0.25', '-z+0.5,-x,y+0.5', 'x+0.25,-z+0.25,y+0.75',
+      'z,-x,-y+0.5', 'x+0.25,z+0.75,-y+0.75', '-z+0.5,x,-y', '-x+0.25,-z+0.25,-y+0.25',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.75,y+0.25,-x+0.25', '-y,z+0.5,-x+0.5', '-z+0.25,-y+0.25,-x+0.25',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+0.25', '-z+0.75,y+0.25,x+0.75', '-x,-y,-z',
+      'y-0.25,-x-0.75,-z-0.25', 'x-0.5,y,-z-0.5', '-y-0.25,x-0.25,-z-0.75', '-x,y,z-0.5',
+      '-y-0.25,-x-0.75,z-0.75', 'x-0.5,-y,z', 'y-0.25,x-0.25,z-0.25', '-z,-x,-y',
+      'x-0.25,-z-0.75,-y-0.25', 'z-0.5,x,-y-0.5', '-x-0.25,z-0.25,-y-0.75', '-z,x,y-0.5',
+      '-x-0.25,-z-0.75,y-0.75', 'z-0.5,-x,y', 'x-0.25,z-0.25,y-0.25', '-y,-z,-x',
+      '-y-0.5,z-0.5,x', '-z-0.75,-y-0.25,x-0.25', 'y,-z-0.5,x-0.5', 'z-0.25,y-0.25,x-0.25',
+      'y-0.5,z,-x-0.5', '-z-0.75,y-0.75,-x-0.25', 'z-0.75,-y-0.25,-x-0.75', 'x+0.5,y+0.5,z+0.5',
+      '-y+0.75,x+1.25,z+0.75', '-x+1,-y+0.5,z+1', 'y+0.75,-x+0.75,z+1.25', 'x+0.5,-y+0.5,-z+1',
+      'y+0.75,x+1.25,-z+1.25', '-x+1,y+0.5,-z+0.5', '-y+0.75,-x+0.75,-z+0.75', 'z+0.5,x+0.5,y+0.5',
+      '-x+0.75,z+1.25,y+0.75', '-z+1,-x+0.5,y+1', 'x+0.75,-z+0.75,y+1.25', 'z+0.5,-x+0.5,-y+1',
+      'x+0.75,z+1.25,-y+1.25', '-z+1,x+0.5,-y+0.5', '-x+0.75,-z+0.75,-y+0.75', 'y+0.5,z+0.5,x+0.5',
+      'y+1,-z+1,-x+0.5', 'z+1.25,y+0.75,-x+0.75', '-y+0.5,z+1,-x+1', '-z+0.75,-y+0.75,-x+0.75',
+      '-y+1,-z+0.5,x+1', 'z+1.25,-y+1.25,x+0.75', '-z+1.25,y+0.75,x+1.25', '-x+0.5,-y+0.5,-z+0.5',
+      'y+0.25,-x-0.25,-z+0.25', 'x,y+0.5,-z', '-y+0.25,x+0.25,-z-0.25', '-x+0.5,y+0.5,z',
+      '-y+0.25,-x-0.25,z-0.25', 'x,-y+0.5,z+0.5', 'y+0.25,x+0.25,z+0.25', '-z+0.5,-x+0.5,-y+0.5',
+      'x+0.25,-z-0.25,-y+0.25', 'z,x+0.5,-y', '-x+0.25,z+0.25,-y-0.25', '-z+0.5,x+0.5,y',
+      '-x+0.25,-z-0.25,y-0.25', 'z,-x+0.5,y+0.5', 'x+0.25,z+0.25,y+0.25', '-y+0.5,-z+0.5,-x+0.5',
+      '-y,z,x+0.5', '-z-0.25,-y+0.25,x+0.25', 'y+0.5,-z,x', 'z+0.25,y+0.25,x+0.25',
+      'y,z+0.5,-x', '-z-0.25,y-0.25,-x+0.25', 'z-0.25,-y+0.25,-x-0.25']
+    ncsym: ['x,y,z', '-y+0.25,x+0.75,z+0.25', '-x+0.5,-y,z+0.5', 'y+0.25,-x+0.25,z+0.75',
+      'x,-y,-z+0.5', 'y+0.25,x+0.75,-z+0.75', '-x+0.5,y,-z', '-y+0.25,-x+0.25,-z+0.25',
+      'z,x,y', '-x+0.25,z+0.75,y+0.25', '-z+0.5,-x,y+0.5', 'x+0.25,-z+0.25,y+0.75',
+      'z,-x,-y+0.5', 'x+0.25,z+0.75,-y+0.75', '-z+0.5,x,-y', '-x+0.25,-z+0.25,-y+0.25',
+      'y,z,x', 'y+0.5,-z+0.5,-x', 'z+0.75,y+0.25,-x+0.25', '-y,z+0.5,-x+0.5', '-z+0.25,-y+0.25,-x+0.25',
+      '-y+0.5,-z,x+0.5', 'z+0.75,-y+0.75,x+0.25', '-z+0.75,y+0.25,x+0.75', '-x,-y,-z',
+      'y-0.25,-x-0.75,-z-0.25', 'x-0.5,y,-z-0.5', '-y-0.25,x-0.25,-z-0.75', '-x,y,z-0.5',
+      '-y-0.25,-x-0.75,z-0.75', 'x-0.5,-y,z', 'y-0.25,x-0.25,z-0.25', '-z,-x,-y',
+      'x-0.25,-z-0.75,-y-0.25', 'z-0.5,x,-y-0.5', '-x-0.25,z-0.25,-y-0.75', '-z,x,y-0.5',
+      '-x-0.25,-z-0.75,y-0.75', 'z-0.5,-x,y', 'x-0.25,z-0.25,y-0.25', '-y,-z,-x',
+      '-y-0.5,z-0.5,x', '-z-0.75,-y-0.25,x-0.25', 'y,-z-0.5,x-0.5', 'z-0.25,y-0.25,x-0.25',
+      'y-0.5,z,-x-0.5', '-z-0.75,y-0.75,-x-0.25', 'z-0.75,-y-0.25,-x-0.75']
+    number: 230
+    schoenflies: Oh^10
+    universal_h_m: I a -3 d

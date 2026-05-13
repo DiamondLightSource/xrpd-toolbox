@@ -1,0 +1,192 @@
+### Notes: This is used to modify the data reduction for the mythen3 detector.
+mythen3_detector_config = "/dls_sw/i11/software/mythen/mythen3.config" #used if number of active modules doesn't match data
+active_modules = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]
+#if there are less than the modules specified here ^ it will assume only ring 1 is active ie 0-13
+bad_modules = [11, 17, 24] #[19, 23] #modules that may be in the raw that are to be removed by the reduction process
+bad_channel_masking = true #mask out the bad channels specified in the files below
+
+flatfield_filepath = "/dls_sw/i11/software/mythen3/diamond/flatfield/mythen3_1351666_1351675_flat.hdf5"
+#"/dls_sw/i11/software/mythen3/diamond/flatfield/flatfield_2025-04-04.h5" # "/dls_sw/i11/software/mythen3/diamond/flatfield/flatfield_202503311536.h5"  "/dls_sw/i11/software/mythen3/diamond/flatfield/flatField_15keV_th7500eV.h5" #location of flatfield, Current one is: "/dls_sw/i11/software/mythen3/diamond/flatfield/flatField_15keV_th7500eV.h5" #scotts flatdfield "/dls_sw/i11/software/mythen3/diamond/flatfield/flatField_15keV_th7500eV.h5"
+apply_flatfield = false
+modules_in_flatfield = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20]
+
+send_to_ispyb = true
+
+save_nxs_out = true
+verbose_nxs = false
+out_raw_data = false
+debug_mode = true #this is for detector group to see all the data in it's full form, nothing removed, This will cause a seperate nxs to be saved, with the suffix _debug, and will save data parasitically and seperately from user data, THIS IS FOR SCOTT
+
+beam_energy = 15.0 #we could use this to calculate the diffraction pattern in Q space, or use a pv, or come up with something more clever ie auto Si refinment
+save_in_Q_space = false #save a file where the diffraction pattern has been converted into Q, must know the beam energy somehow
+rebin_step = 0.004
+default_counter = 0 #this specifies the type of threshold used internally by the detector, 0, 1 or 2, 0 = 7500 ev threshold
+edge_bad_channels = 15 #number of channels that are bad at the edge of modules (5-15 are about right)
+error_calc = "poisson" #this can be "poisson" "std_dev" or "max", poisson error is propagated poisson errors, std_dev is std_dev of counts in bin (will result in nan values if there is only 1 count in the bin), and "max" is the whichever is max for each bin
+
+###
+# Note on errors, If you have peaks with weak intensity, a high spread of data (high noise), the error shouldn't be less than the spread even if
+# poisson stats says it should have small error because there are few counts.
+# But equally if you have very large peaks with low spread, the error should reflect that, The error is unlikely to be very small because large peaks have large poisson error
+###
+
+
+######
+data_reduction_mode = "step_scan"
+# data_reduction_mode
+#0 = step_scab (all data will be reduced into 1 file, possibly multiple angles)
+#1 = time_resolved mode (many frames per .nxs saved into seperate .xye files for each frame)
+#2 = pump_probe (all frames will be read and summed together - data has been taken at static angle, optimised for lots of frames)
+######
+
+
+######
+# bad_dn.chans files are an ascii file specofying the bad channels numbers of each module, where each line specifies one bad channel 0-1279
+# ang_dn.off files specify the angular calibrations of each module, Determined experimentally and have 1 line with the format:
+# module 1 offset 62.99916323710597 conv 6.568575932737774e-05 center 639.5
+######
+
+bad_channels_filepath = "/workspaces/XRPD-Toolbox/config/i11/bad_channels.txt" #THIS SHOULD BE MOVED ALONG WITH EVERYTHING ELSE TO A CONSISTENT DIR!
+angcal_filepath = "/dls_sw/i11/software/mythen3/diamond/ang_cal_171125_cen_639.5_leastsq.off"
+
+# [angular_calibrations]
+# module_0 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d0.off"
+# module_1 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d1.off"
+# module_2 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d2.off"
+# module_3 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d3.off"
+# module_4 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d4.off"
+# module_5 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d5.off"
+# module_6 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d6.off"
+# module_7 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d7.off"
+# module_8 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d8.off"
+# module_9 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d9.off"
+# module_10 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d10.off"
+# module_11 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d11.off"
+# module_12 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d12.off"
+# module_13 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d13.off"
+# module_14 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d14.off"
+# module_15 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d15.off"
+# module_16 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d16.off"
+# module_17 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d17.off"
+# module_18 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d18.off"
+# module_19 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d19.off"
+# module_20 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d20.off"
+# module_21 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d21.off"
+# module_22 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d22.off"
+# module_23 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d23.off"
+# module_24 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d24.off"
+# module_25 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d25.off"
+# module_26 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d26.off"
+# module_27 = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d27.off"
+
+# [module_0]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d0.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d0.off"
+
+# [module_1]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d1.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d1.off"
+
+# [module_2]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d2.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d2.off"
+
+# [module_3]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d3.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d3.off"
+
+# [module_4]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d4.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d4.off"
+
+# [module_5]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d5.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d5.off"
+
+# [module_6]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d6.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d6.off"
+
+# [module_7]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d7.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d7.off"
+
+# [module_8]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d8.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d8.off"
+
+# [module_9]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d9.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d9.off"
+
+# [module_10]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d10.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d10.off"
+
+# [module_11]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d11.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d11.off"
+
+# [module_12]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d12.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d12.off"
+
+# [module_13]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d13.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d13.off"
+
+# [module_14]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d14.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d14.off"
+
+# [module_15]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d15.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d15.off"
+
+# [module_16]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d16.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d16.off"
+
+# [module_17]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d17.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d17.off"
+
+# [module_18]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d18.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d18.off"
+
+# [module_19]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d19.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d19.off"
+
+# [module_20]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d20.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d20.off"
+
+# [module_21]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d21.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d21.off"
+
+# [module_22]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d22.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d22.off"
+
+# [module_23]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d23.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d23.off"
+
+# [module_24]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d24.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d24.off"
+
+# [module_25]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d25.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d25.off"
+
+# [module_26]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d26.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d26.off"
+
+# [module_27]
+# bad_channels_path = "/dls_sw/i11/software/mythen3/diamond/calibration/bad_d27.chans"
+# angular_calibration_path = "/dls_sw/i11/software/mythen3/diamond/calibration/ang_d27.off"
