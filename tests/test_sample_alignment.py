@@ -6,7 +6,7 @@ from xrpd_toolbox.fit_engine.background import ConstantBackground
 from xrpd_toolbox.i15_1.sample_alignment import (
     SampleAligner,
     run_sample_alignment,
-    sample_alignment_builder,
+    sample_alignment_model_builder,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +26,7 @@ EXPECTED_SAMPLE_ALIGNMENT_CENTRES = {
 
 
 def test_sample_alignment_builder_from_csv():
-    model = sample_alignment_builder(str(TEST_FILE), peak_type="tophat")
+    model = sample_alignment_model_builder(str(TEST_FILE), peak_type="tophat")
 
     assert isinstance(model, SampleAligner)
     assert isinstance(model.background, ConstantBackground)

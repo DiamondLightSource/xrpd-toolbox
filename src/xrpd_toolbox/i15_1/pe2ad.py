@@ -24,23 +24,6 @@ class PE2AD(BaseDataLoader):
 
         return int(densest_idx)
 
-    def sum_frames(self):
-        data = self._get_dataset(dataset_path=self.dataset_path)
-
-        n_frames = data.shape[1]
-
-        summed_images = []
-
-        for frame in range(n_frames):
-            frame_image = data[:, frame, :, :]
-            image_sum = np.sum(frame_image)
-
-            summed_images.append(image_sum)
-
-        summed_images = np.array(summed_images)
-
-        return summed_images
-
     def find_sample_centre(self):
         summed_images = self.sum_frames()
         centre_index = self.find_center2(summed_images)

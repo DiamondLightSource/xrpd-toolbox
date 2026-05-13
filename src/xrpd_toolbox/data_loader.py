@@ -7,6 +7,19 @@ from h5py import Dataset, File
 from xrpd_toolbox.utils.utils import get_entry, h5_to_array
 
 
+def get_dataset(filepath, dataset_path: str) -> Dataset:
+    with File(filepath, "r") as file:
+        if dataset_path not in file:
+            raise ValueError(f"Dataset path {dataset_path} not found in {filepath}")
+
+        data = file.get(dataset_path)
+
+        if not isinstance(data, Dataset):
+            raise ValueError(f"{dataset_path} is not a dataset")
+
+        return data
+
+
 class BaseDataLoader:
     """
     Base class for detector data loaders.
@@ -28,20 +41,6 @@ class BaseDataLoader:
 
         return paths
 
-    def _get_dataset(self, dataset_path: str) -> Dataset:
-        with File(self.filepath, "r") as file:
-            if dataset_path not in file:
-                raise ValueError(
-                    f"Dataset path {dataset_path} not found in {self.filepath}"
-                )
-
-            data = file.get(dataset_path)
-
-            if not isinstance(data, Dataset):
-                raise ValueError(f"{dataset_path} is not a dataset")
-
-            return data
-
     def get_data(self, dataset_path: str | None = None, selection=...) -> np.ndarray:
         dataset_path = dataset_path or self.dataset_path
 
@@ -60,6 +59,23 @@ class BaseDataLoader:
                 raise ValueError("Data has insufficient dimensions.")
 
             return np.asarray(data[selection])
+
+    def sum_frames(self):
+        data = get_dataset(filepath=self.filepath, dataset_path=self.dataset_path)
+
+        n_frames = data.shape[1]
+
+        summed_images = []
+
+        for frame in range(n_frames):
+            frame_image = data[:, frame, :, :]
+            image_sum = np.sum(frame_image)
+
+            summed_images.append(image_sum)
+
+        summed_images = np.array(summed_images)
+
+        return summed_images
 
     @property
     def data(self) -> np.ndarray:

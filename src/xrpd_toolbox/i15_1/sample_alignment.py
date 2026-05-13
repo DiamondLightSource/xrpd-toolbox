@@ -6,11 +6,13 @@ including peak detection, peak profile construction, and plotting.
 
 import math
 import os
+from pathlib import Path
 
 import numpy as np
 from scipy.signal import find_peaks
 
 from xrpd_toolbox.core import Parameter, XYEData
+from xrpd_toolbox.data_loader import BaseDataLoader
 from xrpd_toolbox.fit_engine.background import (
     BackgroundType,
     ConstantBackground,
@@ -159,7 +161,7 @@ class SampleAligner(Model[XYEData]):
         # plt.plot(self.data.x, self.data.y)
         # plt.show()
 
-    def plot_data(self):
+    def get_plot_data(self):
         """Plot the observed data, calculated profile, background, and residual.
 
         The plot shows the observed intensities, the current fitted profile,
@@ -181,7 +183,6 @@ class SampleAligner(Model[XYEData]):
             title=title,
             markers=np.array([self.centre]),
         )
-        plot_data.plot()
 
         return plot_data
 
@@ -270,7 +271,7 @@ class SampleAligner(Model[XYEData]):
     #         print(cen, amp, fw, cs, score)
 
 
-def sample_alignment_builder(
+def sample_alignment_model_builder(
     data: XYEData | str, peak_type: str = "gaussian"
 ) -> SampleAligner:
     """Construct a SampleAligner from XYE data or a CSV file path, and a peak type
@@ -299,10 +300,10 @@ def sample_alignment_builder(
 
 
 def run_sample_alignment(data: XYEData | str) -> SampleAligner:
-    gauss_model = sample_alignment_builder(data, "gaussian")
+    gauss_model = sample_alignment_model_builder(data, "gaussian")
     _, gauss_model, gauss_result = gauss_model.refine()
 
-    tophat_model = sample_alignment_builder(data, "tophat")
+    tophat_model = sample_alignment_model_builder(data, "tophat")
     _, tophat_model, tophat_result = tophat_model.refine()
 
     if gauss_result.cost < tophat_result.cost:
@@ -320,6 +321,30 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
     return best_model
 
 
+def sample_alignment(
+    filepath: str | Path, dataset_path: str, beamline: str | None = None
+):
+    if (beamline is not None) and (not beamline.startswith("i")):
+        print(f"{beamline} must start with i, eg i15-1, or i11")
+
+    data = BaseDataLoader(filepath=filepath, data_path=dataset_path)
+    summed_frames = data.sum_frames()
+    index = np.linspace(0, len(summed_frames), len(summed_frames))
+
+    xyedata = XYEData(x=index, y=summed_frames)
+    best_model = run_sample_alignment(data=xyedata)
+
+    sample_centre_result = best_model.get_sample_centre()
+    sample_centre_result.deparameterise_all()
+
+    plot_data = best_model.get_plot_data()
+
+    if beamline is not None:
+        plot_data.publish(beamline=beamline)
+
+    return sample_centre_result
+
+
 if __name__ == "__main__":
     BEAMLINE = "i15-1"
 
@@ -335,14 +360,14 @@ if __name__ == "__main__":
         sample_centre_result = best_model.get_sample_centre()
         # _ = best_model.get_best_peaks()
 
-        print(sample_centre_result.model_dump_json())
-
         sample_centre_result.deparameterise_all()
 
         print(sample_centre_result.model_dump_json())
 
-        plot_data = best_model.plot_data()
-        plot_data.publish(BEAMLINE)
+        plot_data = best_model.get_plot_data()
+        plot_data.plot()
+
+        # plot_data.publish(BEAMLINE)
 
         # messenger.send_plot_data(plot_data)
         # listener.listen(max_iter=5)

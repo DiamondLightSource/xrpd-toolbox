@@ -33,7 +33,7 @@ class FittedDataPlot(DataPlot):
     background: SerialisableNDArray | float | None = None
     markers: SerialisableNDArray | None = None
 
-    def plot(self):
+    def plot(self, save_to: str | None = None):
         if isinstance(self.background, float):
             background = [self.background] * len(self.data.x)
         elif isinstance(self.background, np.ndarray):
@@ -67,4 +67,7 @@ class FittedDataPlot(DataPlot):
         plt.xlabel(self.data.x_unit)
         plt.ylabel(self.data.y_unit)
         plt.legend()
-        plt.show()
+        if save_to is not None:
+            plt.savefig(save_to)
+        else:
+            plt.show()

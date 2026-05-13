@@ -75,6 +75,9 @@ class Messenger:
         # "/topic/gda.messages.scan"  # nexus file converter
         # defined here: https://gitlab.diamond.ac.uk/daq/d2acq/services/nexus-file-converter/-/blob/master/src/main/resources/application.yaml
 
+        if (beamline is not None) and (not beamline.startswith("i")):
+            print(f"{beamline} must start with i, eg i15-1, or i11")
+
         if not self.destinations:
             print(f"No destination specified, defaulting to {DEFAULT_DESTINATIONS}")
             self.destinations = DEFAULT_DESTINATIONS

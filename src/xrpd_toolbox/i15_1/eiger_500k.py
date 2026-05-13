@@ -59,7 +59,7 @@ class EigerDataLoader:
     def __init__(
         self,
         filepath: str | Path,
-        eiger_data_path: str = "eiger",
+        eiger_data_path: str = "data",
         tth_path: str = "tth",
     ):
         self.filepath = filepath
