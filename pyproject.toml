@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "XRPD-Toolbox"
+name = "xrpd-toolbox"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
@@ -56,10 +56,10 @@ dev = [
 ]
 
 [project.scripts]
-XRPD-Toolbox = "xrpd_toolbox.__main__:main"
+xrpd-toolbox = "xrpd_toolbox.__main__:main"
 
 [project.urls]
-GitHub = "https://github.com/DiamondLightSource/XRPD-Toolbox"
+GitHub = "https://github.com/DiamondLightSource/xrpd-toolbox"
 
 [[project.authors]] # Further authors may be added by duplicating this section
 email = "richard.dixey@diamond.ac.uk"

@@ -8,7 +8,7 @@ component_owner: group:default/data-analysis
 component_type: library
 description: A repository for useful python data analysis tools for the X-ray powder
     diffraction beamlines at Diamond Light Source
-distribution_name: XRPD-Toolbox
+distribution_name: xrpd-toolbox
 docker: true
 docker_debug: false
 docs_type: README
@@ -16,6 +16,6 @@ git_platform: github.com
 github_org: DiamondLightSource
 package_name: xrpd_toolbox
 pypi: true
-repo_name: XRPD-Toolbox
+repo_name: xrpd-toolbox
 strict_typing: false
 type_checker: pyright

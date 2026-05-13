@@ -46,7 +46,7 @@ data_reduction_mode = "step_scan"
 # module 1 offset 62.99916323710597 conv 6.568575932737774e-05 center 639.5
 ######
 
-bad_channels_filepath = "/workspaces/XRPD-Toolbox/config/i11/bad_channels.txt" #THIS SHOULD BE MOVED ALONG WITH EVERYTHING ELSE TO A CONSISTENT DIR!
+bad_channels_filepath = "/workspaces/xrpd-toolbox/config/i11/bad_channels.txt" #THIS SHOULD BE MOVED ALONG WITH EVERYTHING ELSE TO A CONSISTENT DIR!
 angcal_filepath = "/dls_sw/i11/software/mythen3/diamond/ang_cal_171125_cen_639.5_leastsq.off"
 
 # [angular_calibrations]

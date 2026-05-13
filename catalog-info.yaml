@@ -1,8 +1,8 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: XRPD-Toolbox
-  title: XRPD-Toolbox
+  name: xrpd-toolbox
+  title: xrpd-toolbox
   description: A repository for useful python data analysis tools for the X-ray powder diffraction beamlines at Diamond Light Source
 spec:
   type: library
