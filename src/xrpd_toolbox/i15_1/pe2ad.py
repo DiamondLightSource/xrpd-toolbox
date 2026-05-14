@@ -6,8 +6,8 @@ from xrpd_toolbox.fit_engine.peaks import fit_peaks, smooth_tophat
 
 
 class PE2AD(BaseDataLoader):
-    def __init__(self, filepath, data_path: str = "pe2AD"):
-        super().__init__(filepath, data_path)
+    def __init__(self, filepath, dataset_path: str = "/entry/pe2AD/data"):
+        super().__init__(filepath, dataset_path)
 
         self.entries = self.get_entries()
 

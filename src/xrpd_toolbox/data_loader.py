@@ -1,4 +1,3 @@
-from functools import cached_property
 from pathlib import Path
 
 import numpy as np
@@ -26,12 +25,11 @@ class BaseDataLoader:
     Handles Nexus/HDF5 access and metadata retrieval.
     """
 
-    def __init__(self, filepath: str | Path, data_path: str):
+    def __init__(self, filepath: str | Path, dataset_path: str):
         self.filepath = Path(filepath)
-        self.data_path = data_path
 
         self.entry = get_entry(self.filepath)
-        self.dataset_path = f"/{self.entry}/{self.data_path}/data"
+        self.dataset_path = dataset_path
 
     def get_entries(self):
         paths = []
@@ -68,7 +66,7 @@ class BaseDataLoader:
         summed_images = []
 
         for frame in range(n_frames):
-            frame_image = data[:, frame, :, :]
+            frame_image = data[..., frame, :, :]
             image_sum = np.sum(frame_image)
 
             summed_images.append(image_sum)
@@ -81,11 +79,6 @@ class BaseDataLoader:
     def data(self) -> np.ndarray:
         """Load the entire dataset."""
         return self.get_data()
-
-    @cached_property
-    def durations(self) -> np.ndarray:
-        path = f"/{self.entry}/instrument/{self.data_path}/count_time"
-        return h5_to_array(self.filepath, path)
 
     def read_array(self, path: str) -> np.ndarray:
         """Helper for reading arbitrary datasets."""
