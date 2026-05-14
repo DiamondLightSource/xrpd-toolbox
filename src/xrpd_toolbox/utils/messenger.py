@@ -20,6 +20,8 @@ DEFAULT_DII_UI_PLOT_DESTINATION = (
 
 DEFAULT_DII_PROCESSED_DESTINATION = "/topic/public.data.processed"
 
+TIMEOUT = 1  # in seconds
+
 
 class MessageUnpacker:
     messages = deque()
@@ -112,7 +114,10 @@ class Messenger:
 
     def setup_connection(self):
         self.conn = stomp.Connection(
-            host_and_ports=[(self.host, self.port)], auto_content_length=False
+            host_and_ports=[(self.host, self.port)],
+            auto_content_length=False,
+            heartbeats=(TIMEOUT * 1000, TIMEOUT * 1000),  # heartbeat in in ms
+            timeout=TIMEOUT,
         )
 
         self.conn.set_listener("scan_listener", self.scan_listener)

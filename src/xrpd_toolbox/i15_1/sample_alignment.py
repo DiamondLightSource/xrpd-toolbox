@@ -373,6 +373,9 @@ if __name__ == "__main__":
     print(sample_alignment_files)
 
     for filepath in sample_alignment_files:
+        if ".csv" not in filepath:
+            continue
+
         sample_centre_result = sample_alignment(
             filepath, dataset_path="", beamline=BEAMLINE
         )
