@@ -326,7 +326,7 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
 
 def sample_alignment(
     filepath: str | Path,
-    dataset_path: str,
+    dataset_path: str = "/entry/data",
     beamline: str | None = None,
     save: bool = False,
 ):
@@ -336,7 +336,7 @@ def sample_alignment(
     if str(filepath).endswith(".csv"):
         xyedata = XYEData.from_csv(filepath)
     else:
-        data = BaseDataLoader(filepath=filepath, data_path=dataset_path)
+        data = BaseDataLoader(filepath=filepath, dataset_path=dataset_path)
         summed_frames = data.sum_frames()
         index = np.linspace(0, len(summed_frames), len(summed_frames))
         xyedata = XYEData(x=index, y=summed_frames)
@@ -376,9 +376,7 @@ if __name__ == "__main__":
         if ".csv" not in filepath:
             continue
 
-        sample_centre_result = sample_alignment(
-            filepath, dataset_path="", beamline=BEAMLINE
-        )
+        sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
 
         print(sample_centre_result.model_dump_json())
 
