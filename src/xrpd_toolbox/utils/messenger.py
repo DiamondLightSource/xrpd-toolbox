@@ -5,8 +5,7 @@ from shutil import copy2
 from time import sleep
 
 import stomp
-
-from xrpd_toolbox.core import XRPDBaseModel
+from pydantic import BaseModel
 
 DEFAULT_BROKER = "rabbitmq"
 DEFAULT_DESTINATIONS = [
@@ -54,12 +53,13 @@ class Messenger:
         self,
         beamline: str | None = None,
         host: str | None = None,
-        broker: str | None = None,
+        broker: str | None = DEFAULT_BROKER,
         port: int = 61613,
         username: str | None = None,
         password: str | None = None,
         destinations: Path | list[Path] | str | list[str] | None = None,
         auto_connect: bool = True,
+        auto_subscribe: bool = True,
         **kwargs,
     ):
         self.beamline = beamline
@@ -71,6 +71,7 @@ class Messenger:
         self.username = username
         self.password = password
         self.auto_connect = auto_connect
+        self.auto_subscribe = auto_subscribe
         self.destinations = destinations
 
         # /topic/public.worker.event blueapi
@@ -86,16 +87,12 @@ class Messenger:
             print(f"No destination specified, defaulting to {DEFAULT_DESTINATIONS}")
             self.destinations = DEFAULT_DESTINATIONS
 
-        if not self.broker:
+        if self.host and self.port:
+            print("Both host and port specified, using host and port")
+        elif self.beamline and not self.host:
             self.broker = DEFAULT_BROKER
-
-        if not self.host and self.beamline:
             print("Host not specified, constructing from beamline name")
             self.host = f"{self.beamline}-{self.broker}-daq.diamond.ac.uk"
-            self.broker = "rabbitmq"
-        elif not self.host and self.beamline and (self.broker == "activemq"):
-            self.host = f"{self.beamline}-control"
-            self.broker = "activemq"
         else:
             raise ValueError("Either host or beamline must be provided")
 
@@ -108,9 +105,13 @@ class Messenger:
             try:
                 self.setup_connection()
                 self.connect()
-                self.subscribe()
             except Exception:
                 print(f"Could not connect to {self.host}")
+        if self.auto_subscribe:
+            try:
+                self.subscribe()
+            except Exception:
+                print(f"Could not subscribe to {self.destinations}")
 
     def setup_connection(self):
         self.conn = stomp.Connection(
@@ -186,10 +187,27 @@ class Messenger:
     def get_message(self):
         return self.scan_listener.messages.popleft()
 
-    def send_plot_data(self, plot_data: XRPDBaseModel):
+    def send_plot_data(self, plot_data: BaseModel | str):
         """Pass this a PlotData object and it will serialise it
         and send it to RabbitMQ telling the UI to plot it"""
-        self.send_message(DEFAULT_DII_UI_PLOT_DESTINATION, plot_data.model_dump_json())
+
+        if isinstance(plot_data, BaseModel):
+            plot_message = plot_data.model_dump_json()
+        else:
+            plot_message = plot_data
+
+        self.send_message(DEFAULT_DII_UI_PLOT_DESTINATION, plot_message)
+
+    def send_processed_data(self, processed_data: BaseModel | str):
+        """Pass this a result object and it will serialise it
+        and send it to RabbitMQ telling the bluesky what to do next"""
+
+        if isinstance(processed_data, BaseModel):
+            processed_message = processed_data.model_dump_json()
+        else:
+            processed_message = processed_data
+
+        self.send_message(DEFAULT_DII_PROCESSED_DESTINATION, processed_message)
 
     def listen(self, max_iter: int = 50, interval: float | int = 1.0):
         c = 0
