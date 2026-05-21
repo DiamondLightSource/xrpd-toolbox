@@ -16,7 +16,7 @@ from matplotlib.gridspec import GridSpec
 
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import paired_modules
-from xrpd_toolbox.utils.unit_conversion import tth_to_q
+from xrpd_toolbox.utils.unit_conversion import two_theta_to_q
 from xrpd_toolbox.utils.utils import AnalysisLogger, load_int_array_from_file
 
 matplotlib.use("Qt5Agg")  # or TkAgg
@@ -1082,7 +1082,7 @@ class I11Reduction:
         ]  # remove no counts #remove null counts
 
         if (self.beam_energy) and (self.save_in_q_space):
-            q_space = tth_to_q(xyedata["tth"].to_numpy(), self.wavelength)
+            q_space = two_theta_to_q(xyedata["tth"].to_numpy(), self.wavelength)
             xyedata["Q"] = q_space
 
         return xyedata
