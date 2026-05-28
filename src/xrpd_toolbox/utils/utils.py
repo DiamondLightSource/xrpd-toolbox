@@ -215,6 +215,23 @@ def normalise(data: np.ndarray | list, default_min: float = 1e-12) -> np.ndarray
     return (data - np.min(data)) / (np.max(data) - array_min)
 
 
+def read_number_of_frames_from_nxs(
+    nexus_filepath: str | Path, datapath: str = "/entry/instrument/data"
+) -> int:
+    """Reads the number of frames from a NeXus file,
+    given a filepath to the data and a datapath in the file.
+    Returns 0 if not found or if the attribute is missing."""
+
+    with h5py.File(nexus_filepath, "r") as file:
+        dataset = file[datapath]
+
+        assert isinstance(dataset, Dataset), (
+            f"Expected a dataset at {datapath}, but found {type(dataset)}"
+        )
+        num_frames = dataset.shape[0]
+        return int(num_frames)
+
+
 def load_int_array_from_file(filepath: str | Path) -> np.ndarray:
     """
     File format is just a list of integers in a text file, one integer per line.
