@@ -19,6 +19,7 @@ from xrpd_toolbox.fit_engine.background import (
 )
 from xrpd_toolbox.fit_engine.fitting_core import Model, RefinementBaseModel
 from xrpd_toolbox.fit_engine.peaks import (
+    GaussianPeak,
     Peak,
     PeakType,
     calculate_profile,
@@ -28,7 +29,9 @@ from xrpd_toolbox.plotting import FittedDataPlot
 from xrpd_toolbox.utils.messenger import DEFAULT_DII_PROCESSED_DESTINATION, Messenger
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
+    h5_to_array,
     processed_directory_and_filename,
+    wait_for_finished_file,
 )
 
 
@@ -336,6 +339,8 @@ def sample_alignment(
     if str(filepath).endswith(".csv"):
         xyedata = XYEData.from_csv(filepath)
     else:
+        wait_for_finished_file(filepath, timeout=600)
+
         data = BaseDataLoader(filepath=filepath, dataset_path=dataset_path)
         summed_frames = data.sum_frames()
         index = np.linspace(0, len(summed_frames), len(summed_frames))
@@ -361,6 +366,27 @@ def sample_alignment(
         messenger.send_plot_data(plot_data)
 
     return sample_centre_result
+
+
+def fake_sample_alignment_i15_1(
+    filepath: str | Path,
+    dataset_path: str = "/entry/data",
+    beamline: str | None = None,
+    save: bool = False,
+):
+
+    wait_for_finished_file(filepath, timeout=600)
+
+    sample_positions = h5_to_array(filepath, "/entry/instrument/hexapod/z")
+
+    fake_centre = sample_positions[int(len(sample_positions) / 2)]
+    fake_peak = GaussianPeak(amplitude=1, centre=fake_centre, fwhm=0.5)
+
+    fake_sample_centre_result = SampleCenteringResult(
+        centre=fake_centre, peaks=[fake_peak], scores=[1.0]
+    )
+
+    return fake_sample_centre_result.model_dump_json()
 
 
 if __name__ == "__main__":

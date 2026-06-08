@@ -103,13 +103,13 @@ class NexusDatasetMapper:
         return dict(self._mapping)
 
 
-def h5_to_array(file_path: str | Path, data_path: str) -> np.ndarray:
-    with File(file_path, "r") as file:
+def h5_to_array(filepath: str | Path, data_path: str) -> np.ndarray:
+    with File(filepath, "r") as file:
         data = file.get(data_path)
         if (data is not None) and isinstance(data, Dataset):
             return np.asarray(data)
         else:
-            raise ValueError(f"Data is None at {data_path} in {file_path}")
+            raise ValueError(f"Data is None at {data_path} in {filepath}")
 
 
 def get_entry(nexus_filepath: str | Path) -> str:
