@@ -1,12 +1,12 @@
 import json
 import os
 import re
+import time
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from time import time
 
 import h5py
 import numpy as np
@@ -485,9 +485,9 @@ def timeit(f):
 
     @wraps(f)
     def wrap(*args, **kw):
-        ts = time()
+        ts = time.time()
         result = f(*args, **kw)
-        te = time()
+        te = time.time()
         duration = te - ts
         print(f"{f.__name__} took {duration} seconds")
         return result
@@ -595,3 +595,63 @@ def processed_directory_and_filename(filepath: str | Path) -> tuple[str, str]:
     file_stem = path.stem  # filename without extension
 
     return str(processed_dir), str(file_stem)
+
+
+def wait_for_file(
+    filepath: str | Path,
+    timeout: int | float | None = 30,
+    poll_interval: int | float = 1,
+) -> None:
+    """Wait until filepath exists.
+
+    Raises:
+        TimeoutError: if the file does not appear within timeout seconds.
+    """
+    filepath = Path(filepath)
+    start_time = time.monotonic()
+
+    while not filepath.exists():
+        if timeout is not None and time.monotonic() - start_time >= timeout:
+            raise TimeoutError(f"{filepath} does not exist after {timeout} seconds")
+        time.sleep(poll_interval)
+
+
+def wait_for_finished_file(
+    filepath: str | Path,
+    timeout: int | float | None = None,
+    poll_interval: int | float = 1.0,
+    stable_for: int | float = 2.0,
+) -> None:
+    """Wait until filepath exists and its size has been stable for stable_for seconds.
+
+    Raises:
+        TimeoutError: if the file does not appear
+        or finish writing within timeout seconds.
+    """
+    filepath = Path(filepath)
+    start_time = time.monotonic()
+
+    last_size: int | None = None
+    stable_since: float | None = None
+
+    while True:
+        now = time.monotonic()
+
+        if timeout is not None and now - start_time >= timeout:
+            if filepath.exists():
+                raise TimeoutError(
+                    f"{filepath} did not finish writing after {timeout} seconds"
+                )
+            raise TimeoutError(f"{filepath} does not exist after {timeout} seconds")
+
+        if filepath.exists():
+            size = filepath.stat().st_size
+
+            if size != last_size:
+                last_size = size
+                stable_since = now
+            elif stable_since is not None and now - stable_since >= stable_for:
+                # stable_since always set when last_size is
+                return
+
+        time.sleep(poll_interval)
