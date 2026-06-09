@@ -222,6 +222,8 @@ def read_number_of_frames_from_nxs(
     given a filepath to the data and a datapath in the file.
     Returns 0 if not found or if the attribute is missing."""
 
+    wait_for_finished_file(nexus_filepath, timeout=600)
+
     with h5py.File(nexus_filepath, "r") as file:
         dataset = file[datapath]
 
