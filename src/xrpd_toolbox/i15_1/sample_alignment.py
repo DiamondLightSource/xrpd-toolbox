@@ -388,6 +388,13 @@ def fake_sample_alignment_i15_1(
         centre=fake_centre, peaks=[fake_peak], scores=[1.0]
     )
 
+    if beamline is not None:
+        messenger = Messenger("i15-1", destinations=["/topic/public.data.plot"])
+        messenger.send_message(
+            DEFAULT_DII_PROCESSED_DESTINATION,
+            fake_sample_centre_result.model_dump_json(),
+        )
+
     return fake_sample_centre_result.model_dump_json()
 
 
