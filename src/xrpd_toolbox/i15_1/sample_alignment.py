@@ -330,6 +330,7 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
 def sample_alignment(
     filepath: str | Path,
     dataset_path: str = "/entry/data",
+    position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
 ):
@@ -365,19 +366,20 @@ def sample_alignment(
         )
         messenger.send_plot_data(plot_data)
 
-    return sample_centre_result
+    return sample_centre_result.model_dump_json()
 
 
 def fake_sample_alignment_i15_1(
     filepath: str | Path,
     dataset_path: str = "/entry/data",
+    position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
 ):
 
     wait_for_finished_file(filepath, timeout=600)
 
-    sample_positions = h5_to_array(filepath, "/entry/instrument/hexapod/z")
+    sample_positions = h5_to_array(filepath, position_path)
 
     fake_centre = sample_positions[int(len(sample_positions) / 2)]
     fake_peak = GaussianPeak(amplitude=1, centre=fake_centre, fwhm=0.5)
@@ -404,12 +406,4 @@ if __name__ == "__main__":
 
         sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
 
-        print(sample_centre_result.model_dump_json())
-
-        # plot_data.publish(BEAMLINE)
-
-        # messenger.send_plot_data(plot_data)
-        # listener.listen(max_iter=5)
-        # listener.stop()
-
-        print("-----")
+        print(sample_centre_result)
