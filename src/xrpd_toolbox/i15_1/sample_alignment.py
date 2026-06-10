@@ -329,7 +329,7 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
 
 def sample_alignment(
     filepath: str | Path,
-    dataset_path: str = "/entry/data",
+    dataset_path: str = "/entry/instrument/fastcs_eiger/fastcs_eiger",
     position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
@@ -371,7 +371,7 @@ def sample_alignment(
 
 def fake_sample_alignment_i15_1(
     filepath: str | Path,
-    dataset_path: str = "/entry/data",
+    dataset_path: str = "/entry/instrument/fastcs_eiger/fastcs_eiger",
     position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
