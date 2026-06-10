@@ -620,7 +620,7 @@ def wait_for_file(
 
 def wait_for_finished_file(
     filepath: str | Path,
-    timeout: int | float | None = None,
+    timeout: int | float | None = 300,
     poll_interval: int | float = 1.0,
     stable_for: int | float = 2.0,
 ) -> None:
