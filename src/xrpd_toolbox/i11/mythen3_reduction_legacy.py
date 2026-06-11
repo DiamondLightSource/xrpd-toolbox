@@ -7,7 +7,6 @@ from pathlib import Path
 from shutil import copy, copy2
 from tomllib import load
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -18,9 +17,6 @@ from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import paired_modules
 from xrpd_toolbox.utils.unit_conversion import two_theta_to_q
 from xrpd_toolbox.utils.utils import AnalysisLogger, load_int_array_from_file
-
-matplotlib.use("Qt5Agg")  # or TkAgg
-
 
 np.seterr(
     divide="ignore", invalid="ignore"
