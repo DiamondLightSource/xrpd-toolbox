@@ -497,7 +497,7 @@ class Peak(RefinementBaseModel):
     """
 
     amplitude: Parameter | float = Field(gt=0)
-    centre: Parameter | float = Field(gt=0)
+    centre: Parameter | float = Field()
     fwhm: Parameter | float = Field(gt=0, default=Parameter(value=0.02))
     normalised: bool = True  # if normalised the
 
