@@ -112,8 +112,8 @@ def h5_to_array(filepath: str | Path, data_path: str) -> np.ndarray:
             raise ValueError(f"Data is None at {data_path} in {filepath}")
 
 
-def get_entry(nexus_filepath: str | Path) -> str:
-    with h5py.File(nexus_filepath, "r") as file:
+def get_entry(filepath: str | Path) -> str:
+    with h5py.File(filepath, "r") as file:
         return list(file.keys())[0]
 
 
@@ -143,8 +143,8 @@ def get_nexus_files(
     return nexus_files
 
 
-def get_filenumber_from_nxs(nexus_filepath: str | Path) -> int:
-    basename = os.path.basename(str(nexus_filepath))
+def get_filenumber_from_nxs(filepath: str | Path) -> int:
+    basename = os.path.basename(str(filepath))
     filenumber_str = re.findall(r"\d+", basename)[-1]
     return int(filenumber_str)
 
@@ -216,15 +216,15 @@ def normalise(data: np.ndarray | list, default_min: float = 1e-12) -> np.ndarray
 
 
 def read_number_of_frames_from_nxs(
-    nexus_filepath: str | Path, datapath: str = "/entry/instrument/data"
+    filepath: str | Path, datapath: str = "/entry/instrument/data"
 ) -> int:
     """Reads the number of frames from a NeXus file,
     given a filepath to the data and a datapath in the file.
     Returns 0 if not found or if the attribute is missing."""
 
-    wait_for_finished_file(nexus_filepath, timeout=600)
+    wait_for_finished_file(filepath, timeout=600)
 
-    with h5py.File(nexus_filepath, "r", libver="latest", swmr=True) as file:
+    with h5py.File(filepath, "r", libver="latest", swmr=True) as file:
         dataset = file[datapath]
 
         assert isinstance(dataset, Dataset), (
