@@ -10,7 +10,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from h5py import Dataset, File
+from h5py import Dataset
 from pyFAI.calibrant import get_calibrant
 from scipy.interpolate import interp1d
 
@@ -104,7 +104,7 @@ class NexusDatasetMapper:
 
 
 def h5_to_array(filepath: str | Path, data_path: str) -> np.ndarray:
-    with File(filepath, "r") as file:
+    with h5py.File(filepath, "r", libver="latest", swmr=True) as file:
         data = file.get(data_path)
         if (data is not None) and isinstance(data, Dataset):
             return np.asarray(data)
@@ -113,7 +113,7 @@ def h5_to_array(filepath: str | Path, data_path: str) -> np.ndarray:
 
 
 def get_entry(nexus_filepath: str | Path) -> str:
-    with File(nexus_filepath, "r") as file:
+    with h5py.File(nexus_filepath, "r") as file:
         return list(file.keys())[0]
 
 
@@ -224,7 +224,7 @@ def read_number_of_frames_from_nxs(
 
     wait_for_finished_file(nexus_filepath, timeout=600)
 
-    with h5py.File(nexus_filepath, "r") as file:
+    with h5py.File(nexus_filepath, "r", libver="latest", swmr=True) as file:
         dataset = file[datapath]
 
         assert isinstance(dataset, Dataset), (
@@ -432,7 +432,7 @@ def save_to_xye(xye_filepath_out, x: np.ndarray, y: np.ndarray, e: np.ndarray):
 def save_data_to_h5(filepath: str | Path, dataset_path: str, data: np.ndarray) -> None:
     group_path, name = dataset_path.rsplit("/", 1)
 
-    with File(filepath, "a") as file:
+    with h5py.File(filepath, "a") as file:
         if dataset_path in file:
             del file[dataset_path]
 
