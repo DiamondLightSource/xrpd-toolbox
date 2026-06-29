@@ -9,6 +9,9 @@ import numpy as np
 # from numba import njit
 from pydantic import Field, computed_field, model_validator
 
+from xrpd_toolbox.constants import (
+    ELEMENT_ATOMIC_NUMBER,
+)
 from xrpd_toolbox.core import (
     DataType,
     Parameter,
@@ -20,16 +23,15 @@ from xrpd_toolbox.fit_engine.background import (
     Background,
     BackgroundType,
 )
-from xrpd_toolbox.fit_engine.constants import (
-    ELEMENT_ATOMIC_NUMBER,
-)
 from xrpd_toolbox.fit_engine.fit_statistics import calculate_chi_squared
 from xrpd_toolbox.fit_engine.fitting_core import (
     Model,
     RefinementBaseModel,
     refine_model,
 )
-from xrpd_toolbox.fit_engine.form_factors import X_RAY_FORM_FACTORS
+from xrpd_toolbox.fit_engine.form_factors import (
+    calculate_form_factor,
+)
 from xrpd_toolbox.fit_engine.lattice import (
     Lattice,
     crystal_lattice_factory,
@@ -123,25 +125,6 @@ def absorption_correction(
     return (1.0 - np.exp(-x)) / x
 
 
-def calculate_form_factor(elements: Collection[str], s: np.ndarray) -> np.ndarray:
-    params = np.asarray([X_RAY_FORM_FACTORS[el] for el in elements])
-
-    if params.shape[0] != len(elements):
-        raise ValueError("Element form factor parameters not found for all elements")
-
-    a = params[:, 0:5]  # (n_atoms, 5)
-    c = params[:, 5]  # (n_atoms,)
-    b = params[:, 6:11]  # (n_atoms, 5)
-
-    s2 = s**2  # (s,)
-
-    exp_term = np.exp(-s2[:, None, None] * b[None, :, :])
-
-    ff = np.sum(a[None, :, :] * exp_term, axis=2) + c[None, :]
-
-    return ff  # (n_atoms, s)
-
-
 # @njit()
 def calculate_debye_waller_factor(b_iso: np.ndarray, s: np.ndarray):
     """s is scattering vector in radians"""
@@ -160,7 +143,7 @@ def calculate_structure_factor(
     phase = 2j * np.pi * (hkl @ positions.T)  # (n_hkl, n_atoms)
 
     s = q_space_to_s(q)
-    ff = calculate_form_factor(elements, s)  # (n_hkl, n_atoms)
+    ff = calculate_form_factor(elements, s).T  # (n_hkl, n_atoms)
     dw = calculate_debye_waller_factor(b_iso, s)  # (n_hkl, n_atoms)
 
     f_hkl = np.sum(

@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import toml
 import yaml
 from pydantic import (
@@ -40,6 +41,9 @@ def to_ndarray(v):
     if isinstance(v, list):
         return np.asarray(v)
     return v
+
+
+FloatArray = npt.NDArray[np.float64]
 
 
 SerialisableNDArray = Annotated[

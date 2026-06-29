@@ -68,30 +68,32 @@ Lorch E. (1969). J. Phys. C: Solid State Phys. 2, 229-232.
 
 from __future__ import annotations
 
-import warnings
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import find_peaks
 
 from xrpd_toolbox.constants import ELEMENT_ATOMIC_NUMBER
-from xrpd_toolbox.core import FloatArray, SerialisableNDArray, XRPDBaseModel
+from xrpd_toolbox.core import FloatArray
 from xrpd_toolbox.fit_engine.form_factors import (
     X_RAY_FORM_FACTORS,
-    calculate_form_factor,
     calculate_form_factor_for_element,
 )
-from xrpd_toolbox.utils.unit_conversion import q_space_to_s, two_theta_to_q
+from xrpd_toolbox.utils.unit_conversion import two_theta_to_q
+
+# ---------------------------------------------------------------------------
+# Waasmaier–Kirfel atomic form factor coefficients
+# f(s) = Σᵢ aᵢ exp(-bᵢ s²) + c,   s = sinθ/λ = Q / (4π)
+# Source: Waasmaier & Kirfel (1995) Acta Cryst. A51, 416-431.
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Configuration and result data models
 # ---------------------------------------------------------------------------
-
-
 WINDOW_TYPES = Literal["lorch", "cosine", "none"]
 BACKGROUND_TYPES = Literal["constant", "polynomial", "chebyshev"]
 
@@ -103,22 +105,22 @@ class ExportFormat(StrEnum):
     FQ = "fq"  # Reduced structure function  F(Q) = Q[S(Q)-1]
 
 
-class CompositionModel(XRPDBaseModel):
-    element: list[str]
+class CompositionEntry(BaseModel):
+    element: str
     count: float = Field(gt=0)
 
     @field_validator("element")
     @classmethod
     def element_must_be_known(cls, v: str) -> str:
-        if v not in X_RAY_FORM_FACTORS:
+        if v not in X_RAY_FORM_FACTORS.keys():
             raise ValueError(
                 f"Element '{v}' not in Waasmaier-Kirfel table. "
-                f"Available: {sorted(X_RAY_FORM_FACTORS)}"
+                f"Available: {sorted(X_RAY_FORM_FACTORS.keys())}"
             )
         return v
 
 
-class PDFConfig(XRPDBaseModel):
+class PDFConfig(BaseModel):
     """
     All parameters controlling the PDF calculation.
 
@@ -181,7 +183,7 @@ class PDFConfig(XRPDBaseModel):
                        G(r) above the -4πrρ₀ baseline.
     """
 
-    composition: dict[str, float]
+    composition: list[CompositionEntry]
     wavelength: float = Field(gt=0, description="X-ray wavelength (Å)")
     number_density: float = Field(gt=0, description="Atomic number density (atoms/Å³)")
 
@@ -196,14 +198,13 @@ class PDFConfig(XRPDBaseModel):
     background_scale: float = 1.0
 
     norm_poly_degree: int = Field(default=3, ge=0)
-    norm_background_type: BACKGROUND_TYPES = "polynomial"
     norm_q_min: float | None = None
 
     r_min: float = 0.0
     r_max: float = 30.0
     r_step: float = Field(default=0.01, gt=0)
 
-    termination_window: WINDOW_TYPES | None = "cosine"
+    termination_window: Literal["lorch", "cosine", "none"] | None = "cosine"
     qdamp: float = Field(default=0.030, ge=0.0)
 
     use_real_space_constraint: bool = True
@@ -226,92 +227,20 @@ class PDFConfig(XRPDBaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
-class PDFResult(XRPDBaseModel):
+class PDFResult(BaseModel):
     """Computed PDF results on uniform grids."""
 
-    q: SerialisableNDArray  # Q grid (Å⁻¹)
-    iq_corrected: SerialisableNDArray  # I(Q) in electron units
-    sq: SerialisableNDArray  # S(Q) total structure function
-    fq: SerialisableNDArray  # F(Q) = Q[S(Q) - 1] (Å⁻¹)
-    r: SerialisableNDArray  # r grid (Å)
-    gr: SerialisableNDArray  # G(r) (Å⁻²)
-    number_density: float  # also known as rho
+    q: FloatArray  # Q grid (Å⁻¹)
+    iq_corrected: FloatArray  # I(Q) in electron units
+    sq: FloatArray  # S(Q) total structure function
+    fq: FloatArray  # F(Q) = Q[S(Q) - 1] (Å⁻¹)
+    r: FloatArray  # r grid (Å)
+    gr: FloatArray  # G(r) (Å⁻²)
 
     model_config = {"arbitrary_types_allowed": True}
 
-    @property
-    def baseline(self):
-        baseline = -4.0 * np.pi * self.r * self.number_density
-        return baseline
 
-    @property
-    def rdf(self) -> SerialisableNDArray:
-        """g(r) - dimensionless"""
-        rdf = 1 + (self.gr / self.baseline)
-        return rdf
-
-    def plot(self, ref_file: str | Path | None = None):
-
-        ref_file = Path(ref_file) if ref_file is not None else ref_file
-
-        # ---- Diagnostic plot ----
-        fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-        fig.suptitle("PDF pipeline diagnostics — crystalline Si", fontsize=13)
-
-        ax = axes[0, 0]
-        ax.plot(self.q, self.iq_corrected, lw=0.8, color="steelblue")
-        ax.set_xlabel("Q (Å⁻¹)")
-        ax.set_ylabel("I(Q) (e.u.)")
-        ax.set_title("Coherent intensity (electron units)")
-        ax.grid(alpha=0.3)
-
-        ax = axes[0, 1]
-        ax.plot(self.q, self.sq, lw=0.8, color="steelblue")
-        ax.axhline(1.0, color="k", lw=0.6, ls="--", label="S(Q) = 1")
-        ax.set_xlabel("Q (Å⁻¹)")
-        ax.set_ylabel("S(Q)")
-        ax.set_title("Total structure function")
-        ax.legend(fontsize=9)
-        ax.grid(alpha=0.3)
-
-        ax = axes[1, 0]
-        ax.plot(self.q, self.fq, lw=0.8, color="steelblue")
-        ax.axhline(0.0, color="k", lw=0.6, ls="--")
-        ax.set_xlabel("Q (Å⁻¹)")
-        ax.set_ylabel("F(Q) = Q[S(Q)−1] (Å⁻¹)")
-        ax.set_title("Reduced structure function")
-        ax.grid(alpha=0.3)
-
-        ax = axes[1, 1]
-        ax.plot(self.r, self.gr, lw=0.9, color="steelblue", label="Computed G(r)")
-        baseline = -4.0 * np.pi * self.r * self.number_density
-        ax.plot(self.r, baseline, "k--", lw=0.8, label=r"$-4\pi r\rho_0$", zorder=2)
-
-        if ref_file is not None and ref_file.exists():
-            r_ref, g_ref = load_xy(Path(ref_file))
-            ax.plot(
-                r_ref,
-                g_ref,
-                color="tomato",
-                lw=0.9,
-                ls="--",
-                alpha=0.8,
-                label="Reference G(r)",
-            )
-
-        ax.set_xlabel("r (Å)")
-        ax.set_ylabel("G(r) (Å⁻²)")
-        ax.set_title("Pair distribution function G(r)")
-        ax.set_xlim(0, 15)
-        ax.legend(fontsize=9)
-        ax.grid(alpha=0.3)
-
-        plt.tight_layout()
-        plt.savefig("Si_pdf_diagnostics.png", dpi=150)
-        plt.show()
-
-
-def _compton_hubbell(element: str, s_arr: SerialisableNDArray) -> SerialisableNDArray:
+def _compton_hubbell(element: str, s_arr: FloatArray) -> FloatArray:
     """
     Compton (inelastic) scattering per atom using the Cromer–Mann
     approximation:  I_C(s) ≈ Z - f²(s)/Z
@@ -321,16 +250,18 @@ def _compton_hubbell(element: str, s_arr: SerialisableNDArray) -> SerialisableND
     is adequate for light to medium-weight elements (Z ≤ 40).
     """
     z = ELEMENT_ATOMIC_NUMBER[element]
-    ff = calculate_form_factor_for_element(element, s_arr)
-    return np.maximum(0.0, z - ff**2 / z)
+    f = calculate_form_factor_for_element(element, s_arr)
+
+    print(f)
+    print(z)
+
+    return np.maximum(0.0, z - f**2 / z)
 
 
 def build_scattering_factors(
-    composition: dict[str, float],
-    q: SerialisableNDArray,
-) -> tuple[
-    SerialisableNDArray, SerialisableNDArray, SerialisableNDArray, SerialisableNDArray
-]:
+    composition: list[CompositionEntry],
+    q: FloatArray,
+) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
     """
     Compute composition-averaged scattering quantities on the Q grid.
 
@@ -342,18 +273,18 @@ def build_scattering_factors(
     compton   : ⟨I_C(Q)⟩  — Compton scattering per average atom
     """
     s = q / (4.0 * np.pi)
-    total = sum(e for e in composition.values())
-    weights = np.array([e / total for e in composition.values()])
+    total = sum(e.count for e in composition)
+    weights = np.array([e.count / total for e in composition])
 
     f_mean = np.zeros_like(q)
     f_sq_mean = np.zeros_like(q)
     compton = np.zeros_like(q)
 
-    for w, element in zip(weights, composition.keys(), strict=True):
-        f_el = calculate_form_factor_for_element(element, s)
+    for w, entry in zip(weights, composition):
+        f_el = calculate_form_factor_for_element(entry.element, s)
         f_mean += w * f_el
         f_sq_mean += w * f_el**2
-        compton += w * _compton_hubbell(element, s)
+        compton += w * _compton_hubbell(entry.element, s)
 
     f_mean_sq = f_mean**2
     return f_mean, f_mean_sq, f_sq_mean, compton
@@ -365,10 +296,10 @@ def build_scattering_factors(
 
 
 def polarisation_correction(
-    two_theta_deg: SerialisableNDArray,
+    two_theta_deg: FloatArray,
     synchrotron: bool,
     p: float,
-) -> SerialisableNDArray:
+) -> FloatArray:
     """
     Polarisation factor P(2θ) for total scattering data.
 
@@ -388,12 +319,17 @@ def polarisation_correction(
     return (1.0 + cos2t**2) / 2.0
 
 
+def two_theta_to_q(two_theta_deg: FloatArray, wavelength: float) -> FloatArray:
+    """Q = 4π sinθ / λ  (Å⁻¹)."""
+    return 4.0 * np.pi * np.sin(np.deg2rad(two_theta_deg / 2.0)) / wavelength
+
+
 # ---------------------------------------------------------------------------
 # I/O utilities
 # ---------------------------------------------------------------------------
 
 
-def load_xy(path: Path) -> tuple[SerialisableNDArray, SerialisableNDArray]:
+def load_xy(path: Path) -> tuple[FloatArray, FloatArray]:
     """
     Load a two-column ASCII file (whitespace or comma separated).
     Comment lines starting with #, !, or ; are ignored.
@@ -409,9 +345,7 @@ def load_xy(path: Path) -> tuple[SerialisableNDArray, SerialisableNDArray]:
     return x[order].astype(np.float64), y[order].astype(np.float64)
 
 
-def save_two_column(
-    path: Path, x: SerialisableNDArray, y: SerialisableNDArray, header: str = ""
-) -> None:
+def save_two_column(path: Path, x: FloatArray, y: FloatArray, header: str = "") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(path, np.column_stack([x, y]), header=header, fmt="%.8e")
 
@@ -422,200 +356,109 @@ def save_two_column(
 
 
 def krogh_moe_normalise(
-    q_values: FloatArray,
-    observed_intensity: FloatArray,
-    composition: dict[str, float],
+    q: FloatArray,
+    intensity_q: FloatArray,
+    f_sq_mean: FloatArray,
+    compton: FloatArray,
     q_min_fit: float,
     q_max_fit: float,
-    number_density: float,
-    background_type: BACKGROUND_TYPES = "polynomial",
-    poly_degree: int = 4,
-    compton: Optional[FloatArray] = None,
+    poly_degree: int,
 ) -> tuple[float, FloatArray]:
     """
-    Determine the absolute scale factor α and an additive background B(Q)
-    by imposing the Krogh‑Moe / Norman integral condition over the fit window.
+    Determine the absolute scale factor α and a smooth additive background
+    polynomial by imposing the Krogh-Moe / Norman condition over the
+    high-Q normalisation window [q_min_fit, q_max_fit]:
 
-    The background is represented by a polynomial in Q or a Chebyshev expansion.
-    The method iteratively refines α and the background coefficients.
+        I_meas(Q) ≈ α · [⟨f²(Q)⟩ + I_Compton(Q)] + P(Q)
+
+    where P(Q) is a polynomial of degree `poly_degree` in Q (not Q², to
+    allow for asymmetric backgrounds arising from air scatter, fluorescence
+    tails, and other sources that do not respect even symmetry in Q).
+
+    The scale factor α is determined from the Q²-weighted Norman integral:
+
+        α = ∫_{fit} [⟨f²⟩ + I_C] Q² dQ
+            ─────────────────────────────
+            ∫_{fit} [I_meas - P(Q)] Q² dQ
+
+    Iterations:
+      1. Simultaneous least-squares fit of α and polynomial coefficients.
+      2. Recompute the Norman ratio; update α.
+      3. Refit polynomial with fixed α.
+      4. Repeat until |Δα/α| < 1×10⁻⁵ (typically < 20 iterations).
+
+    This two-step procedure avoids the conflation of scale and background
+    that occurs when both are varied simultaneously in a single χ² fit
+    (which can yield unphysical negative α values for noisy data).
 
     Parameters
     ----------
-    q_values            : Q grid (Å⁻¹)
-    observed_intensity  : corrected intensity (arbitrary units)
-    composition         : elemental composition as {element: count}
-    q_min_fit, q_max_fit: normalisation window (Å⁻¹)
-    number_density      : atomic number density (atoms/Å³) – used only for
-                          the constant in the Norman integral (usually negligible)
-    background_type     : 'constant', 'polynomial', or 'chebyshev'
-    poly_degree         : degree of the polynomial or Chebyshev expansion
-    compton             : optional pre‑computed Compton scattering per atom
+    q            : Q grid (Å⁻¹)
+    intensity_q  : resampled, polarisation-corrected intensity on q
+    f_sq_mean    : ⟨f²(Q)⟩ on q
+    compton      : Compton scattering per atom on q
+    q_min_fit    : lower bound of normalisation window (Å⁻¹)
+    q_max_fit    : upper bound of normalisation window (Å⁻¹)
+    poly_degree  : degree of background polynomial
 
     Returns
     -------
-    alpha      : scale factor (dimensionless)
-    background : background B(Q) evaluated on q_values
+    alpha      : absolute scale factor (dimensionless)
+    background : polynomial background evaluated on the full q grid
     """
-    # ---------- Validate inputs ----------
-    if len(q_values) != len(observed_intensity):
-        raise ValueError("q_values and observed_intensity must have same length.")
-    if q_min_fit >= q_max_fit:
-        raise ValueError("q_min_fit must be less than q_max_fit.")
+    mask = (q >= q_min_fit) & (q <= q_max_fit)
+    if mask.sum() < poly_degree + 3:
+        # Fallback: use the whole Q range
+        mask = np.ones(len(q), dtype=bool)
 
-    # ---------- Fit window mask ----------
-    mask = (q_values >= q_min_fit) & (q_values <= q_max_fit)
-    n_pts = mask.sum()
-    if n_pts < poly_degree + 3:
-        warnings.warn(
-            f"Fit window contains only {n_pts} points; using full Q range.",
-            RuntimeWarning,
-        )
-        mask = np.ones(len(q_values), dtype=bool)
+    q_fit = q[mask]
+    I_fit = intensity_q[mask]
+    self_sc_fit = f_sq_mean[mask] + compton[mask]
 
-    q_fit = q_values[mask]
-    I_fit = observed_intensity[mask]
+    # Design matrix: [self-scattering column | polynomial columns 1, Q, Q², …]
+    poly_matrix = np.column_stack([q_fit**k for k in range(poly_degree + 1)])
+    A = np.column_stack([self_sc_fit, poly_matrix])
+    coeffs, *_ = np.linalg.lstsq(A, I_fit, rcond=None)
 
-    # ---------- Compute composition‑averaged scattering factors ----------
-    total = sum(composition.values())
-    elements = list(composition.keys())
-    weights = np.array([composition[el] / total for el in elements])
-
-    # s = sinθ/λ = Q/(4π)
-    s = q_space_to_s(q_values)
-    s_fit = q_space_to_s(q_fit)
-
-    # Form factors for all elements on the full grid
-    form_factors = calculate_form_factor(elements, s)  # shape (n_elements, n_q)
-    if form_factors.ndim == 1:
-        form_factors = form_factors.reshape(1, -1)
-
-    # Mean squared form factor ⟨f²⟩
-    f_sq_mean = np.sum(weights[:, None] * form_factors**2, axis=0)
-
-    # Compton scattering: either provided or computed
-    if compton is None:
-        compton_per_atom = np.array([_compton_hubbell(el, s) for el in elements])
-        mean_compton = np.sum(weights[:, None] * compton_per_atom, axis=0)
-    else:
-        if len(compton) != len(q_values):
-            raise ValueError("compton must have same length as q_values.")
-        mean_compton = compton
-
-    self_scattering = f_sq_mean + mean_compton  # ⟨f²⟩ + I_C
-    self_fit = self_scattering[mask]
-
-    # ---------- Build background basis ----------
-    if background_type == "constant":
-        poly_degree = 0
-        basis_full = np.ones((len(q_values), 1))
-        basis_fit = np.ones((len(q_fit), 1))
-    elif background_type == "polynomial":
-        basis_full = np.column_stack([q_values**k for k in range(poly_degree + 1)])
-        basis_fit = np.column_stack([q_fit**k for k in range(poly_degree + 1)])
-    elif background_type == "chebyshev":
-        # Map q to x ∈ [-1, 1] over the full Q range
-        q_min, q_max = q_values.min(), q_values.max()
-        if q_max > q_min:
-            x_full = 2.0 * (q_values - q_min) / (q_max - q_min) - 1.0
-            x_fit = 2.0 * (q_fit - q_min) / (q_max - q_min) - 1.0
-        else:
-            x_full = np.zeros_like(q_values)
-            x_fit = np.zeros_like(q_fit)
-        basis_full = np.polynomial.chebyshev.chebvander(x_full, deg=poly_degree)
-        basis_fit = np.polynomial.chebyshev.chebvander(x_fit, deg=poly_degree)
-    else:
-        raise ValueError(f"Unknown background_type: {background_type}")
-
-    # ---------- Initial fit ----------
-    design = np.column_stack([self_fit, basis_fit])
-    coeffs, _, _, _ = np.linalg.lstsq(design, I_fit, rcond=None)
     alpha = float(coeffs[0])
-    bg_coeffs = coeffs[1:]
+    poly_coeffs = coeffs[1:]  # shape: (poly_degree + 1,)
 
-    # Fallback if α ≤ 0
     if alpha <= 0:
-        numerator = np.trapezoid(self_fit * q_fit**2, q_fit)
-        denominator = np.trapezoid(I_fit * q_fit**2, q_fit)
-        alpha = numerator / denominator if abs(denominator) > 1e-30 else 1.0
-        res = I_fit - alpha * self_fit
-        bg_coeffs, _, _, _ = np.linalg.lstsq(basis_fit, res, rcond=None)
+        # Protect against ill-conditioned initial fit
+        alpha = float(
+            np.trapezoid(self_sc_fit * q_fit**2, q_fit)
+            / np.trapezoid(I_fit * q_fit**2, q_fit)
+        )
 
-    # ---------- Iterative refinement ----------
+    # Polynomial basis on the full Q grid
+    poly_basis_full = np.column_stack([q**k for k in range(poly_degree + 1)])
+    poly_basis_fit = np.column_stack([q_fit**k for k in range(poly_degree + 1)])
+
+    # Iterative α refinement using the Q²-weighted Norman integral
     for _ in range(50):
-        bg_fit = basis_fit @ bg_coeffs
+        background = poly_basis_full @ poly_coeffs
 
-        # Enforce physical bounds: 0 ≤ bg ≤ I_fit (clip, then refit if needed)
-        bg_fit_clipped = np.clip(bg_fit, 0.0, I_fit)
-        if not np.allclose(bg_fit, bg_fit_clipped, rtol=1e-6, atol=1e-6):
-            bg_coeffs, _, _, _ = np.linalg.lstsq(basis_fit, bg_fit_clipped, rcond=None)
-            bg_fit = basis_fit @ bg_coeffs
-            bg_fit = np.clip(bg_fit, 0.0, I_fit)
-
-        # Norman ratio: α = ∫ self * Q² dQ / ∫ (I - bg) * Q² dQ
-        numerator = np.trapezoid(self_fit * q_fit**2, q_fit)
-        denominator = np.trapezoid((I_fit - bg_fit) * q_fit**2, q_fit)
+        # Norman ratio: integral of self-scattering / integral of corrected data
+        # Both weighted by Q² to suppress the noisy low-Q region
+        numerator = np.trapezoid(self_sc_fit * q_fit**2, q_fit)
+        denominator = np.trapezoid(
+            (I_fit - poly_basis_fit @ poly_coeffs) * q_fit**2, q_fit
+        )
         if abs(denominator) < 1e-30:
             break
 
         alpha_new = numerator / denominator
 
-        # Refit background with updated α
-        res = I_fit - alpha_new * self_fit
-        bg_coeffs_new, _, _, _ = np.linalg.lstsq(basis_fit, res, rcond=None)
+        # Refit background polynomial with the updated α
+        res = I_fit - alpha_new * self_sc_fit
+        poly_coeffs, *_ = np.linalg.lstsq(poly_basis_fit, res, rcond=None)
 
-        # Enforce bounds on the new background
-        bg_fit_new = basis_fit @ bg_coeffs_new
-        bg_fit_new = np.clip(bg_fit_new, 0.0, I_fit)
-        bg_coeffs_new, _, _, _ = np.linalg.lstsq(basis_fit, bg_fit_new, rcond=None)
-
-        # Convergence check
         if abs(alpha_new - alpha) / max(abs(alpha), 1e-30) < 1e-5:
             alpha = alpha_new
-            bg_coeffs = bg_coeffs_new
             break
-
         alpha = alpha_new
-        bg_coeffs = bg_coeffs_new
 
-    # ---------- Final background on full grid ----------
-    background = basis_full @ bg_coeffs
-    # Global clipping to [0, observed_intensity]
-    background_clipped = np.clip(background, 0.0, observed_intensity)
-
-    # If clipping changed the background, recompute α to maintain consistency
-    if not np.allclose(background, background_clipped, rtol=1e-6, atol=1e-6):
-        bg_fit_final = background_clipped[mask]
-        numerator = np.trapezoid(self_fit * q_fit**2, q_fit)
-        denominator = np.trapezoid((I_fit - bg_fit_final) * q_fit**2, q_fit)
-        if abs(denominator) > 1e-30:
-            alpha = numerator / denominator
-        warnings.warn(
-            "Background was clipped to satisfy 0 ≤ B(Q) ≤ I_obs(Q). "
-            "Scale factor updated accordingly.",
-            RuntimeWarning,
-        )
-        background = background_clipped
-
-    # ---------- Fallback if α is still non‑positive ----------
-    if alpha <= 0:
-        warnings.warn(
-            "Iterative normalisation yielded non‑positive α. "
-            "Falling back to constant background.",
-            RuntimeWarning,
-        )
-        # Recursive call with constant background
-        return krogh_moe_normalise(
-            q_values=q_values,
-            observed_intensity=observed_intensity,
-            composition=composition,
-            q_min_fit=q_min_fit,
-            q_max_fit=q_max_fit,
-            number_density=number_density,
-            background_type="constant",
-            poly_degree=0,
-            compton=mean_compton,
-        )
-
+    background = poly_basis_full @ poly_coeffs
     return alpha, background
 
 
@@ -625,10 +468,10 @@ def krogh_moe_normalise(
 
 
 def make_termination_window(
-    q: SerialisableNDArray,
+    q: FloatArray,
     q_max: float,
-    window_type: WINDOW_TYPES | None,
-) -> SerialisableNDArray:
+    window_type: str,
+) -> FloatArray:
     """
     Multiplicative window W(Q) applied to F(Q) before Fourier transformation
     to reduce Fourier termination ripples arising from the finite Q_max cutoff.
@@ -660,7 +503,7 @@ def make_termination_window(
         return w
     elif window_type == "cosine":
         return 0.5 * (1.0 + np.cos(np.pi * q / q_max))
-    elif window_type == "none" or None:
+    elif window_type == "none":
         return np.ones_like(q)
     else:
         raise ValueError(
@@ -675,11 +518,11 @@ def make_termination_window(
 
 
 def sine_transform_fq_to_gr(
-    q: SerialisableNDArray,
-    f_q: SerialisableNDArray,
-    r: SerialisableNDArray,
+    q: FloatArray,
+    f_q: FloatArray,
+    r: FloatArray,
     dq: float,
-) -> SerialisableNDArray:
+) -> FloatArray:
     """
     Forward sine Fourier transform:
 
@@ -705,10 +548,10 @@ def sine_transform_fq_to_gr(
 
 
 def sine_transform_gr_to_fq(
-    r: SerialisableNDArray,
-    g_r: SerialisableNDArray,
-    q: SerialisableNDArray,
-) -> FloatArray | float:
+    r: FloatArray,
+    g_r: FloatArray,
+    q: FloatArray,
+) -> FloatArray:
     """
     Inverse (back) sine Fourier transform:
 
@@ -739,8 +582,8 @@ def sine_transform_gr_to_fq(
 
 
 def _auto_r_constraint(
-    r: SerialisableNDArray,
-    g: SerialisableNDArray,
+    r: FloatArray,
+    g: FloatArray,
     rho0: float,
     r_search_min: float = 1.2,
     r_search_max: float = 3.5,
@@ -778,15 +621,15 @@ def _auto_r_constraint(
 
 
 def apply_real_space_constraint(
-    r: SerialisableNDArray,
-    g: SerialisableNDArray,
-    f_q: SerialisableNDArray,
-    q: SerialisableNDArray,
+    r: FloatArray,
+    g: FloatArray,
+    f_q: FloatArray,
+    q: FloatArray,
     dq: float,
     rho0: float,
     r_max_constraint: float,
     n_iterations: int,
-) -> tuple[SerialisableNDArray, SerialisableNDArray, SerialisableNDArray]:
+) -> tuple[FloatArray, FloatArray, FloatArray]:
     """
     Iterative real-space constraint correction (Toby & Egami, 1992).
 
@@ -850,7 +693,7 @@ def apply_real_space_constraint(
     # Complement: the physical region containing real peaks
     mask_phys = ~mask_low
 
-    # r_step_grid = r[1] - r[0]  # uniform spacing (used for display only)
+    r_step_grid = r[1] - r[0]  # uniform spacing (used for display only)
 
     for _it in range(n_iterations):
         # 1. Deviation from the physical baseline in the constrained region
@@ -957,35 +800,21 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     # ------------------------------------------------------------------
     # 4.  Krogh-Moe / Norman normalisation
     # ------------------------------------------------------------------
-
     alpha, background = krogh_moe_normalise(
-        q_values=q,
-        observed_intensity=i_q,
-        composition=config.composition,
-        q_min_fit=10.0,
-        q_max_fit=20.0,
-        number_density=config.number_density,
-        background_type="polynomial",
-        poly_degree=4,
-        compton=compton,  # optional
+        q,
+        i_q,
+        f_sq_mean,
+        compton,
+        q_min_fit=float(config.norm_q_min),  # type: ignore[arg-type]
+        q_max_fit=q_max_use,
+        poly_degree=config.norm_poly_degree,
     )
-
-    if alpha < 0:
-        raise Exception("Normalisation returned a scale factor value < 0")
 
     # ------------------------------------------------------------------
     # 5.  Coherent elastic intensity in electron units
     #     I_eu(Q) = [I_meas(Q) - background(Q)] / α
     # ------------------------------------------------------------------
     i_eu = (i_q - background) / alpha
-
-    print(alpha)
-
-    plt.plot(q, i_q)
-    plt.plot(q, i_q - background)
-    plt.plot(q, i_eu)
-    plt.plot(q, background)
-    plt.show()
 
     # ------------------------------------------------------------------
     # 6.  Total structure function S(Q)
@@ -1029,9 +858,9 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     #     Its effect in real space is to convolve G(r) with a Gaussian
     #     whose width grows as σ_r(r) = σ_Q · r (PDFfit2 convention).
     # ------------------------------------------------------------------
-    window = make_termination_window(q, q_max_use, config.termination_window)
-    damping = np.exp(-0.5 * (config.qdamp * q) ** 2)
-    f_mod = f_q_raw * window * damping
+    W = make_termination_window(q, q_max_use, config.termination_window)
+    D = np.exp(-0.5 * (config.qdamp * q) ** 2)
+    f_mod = f_q_raw * W * D
 
     # ------------------------------------------------------------------
     # 9.  Sine Fourier transform  F_mod(Q) → G(r)
@@ -1077,10 +906,9 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
         q=q,
         iq_corrected=i_eu,
         sq=s_q,
-        fq=f_q_raw,  # return the un-windowed F(Q) — the meaningful quantity
+        fq=f_q_raw,  # return the un-windowed F(Q) — the scientifically meaningful quantity
         r=r_full,
         gr=g_full,
-        number_density=config.number_density,
     )
 
 
@@ -1100,12 +928,11 @@ def run_pdf(
     r_max: float = 30.0,
     r_step: float = 0.01,
     qdamp: float = 0.030,
-    termination_window: WINDOW_TYPES = "cosine",
+    termination_window: str = "cosine",
     use_real_space_constraint: bool = True,
-    real_space_constraint_iterations: int = 15,
+    real_space_constraint_iterations: int = 10,
     r_constraint_max: float | None = None,
     norm_poly_degree: int = 3,
-    norm_background_type: BACKGROUND_TYPES = "polynomial",
     norm_q_min: float | None = None,
     is_synchrotron: bool = False,
     polarisation_p: float = 0.99,
@@ -1133,12 +960,15 @@ def run_pdf(
     -------
     PDFResult with fields: q, iq_corrected, sq, fq, r, gr
     """
-
+    comp_entries = [
+        CompositionEntry(element=el, count=float(cnt))
+        for el, cnt in composition.items()
+    ]
     if export_formats is None:
         export_formats = [ExportFormat.GR]
 
     cfg = PDFConfig(
-        composition=composition,
+        composition=comp_entries,
         wavelength=wavelength,
         number_density=number_density,
         q_min=q_min,
@@ -1151,7 +981,6 @@ def run_pdf(
         real_space_constraint_iterations=real_space_constraint_iterations,
         r_constraint_max=r_constraint_max,
         norm_poly_degree=norm_poly_degree,
-        norm_background_type=norm_background_type,
         norm_q_min=norm_q_min,
         is_synchrotron=is_synchrotron,
         polarisation_p=polarisation_p,
@@ -1238,8 +1067,8 @@ def validate_against_reference(
     r_ref, g_ref = load_xy(ref_path)
 
     def _top_peaks(
-        r_arr: SerialisableNDArray, g_arr: SerialisableNDArray
-    ) -> tuple[SerialisableNDArray, SerialisableNDArray]:
+        r_arr: FloatArray, g_arr: FloatArray
+    ) -> tuple[FloatArray, FloatArray]:
         idx = (r_arr > r_min_compare) & (r_arr < r_arr.max() - 1.0)
         peaks, _ = find_peaks(g_arr[idx], height=0.1, distance=10)
         if len(peaks) == 0:
@@ -1311,10 +1140,9 @@ if __name__ == "__main__":
         polarisation_p=0.99,
         termination_window="cosine",
         use_real_space_constraint=True,
-        real_space_constraint_iterations=15,
+        real_space_constraint_iterations=10,
         r_constraint_max=2.1,
-        norm_poly_degree=10,
-        norm_background_type="polynomial",
+        norm_poly_degree=3,
         export_formats=["gr", "sq", "fq", "iq"],
         output_dir=".",
         output_stem="Si_pdf",
@@ -1325,4 +1153,56 @@ if __name__ == "__main__":
         passed = validate_against_reference(result, ref_file)
         print(f"\nOverall: {'PASSED' if passed else 'FAILED'}\n")
 
-    result.plot(ref_file)
+    # ---- Diagnostic plot ----
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+    fig.suptitle("PDF pipeline diagnostics — crystalline Si", fontsize=13)
+
+    ax = axes[0, 0]
+    ax.plot(result.q, result.iq_corrected, lw=0.8, color="steelblue")
+    ax.set_xlabel("Q (Å⁻¹)")
+    ax.set_ylabel("I(Q) (e.u.)")
+    ax.set_title("Coherent intensity (electron units)")
+    ax.grid(alpha=0.3)
+
+    ax = axes[0, 1]
+    ax.plot(result.q, result.sq, lw=0.8, color="steelblue")
+    ax.axhline(1.0, color="k", lw=0.6, ls="--", label="S(Q) = 1")
+    ax.set_xlabel("Q (Å⁻¹)")
+    ax.set_ylabel("S(Q)")
+    ax.set_title("Total structure function")
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.3)
+
+    ax = axes[1, 0]
+    ax.plot(result.q, result.fq, lw=0.8, color="steelblue")
+    ax.axhline(0.0, color="k", lw=0.6, ls="--")
+    ax.set_xlabel("Q (Å⁻¹)")
+    ax.set_ylabel("F(Q) = Q[S(Q)−1] (Å⁻¹)")
+    ax.set_title("Reduced structure function")
+    ax.grid(alpha=0.3)
+
+    ax = axes[1, 1]
+    ax.plot(result.r, result.gr, lw=0.9, color="steelblue", label="Computed G(r)")
+    baseline = -4.0 * np.pi * result.r * rho_si
+    ax.plot(result.r, baseline, "k--", lw=0.8, label=r"$-4\pi r\rho_0$", zorder=2)
+    if ref_file.exists():
+        r_ref, g_ref = load_xy(ref_file)
+        ax.plot(
+            r_ref,
+            g_ref,
+            color="tomato",
+            lw=0.9,
+            ls="--",
+            alpha=0.8,
+            label="Reference G(r)",
+        )
+    ax.set_xlabel("r (Å)")
+    ax.set_ylabel("G(r) (Å⁻²)")
+    ax.set_title("Pair distribution function G(r)")
+    ax.set_xlim(0, 15)
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig("Si_pdf_diagnostics.png", dpi=150)
+    plt.show()
