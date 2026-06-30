@@ -25,7 +25,7 @@ from pydantic import (
 
 SUPPORTED_FILE_TYPES = [".json", ".toml", ".yaml"]
 
-XUnit: TypeAlias = Literal["tth", "tof", "q", "d"]
+XUnit: TypeAlias = Literal["tth", "tof", "q", "d", "r"]
 
 DataType: TypeAlias = Literal[
     "xray",
@@ -43,7 +43,8 @@ def to_ndarray(v):
     return v
 
 
-FloatArray = npt.NDArray[np.float64]
+FloatArray = npt.NDArray[np.floating]
+IntArray = npt.NDArray[np.integer]
 
 
 SerialisableNDArray = Annotated[
@@ -202,7 +203,7 @@ class Parameter(BaseModel, Real):
 
     # comparisons
     def __eq__(self, other):
-        return float(self) == float(other)
+        return float(self) == float(other)  # type: ignore
 
     def __lt__(self, other):
         return float(self) < float(other)
@@ -601,7 +602,7 @@ class XYEData(XRPDBaseModel):
 
         return cls(x=x, y=y, e=e, source=str(filepath))
 
-    def save_to_xye(self, filepath):
+    def save_to_xye(self, filepath: str | Path, header: str = ""):
         if self.e is None:
             error = np.sqrt(self.y)
         else:
@@ -609,7 +610,14 @@ class XYEData(XRPDBaseModel):
 
         xye_out_data = np.stack((self.x, self.y, error), axis=-1)
 
-        np.savetxt(filepath, xye_out_data, fmt="%.6f", delimiter=" ", newline="\n")
+        np.savetxt(
+            filepath,
+            xye_out_data,
+            fmt="%.6f",
+            delimiter=" ",
+            header=header,
+            newline="\n",
+        )
 
 
 # TODO: Decide whether better to put x_unit into XYEData, remove generic ModelDataVar
@@ -618,7 +626,7 @@ class XYEData(XRPDBaseModel):
 class ScatteringData(XYEData):
     x_unit: XUnit = "tth"  # type: ignore[override]
     data_type: DataType = "xray"
-    wavelength: float | Parameter  # for x-ray or CW neutron data
+    wavelength: float | Parameter = Field(gt=0)  # for x-ray or CW neutron data
 
     @model_validator(mode="after")
     def validate_data_units(self):

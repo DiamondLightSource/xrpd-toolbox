@@ -204,7 +204,7 @@ class PDFConfig(BaseModel):
     r_max: float = 30.0
     r_step: float = Field(default=0.01, gt=0)
 
-    termination_window: Literal["lorch", "cosine", "none"] | None = "cosine"
+    termination_window: WINDOW_TYPES | None = "cosine"
     qdamp: float = Field(default=0.030, ge=0.0)
 
     use_real_space_constraint: bool = True
@@ -236,8 +236,80 @@ class PDFResult(BaseModel):
     fq: FloatArray  # F(Q) = Q[S(Q) - 1] (Å⁻¹)
     r: FloatArray  # r grid (Å)
     gr: FloatArray  # G(r) (Å⁻²)
+    number_density: float  # also known as rho
 
     model_config = {"arbitrary_types_allowed": True}
+
+    @property
+    def baseline(self):
+        baseline = -4.0 * np.pi * self.r * self.number_density
+        return baseline
+
+    @property
+    def rdf(self) -> np.ndarray:
+        """g(r) - dimensionless"""
+        rdf = 1 + (self.gr / self.baseline)
+        return rdf
+
+    def plot(self, ref_file: str | Path | None = None):
+
+        ref_file = Path(ref_file) if ref_file is not None else ref_file
+
+        # ---- Diagnostic plot ----
+        fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+        fig.suptitle("PDF pipeline diagnostics — crystalline Si", fontsize=13)
+
+        ax = axes[0, 0]
+        ax.plot(self.q, self.iq_corrected, lw=0.8, color="steelblue")
+        ax.set_xlabel("Q (Å⁻¹)")
+        ax.set_ylabel("I(Q) (e.u.)")
+        ax.set_title("Coherent intensity (electron units)")
+        ax.grid(alpha=0.3)
+
+        ax = axes[0, 1]
+        ax.plot(self.q, self.sq, lw=0.8, color="steelblue")
+        ax.axhline(1.0, color="k", lw=0.6, ls="--", label="S(Q) = 1")
+        ax.set_xlabel("Q (Å⁻¹)")
+        ax.set_ylabel("S(Q)")
+        ax.set_title("Total structure function")
+        ax.legend(fontsize=9)
+        ax.grid(alpha=0.3)
+
+        ax = axes[1, 0]
+        ax.plot(self.q, self.fq, lw=0.8, color="steelblue")
+        ax.axhline(0.0, color="k", lw=0.6, ls="--")
+        ax.set_xlabel("Q (Å⁻¹)")
+        ax.set_ylabel("F(Q) = Q[S(Q)−1] (Å⁻¹)")
+        ax.set_title("Reduced structure function")
+        ax.grid(alpha=0.3)
+
+        ax = axes[1, 1]
+        ax.plot(self.r, self.gr, lw=0.9, color="steelblue", label="Computed G(r)")
+        baseline = -4.0 * np.pi * self.r * self.number_density
+        ax.plot(self.r, baseline, "k--", lw=0.8, label=r"$-4\pi r\rho_0$", zorder=2)
+
+        if ref_file is not None and ref_file.exists():
+            r_ref, g_ref = load_xy(Path(ref_file))
+            ax.plot(
+                r_ref,
+                g_ref,
+                color="tomato",
+                lw=0.9,
+                ls="--",
+                alpha=0.8,
+                label="Reference G(r)",
+            )
+
+        ax.set_xlabel("r (Å)")
+        ax.set_ylabel("G(r) (Å⁻²)")
+        ax.set_title("Pair distribution function G(r)")
+        ax.set_xlim(0, 15)
+        ax.legend(fontsize=9)
+        ax.grid(alpha=0.3)
+
+        plt.tight_layout()
+        plt.savefig("Si_pdf_diagnostics.png", dpi=150)
+        plt.show()
 
 
 def _compton_hubbell(element: str, s_arr: FloatArray) -> FloatArray:
@@ -280,7 +352,7 @@ def build_scattering_factors(
     f_sq_mean = np.zeros_like(q)
     compton = np.zeros_like(q)
 
-    for w, entry in zip(weights, composition):
+    for w, entry in zip(weights, composition, strict=True):
         f_el = calculate_form_factor_for_element(entry.element, s)
         f_mean += w * f_el
         f_sq_mean += w * f_el**2
@@ -317,11 +389,6 @@ def polarisation_correction(
     if synchrotron:
         return (1.0 - p) + p * cos2t**2
     return (1.0 + cos2t**2) / 2.0
-
-
-def two_theta_to_q(two_theta_deg: FloatArray, wavelength: float) -> FloatArray:
-    """Q = 4π sinθ / λ  (Å⁻¹)."""
-    return 4.0 * np.pi * np.sin(np.deg2rad(two_theta_deg / 2.0)) / wavelength
 
 
 # ---------------------------------------------------------------------------
@@ -406,19 +473,27 @@ def krogh_moe_normalise(
     alpha      : absolute scale factor (dimensionless)
     background : polynomial background evaluated on the full q grid
     """
+
+    if q_max_fit > np.amax(q):
+        q_max_fit = np.amax(q) - 1
+        print(f"!!!!!!! {q_max_fit}")
+    if q_min_fit < np.amin(q):
+        q_min_fit = np.amin(q)
+        print(f"!!!!!!! {q_min_fit}")
+
     mask = (q >= q_min_fit) & (q <= q_max_fit)
     if mask.sum() < poly_degree + 3:
         # Fallback: use the whole Q range
         mask = np.ones(len(q), dtype=bool)
 
     q_fit = q[mask]
-    I_fit = intensity_q[mask]
+    i_fit = intensity_q[mask]
     self_sc_fit = f_sq_mean[mask] + compton[mask]
 
     # Design matrix: [self-scattering column | polynomial columns 1, Q, Q², …]
     poly_matrix = np.column_stack([q_fit**k for k in range(poly_degree + 1)])
     A = np.column_stack([self_sc_fit, poly_matrix])
-    coeffs, *_ = np.linalg.lstsq(A, I_fit, rcond=None)
+    coeffs, *_ = np.linalg.lstsq(A, i_fit, rcond=None)
 
     alpha = float(coeffs[0])
     poly_coeffs = coeffs[1:]  # shape: (poly_degree + 1,)
@@ -427,7 +502,7 @@ def krogh_moe_normalise(
         # Protect against ill-conditioned initial fit
         alpha = float(
             np.trapezoid(self_sc_fit * q_fit**2, q_fit)
-            / np.trapezoid(I_fit * q_fit**2, q_fit)
+            / np.trapezoid(i_fit * q_fit**2, q_fit)
         )
 
     # Polynomial basis on the full Q grid
@@ -442,7 +517,7 @@ def krogh_moe_normalise(
         # Both weighted by Q² to suppress the noisy low-Q region
         numerator = np.trapezoid(self_sc_fit * q_fit**2, q_fit)
         denominator = np.trapezoid(
-            (I_fit - poly_basis_fit @ poly_coeffs) * q_fit**2, q_fit
+            (i_fit - poly_basis_fit @ poly_coeffs) * q_fit**2, q_fit
         )
         if abs(denominator) < 1e-30:
             break
@@ -450,7 +525,7 @@ def krogh_moe_normalise(
         alpha_new = numerator / denominator
 
         # Refit background polynomial with the updated α
-        res = I_fit - alpha_new * self_sc_fit
+        res = i_fit - alpha_new * self_sc_fit
         poly_coeffs, *_ = np.linalg.lstsq(poly_basis_fit, res, rcond=None)
 
         if abs(alpha_new - alpha) / max(abs(alpha), 1e-30) < 1e-5:
@@ -459,7 +534,7 @@ def krogh_moe_normalise(
         alpha = alpha_new
 
     background = poly_basis_full @ poly_coeffs
-    return alpha, background
+    return float(alpha), background
 
 
 # ---------------------------------------------------------------------------
@@ -470,7 +545,7 @@ def krogh_moe_normalise(
 def make_termination_window(
     q: FloatArray,
     q_max: float,
-    window_type: str,
+    window_type: WINDOW_TYPES | None,
 ) -> FloatArray:
     """
     Multiplicative window W(Q) applied to F(Q) before Fourier transformation
@@ -503,7 +578,7 @@ def make_termination_window(
         return w
     elif window_type == "cosine":
         return 0.5 * (1.0 + np.cos(np.pi * q / q_max))
-    elif window_type == "none":
+    elif window_type is None or window_type == "none":
         return np.ones_like(q)
     else:
         raise ValueError(
@@ -693,7 +768,7 @@ def apply_real_space_constraint(
     # Complement: the physical region containing real peaks
     mask_phys = ~mask_low
 
-    r_step_grid = r[1] - r[0]  # uniform spacing (used for display only)
+    # r_step_grid = r[1] - r[0]  # uniform spacing (used for display only)
 
     for _it in range(n_iterations):
         # 1. Deviation from the physical baseline in the constrained region
@@ -816,6 +891,12 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     # ------------------------------------------------------------------
     i_eu = (i_q - background) / alpha
 
+    print(alpha)
+    plt.plot(q, i_q)
+    plt.plot(q, i_q - background)
+    plt.plot(q, background)
+    plt.show()
+
     # ------------------------------------------------------------------
     # 6.  Total structure function S(Q)
     #
@@ -858,9 +939,9 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     #     Its effect in real space is to convolve G(r) with a Gaussian
     #     whose width grows as σ_r(r) = σ_Q · r (PDFfit2 convention).
     # ------------------------------------------------------------------
-    W = make_termination_window(q, q_max_use, config.termination_window)
-    D = np.exp(-0.5 * (config.qdamp * q) ** 2)
-    f_mod = f_q_raw * W * D
+    window = make_termination_window(q, q_max_use, config.termination_window)
+    damping = np.exp(-0.5 * (config.qdamp * q) ** 2)
+    f_mod = f_q_raw * window * damping
 
     # ------------------------------------------------------------------
     # 9.  Sine Fourier transform  F_mod(Q) → G(r)
@@ -906,9 +987,10 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
         q=q,
         iq_corrected=i_eu,
         sq=s_q,
-        fq=f_q_raw,  # return the un-windowed F(Q) — the scientifically meaningful quantity
+        fq=f_q_raw,  # return the un-windowed F(Q) — the meaningful quantity
         r=r_full,
         gr=g_full,
+        number_density=config.number_density,
     )
 
 
@@ -928,7 +1010,7 @@ def run_pdf(
     r_max: float = 30.0,
     r_step: float = 0.01,
     qdamp: float = 0.030,
-    termination_window: str = "cosine",
+    termination_window: WINDOW_TYPES = "cosine",
     use_real_space_constraint: bool = True,
     real_space_constraint_iterations: int = 10,
     r_constraint_max: float | None = None,
@@ -1138,7 +1220,7 @@ if __name__ == "__main__":
         qdamp=0.003,
         is_synchrotron=True,
         polarisation_p=0.99,
-        termination_window="cosine",
+        termination_window="lorch",
         use_real_space_constraint=True,
         real_space_constraint_iterations=10,
         r_constraint_max=2.1,
@@ -1153,56 +1235,4 @@ if __name__ == "__main__":
         passed = validate_against_reference(result, ref_file)
         print(f"\nOverall: {'PASSED' if passed else 'FAILED'}\n")
 
-    # ---- Diagnostic plot ----
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-    fig.suptitle("PDF pipeline diagnostics — crystalline Si", fontsize=13)
-
-    ax = axes[0, 0]
-    ax.plot(result.q, result.iq_corrected, lw=0.8, color="steelblue")
-    ax.set_xlabel("Q (Å⁻¹)")
-    ax.set_ylabel("I(Q) (e.u.)")
-    ax.set_title("Coherent intensity (electron units)")
-    ax.grid(alpha=0.3)
-
-    ax = axes[0, 1]
-    ax.plot(result.q, result.sq, lw=0.8, color="steelblue")
-    ax.axhline(1.0, color="k", lw=0.6, ls="--", label="S(Q) = 1")
-    ax.set_xlabel("Q (Å⁻¹)")
-    ax.set_ylabel("S(Q)")
-    ax.set_title("Total structure function")
-    ax.legend(fontsize=9)
-    ax.grid(alpha=0.3)
-
-    ax = axes[1, 0]
-    ax.plot(result.q, result.fq, lw=0.8, color="steelblue")
-    ax.axhline(0.0, color="k", lw=0.6, ls="--")
-    ax.set_xlabel("Q (Å⁻¹)")
-    ax.set_ylabel("F(Q) = Q[S(Q)−1] (Å⁻¹)")
-    ax.set_title("Reduced structure function")
-    ax.grid(alpha=0.3)
-
-    ax = axes[1, 1]
-    ax.plot(result.r, result.gr, lw=0.9, color="steelblue", label="Computed G(r)")
-    baseline = -4.0 * np.pi * result.r * rho_si
-    ax.plot(result.r, baseline, "k--", lw=0.8, label=r"$-4\pi r\rho_0$", zorder=2)
-    if ref_file.exists():
-        r_ref, g_ref = load_xy(ref_file)
-        ax.plot(
-            r_ref,
-            g_ref,
-            color="tomato",
-            lw=0.9,
-            ls="--",
-            alpha=0.8,
-            label="Reference G(r)",
-        )
-    ax.set_xlabel("r (Å)")
-    ax.set_ylabel("G(r) (Å⁻²)")
-    ax.set_title("Pair distribution function G(r)")
-    ax.set_xlim(0, 15)
-    ax.legend(fontsize=9)
-    ax.grid(alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig("Si_pdf_diagnostics.png", dpi=150)
-    plt.show()
+    result.plot(ref_file)
