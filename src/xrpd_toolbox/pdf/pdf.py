@@ -52,7 +52,7 @@ from xrpd_toolbox.utils.unit_conversion import q_space_to_s, two_theta_to_q
 # Type aliases and enums
 # ---------------------------------------------------------------------------
 
-WindowType = Literal["super-lorch", "lorch", "cosine", "none"]
+WindowType = Literal["super_lorch", "lorch", "cosine", "none"]
 BackgroundType = Literal["constant", "polynomial", "chebyshev"]
 NormalisationMethod = Literal["krogh_moe", "eggert", "billinge", "warren"]
 
@@ -269,15 +269,22 @@ class PDFResult(XRPDBaseModel):
 
     @property
     def rdf(self) -> np.ndarray:
-        """Pair correlation function g(r) = 1 + G(r)/baseline."""
+        """Pair correlation function g(r) = 1 - G(r)/baseline.
+
+        baseline = -4*pi*r*rho0, so this is equivalent to the more familiar
+        g(r) = 1 + G(r)/(4*pi*r*rho0). Sign flipped relative to a naive
+        1 + G(r)/baseline because baseline itself is negative: in the
+        constrained no-pairs region G(r) == baseline exactly, which must
+        give g(r) == 0, not 2.
+        """
         with np.errstate(divide="ignore", invalid="ignore"):
             ratio = np.divide(
                 self.gr.y,
-                self.baseline,
+                -self.baseline,
                 out=np.full_like(self.gr.y, np.nan),
                 where=~np.isclose(self.baseline, 0.0),
             )
-        return 1.0 + ratio
+        return 1.0 + ratio - self.baseline
 
     def rw(
         self,
@@ -851,6 +858,16 @@ def _billinge_refine_background(
     """Ad-hoc additive polynomial correction that flattens D(r) to zero
     below r_poly. Degree n = floor(Qmaxinst * r_poly / pi), per PDFgetX3.
 
+    The correction basis is normalised over the *full* Q range being
+    transformed (q_values.min() to q_max_fit), not the narrow high-Q
+    Krogh-Moe fit window [q_min_fit, q_max_fit] -- unlike the Krogh-Moe
+    background, this polynomial must act across the whole spectrum feeding
+    the sine transform, most of which sits below q_min_fit. Normalising and
+    then flat-clipping to that narrow window instead makes every basis
+    column collinear (each just a different constant) over ~all of the
+    domain, which is catastrophically ill-conditioned and was observed to
+    blow up G(r) by orders of magnitude.
+
     window (termination window * qdamp, matching the rest of the pipeline)
     is applied before transforming: raw Bragg-peak content produces
     termination ripple, not slowly-varying background, and a polynomial
@@ -875,18 +892,11 @@ def _billinge_refine_background(
         q_values, current_s_minus_1 * window, r_low, weights
     )
 
-    basis = _background_basis(q_values, q_min_fit, q_max_fit, degree, background_type)
-    clipped_basis = np.column_stack(
-        [
-            _clip_background_extrapolation(
-                q_values, basis[:, coeff_index], q_min_fit, q_max_fit
-            )
-            for coeff_index in range(basis.shape[1])
-        ]
-    )
+    basis_q_min = float(np.amin(q_values))
+    basis = _background_basis(q_values, basis_q_min, q_max_fit, degree, background_type)
     design = _sine_transform_to_r(
         q_values,
-        q_over_f_mean_sq[:, None] * clipped_basis * window[:, None],
+        q_over_f_mean_sq[:, None] * basis * window[:, None],
         r_low,
         weights,
     )
@@ -899,7 +909,7 @@ def _billinge_refine_background(
             f"(cond={condition_number:.2e}); results may be unreliable.",
             stacklevel=2,
         )
-    return background + clipped_basis @ coeffs
+    return background + basis @ coeffs
 
 
 # ---------------------------------------------------------------------------
@@ -1080,7 +1090,7 @@ def make_termination_window(
         return window
     elif window_type == "cosine":
         return 0.5 * (1.0 + np.cos(np.pi * q_values / q_max))
-    elif window_type == "super-lorch" and super_lorch_power is not None:
+    elif window_type == "super_lorch" and super_lorch_power is not None:
         window = np.ones_like(q_values)
         nonzero = q_values > 0.0
         arg = np.pi * q_values[nonzero] / q_max
@@ -1089,14 +1099,14 @@ def make_termination_window(
         return window
     elif window_type is None or window_type == "none":
         return np.ones_like(q_values)
-    elif window_type == "super-lorch" and super_lorch_power is None:
+    elif window_type == "super_lorch" and super_lorch_power is None:
         raise ValueError(
             f"If window_type is '{window_type}'. Then super_lorch_power must be int"
         )
     else:
         raise ValueError(
             f"Unknown termination_window '{window_type}'. Choose 'lorch', "
-            "'cosine', 'super-lorch' or 'none'."
+            "'cosine', 'super_lorch' or 'none'."
         )
 
 
@@ -1850,7 +1860,7 @@ def run_pdf(
     r_step: float = 0.01,
     qdamp: float = 0.030,
     qbroad: float = 0.0,
-    termination_window: WindowType = "super-lorch",
+    termination_window: WindowType = "super_lorch",
     super_lorch_power: int | float = 2,
     use_real_space_constraint: bool = True,
     real_space_constraint_iterations: int = 10,
@@ -1929,8 +1939,24 @@ def run_pdf(
         export_formats=[ExportFormat(fmt) for fmt in export_formats],
         output_dir=Path(output_dir),
     )
-    result = compute_pdf(Path(xy_path), cfg)
+    result: PDFResult = compute_pdf(Path(xy_path), cfg)
     result.save_results(export_formats=cfg.export_formats, output_dir=cfg.output_dir)
+
+    r = result.gr.x
+    gr = result.rdf
+
+    fit_r = r[(r > 2) & (r < 2.85)]
+    fit_gr = gr[(r > 2) & (r < 2.85)]
+
+    fit_r = fit_r[~np.isnan(fit_gr)]
+    fit_gr = fit_gr[~np.isnan(fit_gr)]
+
+    print(np.trapezoid(fit_gr, fit_r))
+
+    plt.plot(fit_r, fit_gr)
+    plt.show()
+
+    quit()
 
     return result
 
@@ -1960,11 +1986,13 @@ if __name__ == "__main__":
         qdamp=0.003,
         is_synchrotron=True,
         polarisation_p=0.99,
-        termination_window="super-lorch",
+        termination_window="super_lorch",
         super_lorch_power=2,
+        background_type="polynomial",
+        normalisation_method="krogh_moe",
         use_real_space_constraint=True,
         real_space_constraint_iterations=10,
-        r_constraint_max=2.1,
+        r_constraint_max=2,
         norm_poly_degree=2,
         export_formats=["gr", "sq", "fq", "iq"],
     )

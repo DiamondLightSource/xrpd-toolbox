@@ -457,7 +457,13 @@ def fit_peaks(
     return fitted_peaks
 
 
-def find_and_fit_peaks(x: np.ndarray, y: np.ndarray, smoothing: int = 5) -> list[Peak]:
+def find_and_fit_peaks(
+    x: np.ndarray,
+    y: np.ndarray,
+    smoothing: int = 5,
+    threshold: int | float | None = None,
+    min_dist: int | float = 3,
+) -> list[Peak]:
     """Detect peaks in a signal and fit Gaussian models automatically.
 
     Parameters
@@ -479,9 +485,10 @@ def find_and_fit_peaks(x: np.ndarray, y: np.ndarray, smoothing: int = 5) -> list
         y, np.ones(smoothing), mode="same"
     )  # smooth the data to reduce noise
 
-    threshold = np.amax(y_smoothed) / smoothing
+    if threshold is None:
+        threshold = np.amax(y_smoothed) / smoothing
 
-    indexes = peakutils.indexes(y_smoothed, thres=threshold, min_dist=3)  # type: ignore
+    indexes = peakutils.indexes(y_smoothed, thres=threshold, min_dist=min_dist)  # type: ignore
 
     initial_x_pos = x[indexes]
     fitted_peaks = fit_peaks(x, y_smoothed, initial_x_pos=initial_x_pos)
