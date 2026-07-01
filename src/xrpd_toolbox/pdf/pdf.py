@@ -30,9 +30,11 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.figure import Figure
 from pydantic import Field, field_validator, model_validator
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import lsq_linear
+from scipy.optimize import curve_fit, lsq_linear
+from scipy.signal import find_peaks
 
 from xrpd_toolbox.core import (
     ScatteringData,
@@ -275,16 +277,16 @@ class PDFResult(XRPDBaseModel):
         g(r) = 1 + G(r)/(4*pi*r*rho0). Sign flipped relative to a naive
         1 + G(r)/baseline because baseline itself is negative: in the
         constrained no-pairs region G(r) == baseline exactly, which must
-        give g(r) == 0, not 2.
+        give g(r) == 0.
         """
         with np.errstate(divide="ignore", invalid="ignore"):
             ratio = np.divide(
                 self.gr.y,
-                -self.baseline,
+                self.baseline,
                 out=np.full_like(self.gr.y, np.nan),
                 where=~np.isclose(self.baseline, 0.0),
             )
-        return 1.0 + ratio - self.baseline
+        return 1.0 - ratio
 
     def rw(
         self,
@@ -316,7 +318,7 @@ class PDFResult(XRPDBaseModel):
 
     def save_results(
         self, export_formats: list[ExportFormat] | list[str], output_dir: str | Path
-    ):
+    ) -> None:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -434,6 +436,212 @@ class PDFResult(XRPDBaseModel):
 def gr_baseline(r_values: SerialisableNDArray, rho0: float) -> np.ndarray:
     """Physical low-r baseline: G(r) = -4*pi*r*rho0 (no pairs below r_min)."""
     return -4.0 * np.pi * r_values * rho0
+
+
+# ---------------------------------------------------------------------------
+# Coordination number analysis: peak finding, gaussian fitting, integration
+# ---------------------------------------------------------------------------
+
+
+class PeakFitResult(XRPDBaseModel):
+    peak_r: float
+    amplitude: float
+    center: float
+    sigma: float
+    r_left: float
+    r_right: float
+    coordination_number: float
+
+
+def gaussian_peak(
+    r: np.ndarray, amplitude: float, center: float, sigma: float
+) -> np.ndarray:
+    return amplitude * np.exp(-0.5 * ((r - center) / sigma) ** 2)
+
+
+def find_rdf_peak_positions(
+    r: np.ndarray,
+    g_r: np.ndarray,
+    n_peaks: int = 3,
+    r_search_min: float = 1.5,
+    r_search_max: float = 8.0,
+    prominence: float = 0.02,
+) -> np.ndarray:
+    mask = (r >= r_search_min) & (r <= r_search_max) & np.isfinite(g_r)
+    r_window = r[mask]
+    g_window = g_r[mask]
+    peak_idx, _ = find_peaks(g_window, prominence=prominence)
+    if len(peak_idx) < n_peaks:
+        warnings.warn(
+            f"found only {len(peak_idx)} of {n_peaks} requested peaks",
+            stacklevel=2,
+        )
+    peak_idx = peak_idx[:n_peaks]
+    return r_window[peak_idx]
+
+
+def find_peak_bounds(
+    r: np.ndarray,
+    g_r: np.ndarray,
+    peak_r: float,
+    r_search_min: float,
+    r_search_max: float,
+) -> tuple[float, float]:
+    mask = (r >= r_search_min) & (r <= r_search_max) & np.isfinite(g_r)
+    r_window = r[mask]
+    g_window = g_r[mask]
+    valley_idx, _ = find_peaks(-g_window, prominence=0.01)
+    valley_r = r_window[valley_idx]
+    left_candidates = valley_r[valley_r < peak_r]
+    right_candidates = valley_r[valley_r > peak_r]
+    r_left = left_candidates[-1] if len(left_candidates) else peak_r - 0.5
+    r_right = right_candidates[0] if len(right_candidates) else peak_r + 0.5
+    return float(r_left), float(r_right)
+
+
+def fit_gaussian_to_peak(
+    r: np.ndarray,
+    g_r: np.ndarray,
+    peak_r: float,
+    r_left: float,
+    r_right: float,
+) -> tuple[float, float, float]:
+    mask = (r >= r_left) & (r <= r_right) & np.isfinite(g_r)
+    r_fit = r[mask]
+    g_fit = g_r[mask]
+    amplitude_guess = float(np.nanmax(g_fit))
+    sigma_guess = max((r_right - r_left) / 4.0, 0.01)
+    initial_guess = [amplitude_guess, peak_r, sigma_guess]
+    lower_bounds = [0.0, r_left, 0.005]
+    upper_bounds = [np.inf, r_right, r_right - r_left]
+    params, _ = curve_fit(
+        gaussian_peak,
+        r_fit,
+        g_fit,
+        p0=initial_guess,
+        bounds=(lower_bounds, upper_bounds),
+        maxfev=5000,
+    )
+    amplitude, center, sigma = params
+    return float(amplitude), float(center), float(sigma)
+
+
+def coordination_number_from_gaussian(
+    amplitude: float,
+    center: float,
+    sigma: float,
+    rho0: float,
+    r_left: float,
+    r_right: float,
+    n_points: int = 2000,
+) -> float:
+    r_dense = np.linspace(r_left, r_right, n_points)
+    g_dense = gaussian_peak(r_dense, amplitude, center, sigma)
+    integrand = 4.0 * np.pi * rho0 * r_dense**2 * g_dense
+    return float(np.trapezoid(integrand, r_dense))
+
+
+def analyze_rdf_coordination(
+    result: PDFResult,
+    n_peaks: int = 3,
+    r_search_min: float = 1.5,
+    r_search_max: float = 8.0,
+    prominence: float = 0.02,
+) -> list[PeakFitResult]:
+    r = np.asarray(result.gr.x)
+    g_r = np.asarray(result.rdf)
+    rho0 = result.number_density
+
+    peak_positions = find_rdf_peak_positions(
+        r,
+        g_r,
+        n_peaks=n_peaks,
+        r_search_min=r_search_min,
+        r_search_max=r_search_max,
+        prominence=prominence,
+    )
+
+    peak_fits: list[PeakFitResult] = []
+    for peak_r in peak_positions:
+        r_left, r_right = find_peak_bounds(r, g_r, peak_r, r_search_min, r_search_max)
+        try:
+            amplitude, center, sigma = fit_gaussian_to_peak(
+                r, g_r, peak_r, r_left, r_right
+            )
+        except RuntimeError:
+            warnings.warn(
+                f"gaussian fit failed near r={peak_r:.2f}",
+                stacklevel=2,
+            )
+            continue
+        coordination_number = coordination_number_from_gaussian(
+            amplitude, center, sigma, rho0, r_left, r_right
+        )
+        peak_fits.append(
+            PeakFitResult(
+                peak_r=float(peak_r),
+                amplitude=amplitude,
+                center=center,
+                sigma=sigma,
+                r_left=r_left,
+                r_right=r_right,
+                coordination_number=coordination_number,
+            )
+        )
+    return peak_fits
+
+
+def plot_rdf_coordination(
+    result: PDFResult,
+    peak_fits: list[PeakFitResult],
+    save_filepath: str | Path | None = None,
+) -> Figure:
+    r = np.asarray(result.gr.x)
+    g_r = np.asarray(result.rdf)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(r, g_r, color="steelblue", lw=1.0, label="g(r)")
+
+    colors = ["tomato", "seagreen", "darkorange", "orchid"]
+    r_max_plot = 8.0
+    for i, fit in enumerate(peak_fits):
+        color = colors[i % len(colors)]
+        r_dense = np.linspace(fit.r_left, fit.r_right, 500)
+        g_fit_dense = gaussian_peak(r_dense, fit.amplitude, fit.center, fit.sigma)
+        ax.plot(
+            r_dense,
+            g_fit_dense,
+            color=color,
+            lw=1.5,
+            ls="--",
+            label=(
+                f"fit {i + 1}: r={fit.center:.2f} Å, cn={fit.coordination_number:.2f}"
+            ),
+        )
+        ax.fill_between(r_dense, 0.0, g_fit_dense, color=color, alpha=0.3)
+        ax.annotate(
+            f"cn={fit.coordination_number:.2f}",
+            xy=(fit.center, fit.amplitude),
+            xytext=(fit.center, fit.amplitude * 1.15),
+            ha="center",
+            fontsize=9,
+            color=color,
+        )
+        r_max_plot = max(r_max_plot, fit.r_right + 1.0)
+
+    ax.axhline(0.0, color="k", lw=0.6, ls="--")
+    ax.set_xlabel("r (Å)")
+    ax.set_ylabel("g(r)")
+    ax.set_xlim(0, r_max_plot)
+    ax.set_title("RDF peak fits and coordination numbers")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+
+    if save_filepath is not None:
+        fig.savefig(save_filepath, dpi=150)
+    plt.show()
+    return fig
 
 
 def build_scattering_factors(
@@ -1886,7 +2094,6 @@ def run_pdf(
     """
 
     if isinstance(formula, str):
-        isinstance(formula, str)
         composition = ChemicalFormula(formula=formula)
     elif isinstance(formula, dict):
         composition = ChemicalFormula.load_from_composition(formula)
@@ -1902,7 +2109,7 @@ def run_pdf(
         output_dir = Path(xy_path).parent.resolve()
 
     if sample_name is None:
-        sample_name = Path(xy_file).stem
+        sample_name = Path(xy_path).stem
 
     data = ScatteringData.from_xye(
         filepath=xy_path, x_unit="tth", data_type="xray", wavelength=wavelength
@@ -1942,22 +2149,6 @@ def run_pdf(
     result: PDFResult = compute_pdf(Path(xy_path), cfg)
     result.save_results(export_formats=cfg.export_formats, output_dir=cfg.output_dir)
 
-    r = result.gr.x
-    gr = result.rdf
-
-    fit_r = r[(r > 2) & (r < 2.85)]
-    fit_gr = gr[(r > 2) & (r < 2.85)]
-
-    fit_r = fit_r[~np.isnan(fit_gr)]
-    fit_gr = fit_gr[~np.isnan(fit_gr)]
-
-    print(np.trapezoid(fit_gr, fit_r))
-
-    plt.plot(fit_r, fit_gr)
-    plt.show()
-
-    quit()
-
     return result
 
 
@@ -1968,8 +2159,6 @@ if __name__ == "__main__":
 
     # Crystalline Si: 8 atoms per conventional cubic unit cell, a = 5.4309 Å
     rho_si = 8.0 / 5.4309**3
-
-    # si = ChemicalFormula.load_from_composition({"Si": 1})
 
     # First Si-Si nearest-neighbour distance = 2.352 Å;
     # the constraint boundary must stay below this.
@@ -1993,8 +2182,17 @@ if __name__ == "__main__":
         use_real_space_constraint=True,
         real_space_constraint_iterations=10,
         r_constraint_max=2,
-        norm_poly_degree=2,
+        norm_poly_degree=3,
+        auto_q_max=False,
         export_formats=["gr", "sq", "fq", "iq"],
     )
 
     result.plot(ref_file=ref_file)
+
+    coordination_fits = analyze_rdf_coordination(result, n_peaks=3)
+    for fit_index, coordination_fit in enumerate(coordination_fits, start=1):
+        logger.info(
+            f"peak {fit_index}: r={coordination_fit.center:.3f} A, "
+            f"cn={coordination_fit.coordination_number:.3f}"
+        )
+    plot_rdf_coordination(result, coordination_fits)
