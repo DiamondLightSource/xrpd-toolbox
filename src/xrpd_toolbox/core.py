@@ -602,6 +602,19 @@ class XYEData(XRPDBaseModel):
 
         return cls(x=x, y=y, e=e, source=str(filepath))
 
+    def save_to_xy(self, filepath: str | Path, header: str = ""):
+
+        xy_out_data = np.stack((self.x, self.y), axis=-1)
+
+        np.savetxt(
+            filepath,
+            xy_out_data,
+            fmt="%.6f",
+            delimiter=" ",
+            header=header,
+            newline="\n",
+        )
+
     def save_to_xye(self, filepath: str | Path, header: str = ""):
         if self.e is None:
             error = np.sqrt(self.y)
