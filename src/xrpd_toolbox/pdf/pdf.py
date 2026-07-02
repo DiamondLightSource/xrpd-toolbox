@@ -534,7 +534,7 @@ def coordination_number_from_gaussian(
     return float(np.trapezoid(integrand, r_dense))
 
 
-def analyze_rdf_coordination(
+def analyse_rdf_coordination(
     result: PDFResult,
     n_peaks: int = 3,
     r_search_min: float = 1.5,
@@ -2161,7 +2161,7 @@ if __name__ == "__main__":
 
     result.plot(ref_file=ref_file, save_filepath="./pdf.png")
 
-    coordination_fits = analyze_rdf_coordination(result, n_peaks=3)
+    coordination_fits = analyse_rdf_coordination(result, n_peaks=3)
     for fit_index, coordination_fit in enumerate(coordination_fits, start=1):
         logger.info(
             f"peak {fit_index}: r={coordination_fit.centre:.3f} A, "
