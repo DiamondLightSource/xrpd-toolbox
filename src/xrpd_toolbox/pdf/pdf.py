@@ -263,6 +263,14 @@ class PDFResult(XRPDBaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     @property
+    def r(self):
+        return self.gr.x
+
+    @property
+    def q(self):
+        return self.iq.x
+
+    @property
     def baseline(self) -> np.ndarray:
         """Physical low-r baseline -4*pi*r*rho0."""
         return gr_baseline(self.gr.x, self.number_density)
@@ -386,8 +394,8 @@ class PDFResult(XRPDBaseModel):
         ax.set_title("Reduced structure function")
         ax.grid(alpha=0.3)
 
-        plot_r = self.gr.x[self.gr.x < 5]
-        plot_baseline = self.baseline[self.gr.x < 5]
+        plot_r = self.r[self.r < 5]
+        plot_baseline = self.baseline[self.r < 5]
 
         ax = axes[1, 1]
         ax.errorbar(self.gr.x, self.gr.y, self.gr.e, elinewidth=eline)
