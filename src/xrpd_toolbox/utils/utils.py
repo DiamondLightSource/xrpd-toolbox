@@ -657,3 +657,25 @@ def wait_for_finished_file(
                 return
 
         time.sleep(poll_interval)
+
+
+def load_xy(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load a two-column ASCII file, ignoring #/!/; comments. Returns (x, y)."""
+    data = np.loadtxt(path, comments=["#", "!", ";"], dtype=float)
+    if data.ndim == 1:
+        raise ValueError(f"Expected two-column data in {path}; got one column.")
+    if data.ndim != 2 or data.shape[1] < 2:
+        raise ValueError(f"Expected at least two columns in {path}.")
+    x_values, y_values = data[:, 0], data[:, 1]
+    order = np.argsort(x_values)
+    return x_values[order], y_values[order]
+
+
+def save_xy(
+    path: Path,
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    header: str = "",
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savetxt(path, np.column_stack([x_values, y_values]), header=header, fmt="%.8e")

@@ -50,8 +50,7 @@ from xrpd_toolbox.fit_engine.peaks import GaussianPeak, gaussian
 from xrpd_toolbox.logger import logger
 from xrpd_toolbox.utils.chemical_formula import ChemicalFormula
 from xrpd_toolbox.utils.unit_conversion import q_space_to_s, two_theta_to_q
-
-# Type aliases and enums
+from xrpd_toolbox.utils.utils import load_xy
 
 WindowType = Literal["soper_lorch", "lorch", "cosine", "none"]
 BackgroundType = Literal["constant", "polynomial", "chebyshev"]
@@ -796,29 +795,6 @@ def r_dependent_broadening_matrix(
     kernel[np.abs(diff) > n_sigma_cutoff * sigma_r[:, None]] = 0.0
     row_sums = kernel.sum(axis=1, keepdims=True)
     return kernel / np.maximum(row_sums, 1e-30)
-
-
-# I/O utilities
-def load_xy(path: Path) -> tuple[SerialisableNDArray, SerialisableNDArray]:
-    """Load a two-column ASCII file, ignoring #/!/; comments. Returns (x, y)."""
-    data = np.loadtxt(path, comments=["#", "!", ";"])
-    if data.ndim == 1:
-        raise ValueError(f"Expected two-column data in {path}; got one column.")
-    if data.ndim != 2 or data.shape[1] < 2:
-        raise ValueError(f"Expected at least two columns in {path}.")
-    x_values, y_values = data[:, 0], data[:, 1]
-    order = np.argsort(x_values)
-    return x_values[order].astype(np.float64), y_values[order].astype(np.float64)
-
-
-def save_two_column(
-    path: Path,
-    x_values: SerialisableNDArray,
-    y_values: SerialisableNDArray,
-    header: str = "",
-) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    np.savetxt(path, np.column_stack([x_values, y_values]), header=header, fmt="%.8e")
 
 
 # Krogh-Moe / Norman normalisation
