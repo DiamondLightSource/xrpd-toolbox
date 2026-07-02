@@ -10,7 +10,7 @@ For r below the first interatomic distance, no atom pairs exist and
 G(r) = -4*pi*r*rho_0 exactly. This physical constraint is enforced
 iteratively by the Toby-Egami back-Fourier method.
 
-The absolute scale factor alpha is fixed by the Krogh-Moe/Norman condition
+The absolute scale factor scale_factor is fixed by the Krogh-Moe/Norman condition
 that the measured intensity converges to the self-scattering at high Q.
 
 References: Egami & Billinge (2003); Toby & Egami, Acta Cryst. A48 (1992);
@@ -46,15 +46,14 @@ from xrpd_toolbox.fit_engine.form_factors import (
     calculate_compton_for_element,
     calculate_form_factor_for_element,
 )
+from xrpd_toolbox.fit_engine.peaks import GaussianPeak, gaussian
 from xrpd_toolbox.logger import logger
 from xrpd_toolbox.utils.chemical_formula import ChemicalFormula
 from xrpd_toolbox.utils.unit_conversion import q_space_to_s, two_theta_to_q
 
-# ---------------------------------------------------------------------------
 # Type aliases and enums
-# ---------------------------------------------------------------------------
 
-WindowType = Literal["super_lorch", "lorch", "cosine", "none"]
+WindowType = Literal["soper_lorch", "lorch", "cosine", "none"]
 BackgroundType = Literal["constant", "polynomial", "chebyshev"]
 NormalisationMethod = Literal["krogh_moe", "eggert", "billinge", "warren"]
 
@@ -170,7 +169,7 @@ class PDFConfig(XRPDBaseModel):
     r_step: float = Field(default=0.01, gt=0)
 
     termination_window: WindowType | None = "lorch"
-    super_lorch_power: int | float | None = Field(default=2)
+    soper_lorch_power: int | float | None = Field(default=2)
 
     qdamp: float = Field(
         default=0.030,
@@ -246,8 +245,8 @@ class PDFResult(XRPDBaseModel):
     uncertainty via XYEData/ScatteringData rather than bare arrays.
 
     Uncertainty propagation covers: counting statistics -> polarisation
-    correction -> Q-grid interpolation -> alpha/background normalisation
-    -> S(Q)/F(Q) -> the sine transform to G(r). alpha and the background
+    correction -> Q-grid interpolation -> scale_factor/background normalisation
+    -> S(Q)/F(Q) -> the sine transform to G(r). scale_factor and the background
     coefficients are themselves treated as fixed (their own fit
     uncertainty is not propagated) -- a standard simplification, but a
     real one: error bars here are a lower bound, not the full covariance
@@ -360,7 +359,7 @@ class PDFResult(XRPDBaseModel):
         ref_path = Path(ref_file) if ref_file is not None else None
 
         fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-        fig.suptitle("PDF pipeline diagnostics", fontsize=13)
+        fig.suptitle("Total Scattering Data", fontsize=13)
 
         eline = 0.1
 
@@ -438,15 +437,9 @@ def gr_baseline(r_values: SerialisableNDArray, rho0: float) -> np.ndarray:
     return -4.0 * np.pi * r_values * rho0
 
 
-# ---------------------------------------------------------------------------
 # Coordination number analysis: peak finding, gaussian fitting, integration
-# ---------------------------------------------------------------------------
-
-
-class PeakFitResult(XRPDBaseModel):
+class PeakFitResult(GaussianPeak):
     peak_r: float
-    amplitude: float
-    center: float
     sigma: float
     r_left: float
     r_right: float
@@ -456,7 +449,8 @@ class PeakFitResult(XRPDBaseModel):
 def gaussian_peak(
     r: np.ndarray, amplitude: float, center: float, sigma: float
 ) -> np.ndarray:
-    return amplitude * np.exp(-0.5 * ((r - center) / sigma) ** 2)
+
+    return gaussian(x=r, amplitude=amplitude, centre=center, sigma=sigma)
 
 
 def find_rdf_peak_positions(
@@ -581,7 +575,7 @@ def analyze_rdf_coordination(
             PeakFitResult(
                 peak_r=float(peak_r),
                 amplitude=amplitude,
-                center=center,
+                centre=center,
                 sigma=sigma,
                 r_left=r_left,
                 r_right=r_right,
@@ -607,7 +601,9 @@ def plot_rdf_coordination(
     for i, fit in enumerate(peak_fits):
         color = colors[i % len(colors)]
         r_dense = np.linspace(fit.r_left, fit.r_right, 500)
-        g_fit_dense = gaussian_peak(r_dense, fit.amplitude, fit.center, fit.sigma)
+        g_fit_dense = gaussian_peak(
+            r_dense, float(fit.amplitude), float(fit.centre), float(fit.sigma)
+        )
         ax.plot(
             r_dense,
             g_fit_dense,
@@ -615,14 +611,14 @@ def plot_rdf_coordination(
             lw=1.5,
             ls="--",
             label=(
-                f"fit {i + 1}: r={fit.center:.2f} Å, cn={fit.coordination_number:.2f}"
+                f"fit {i + 1}: r={fit.centre:.2f} Å, cn={fit.coordination_number:.2f}"
             ),
         )
         ax.fill_between(r_dense, 0.0, g_fit_dense, color=color, alpha=0.3)
         ax.annotate(
             f"cn={fit.coordination_number:.2f}",
-            xy=(fit.center, fit.amplitude),
-            xytext=(fit.center, fit.amplitude * 1.15),
+            xy=(float(fit.centre), float(fit.amplitude)),
+            xytext=(float(fit.centre), float(fit.amplitude) * 1.15),
             ha="center",
             fontsize=9,
             color=color,
@@ -825,9 +821,7 @@ def save_two_column(
     np.savetxt(path, np.column_stack([x_values, y_values]), header=header, fmt="%.8e")
 
 
-# ---------------------------------------------------------------------------
 # Krogh-Moe / Norman normalisation
-# ---------------------------------------------------------------------------
 def _clip_background_extrapolation(
     q_values: SerialisableNDArray,
     background: SerialisableNDArray,
@@ -860,7 +854,7 @@ def _background_basis(
     Normalising Q before building the basis is essential for conditioning:
     raw powers of Q (Q, Q^2, Q^3, ...) span many orders of magnitude over a
     typical fit window and make the design matrix near-singular, which is
-    enough on its own to produce wild background/alpha values. "chebyshev"
+    enough on its own to produce wild background/scale_factor values. "chebyshev"
     uses the orthogonal Chebyshev basis on the normalised window (the most
     numerically stable choice and the default); "polynomial" uses a plain
     (normalised) power basis; "constant" uses a single DC offset, which is
@@ -879,7 +873,7 @@ def _background_basis(
     raise ValueError(f"Unknown background_type '{background_type}'.")
 
 
-def _fit_norman_alpha(
+def _fit_norman_scale_factor(
     q_values: SerialisableNDArray,
     intensity_q: SerialisableNDArray,
     f_sq_mean: SerialisableNDArray,
@@ -907,10 +901,10 @@ def _fit_norman_alpha(
         q_fit, q_min_fit, q_max_fit, degree, background_type
     )
 
-    # Alpha and the background are refined together in a single bounded,
+    # scale_factor and the background are refined together in a single bounded,
     # Q-weighted least-squares solve (weight ~ Q approximates the Q^2
     # weighting of the Norman criterion while downweighting noisy low-Q
-    # data). Bounding alpha >= 0 makes a non-physical negative scale
+    # data). Bounding scale_factor >= 0 makes a non-physical negative scale
     # factor structurally impossible, instead of an after-the-fact check.
     weights = q_fit
     design = np.column_stack([self_scattering_fit, background_basis]) * weights[:, None]
@@ -922,10 +916,10 @@ def _fit_norman_alpha(
     upper = np.full(n_coeffs, np.inf)
 
     fit = lsq_linear(design, target, bounds=(lower, upper))
-    alpha = float(fit.x[0])
+    scale_factor = float(fit.x[0])
     background_coeffs = fit.x[1:]
 
-    if not fit.success or alpha <= 2e-12:
+    if not fit.success or scale_factor <= 2e-12:
         raise PDFNormalisationError("bounded normalisation fit did not converge")
 
     condition_number = np.linalg.cond(design)
@@ -943,12 +937,10 @@ def _fit_norman_alpha(
     background_full = _clip_background_extrapolation(
         q_values, background_full, q_min_fit, q_max_fit
     )
-    return alpha, background_full
+    return scale_factor, background_full
 
 
-# ---------------------------------------------------------------------------
 # Shared low-r helpers (Eggert / Billinge / Warren)
-# ---------------------------------------------------------------------------
 def _trapz_weights(grid: np.ndarray) -> np.ndarray:
     """Trapezoidal quadrature weights for a grid."""
     weights = np.zeros_like(grid, dtype=float)
@@ -970,10 +962,8 @@ def _sine_transform_to_r(
     return transformed[:, 0] if single else transformed
 
 
-# ---------------------------------------------------------------------------
-# Warren: closed-form sum-rule alpha, no background (unchanged from before)
-# ---------------------------------------------------------------------------
-def _warren_alpha(
+# Warren: closed-form sum-rule scale_factor, no background (unchanged from before)
+def _warren_scale_factor(
     q_values: SerialisableNDArray,
     intensity_q: SerialisableNDArray,
     f_sq_mean: SerialisableNDArray,
@@ -981,24 +971,24 @@ def _warren_alpha(
     compton: SerialisableNDArray,
     rho: float,
 ) -> tuple[float, np.ndarray]:
-    """Alpha from lim(r->0) D(r)/r = -4*pi*rho, i.e. Warren's sum rule."""
+    """scale_factor from lim(r->0) D(r)/r = -4*pi*rho, i.e. Warren's sum rule."""
     weights = _trapz_weights(q_values)
     scale = q_values**2 / f_mean_sq
     numerator = -2.0 * np.pi**2 * rho + np.sum(weights * scale * (f_sq_mean + compton))
     denominator = np.sum(weights * scale * intensity_q)
     if denominator <= 0:
         raise PDFNormalisationError("Warren sum-rule denominator is non-positive")
-    alpha = numerator / denominator
-    if alpha <= 2e-12:
-        raise PDFNormalisationError("Warren normalisation gave a non-positive alpha")
-    return alpha, np.zeros_like(q_values)
+    scale_factor = numerator / denominator
+    if scale_factor <= 2e-12:
+        raise PDFNormalisationError(
+            "Warren normalisation gave a non-positive scale_factor"
+        )
+    return scale_factor, np.zeros_like(q_values)
 
 
-# ---------------------------------------------------------------------------
 # Eggert: iterative low-r Fourier-filter correction (unchanged, still
 # experimental -- see convergence caveats from earlier testing)
-# ---------------------------------------------------------------------------
-def _eggert_alpha(
+def _eggert_scale_factor(
     q_values: SerialisableNDArray,
     intensity_q: SerialisableNDArray,
     f_sq_mean: SerialisableNDArray,
@@ -1020,14 +1010,16 @@ def _eggert_alpha(
     """
     weights_q = _trapz_weights(q_values)
     weights_r = _trapz_weights(r_low)
-    alpha, _ = _warren_alpha(q_values, intensity_q, f_sq_mean, f_mean_sq, compton, rho)
+    scale_factor, _ = _warren_scale_factor(
+        q_values, intensity_q, f_sq_mean, f_mean_sq, compton, rho
+    )
     background = np.zeros_like(q_values)
     q_over_f_mean_sq = q_values / f_mean_sq
     safe_q = np.where(q_values > 0, q_values, np.inf)
 
     for _ in range(max_iter):
         s_minus_1_q = q_over_f_mean_sq * (
-            alpha * intensity_q - background - compton - f_sq_mean
+            scale_factor * intensity_q - background - compton - f_sq_mean
         )
         d_r = _sine_transform_to_r(q_values, s_minus_1_q * window, r_low, weights_q)
         delta = d_r - (-4.0 * np.pi * rho * r_low)
@@ -1038,23 +1030,23 @@ def _eggert_alpha(
     else:
         warnings.warn("Eggert iterative normalisation did not converge", stacklevel=2)
 
-    if alpha <= 2e-12:
-        raise PDFNormalisationError("Eggert normalisation gave a non-positive alpha")
-    return alpha, background
+    if scale_factor <= 2e-12:
+        raise PDFNormalisationError(
+            "Eggert normalisation gave a non-positive scale_factor"
+        )
+    return scale_factor, background
 
 
-# ---------------------------------------------------------------------------
 # Billinge (PDFgetX3 rpoly): background-only refinement on top of an
-# already-determined alpha. No density required, alpha is never touched --
+# already-determined scale_factor. No density required, scale_factor is never touched --
 # this is what makes it stable, per Billinge & Farrow (2013).
-# ---------------------------------------------------------------------------
 def _billinge_refine_background(
     q_values: SerialisableNDArray,
     intensity_q: SerialisableNDArray,
     f_sq_mean: SerialisableNDArray,
     f_mean_sq: SerialisableNDArray,
     compton: SerialisableNDArray,
-    alpha: float,
+    scale_factor: float,
     background: np.ndarray,
     q_min_fit: float,
     q_max_fit: float,
@@ -1091,10 +1083,10 @@ def _billinge_refine_background(
     weights = _trapz_weights(q_values)
     q_over_f_mean_sq = q_values / f_mean_sq
 
-    # D(r) implied by the current alpha/background -- this is the "error"
+    # D(r) implied by the current scale_factor/background -- this is the "error"
     # the correction polynomial needs to cancel, not a physical target.
     current_s_minus_1 = q_over_f_mean_sq * (
-        alpha * intensity_q - background - compton - f_sq_mean
+        scale_factor * intensity_q - background - compton - f_sq_mean
     )
     current_d_r = _sine_transform_to_r(
         q_values, current_s_minus_1 * window, r_low, weights
@@ -1120,9 +1112,7 @@ def _billinge_refine_background(
     return background + basis @ coeffs
 
 
-# ---------------------------------------------------------------------------
 # Krogh-Moe / Norman normalisation (dispatcher: method selects the residual)
-# ---------------------------------------------------------------------------
 def normalise_intensity(
     q_values: SerialisableNDArray,
     intensity_q: SerialisableNDArray,
@@ -1143,14 +1133,14 @@ def normalise_intensity(
     eggert_tol: float = 1e-6,
     eggert_damping: float = 0.5,
     termination_window: WindowType | None = "lorch",
-    super_lorch_power: int | float | None = 2,
+    soper_lorch_power: int | float | None = 2,
     qdamp: float = 0.0,
 ) -> tuple[float, np.ndarray]:
-    """Fit alpha (+ background) via the chosen normalisation convention.
+    """Fit scale_factor (+ background) via the chosen normalisation convention.
 
     method="krogh_moe" (default): unchanged, exactly as before. Safe for
         Bragg-peak-containing (crystalline) data -- never touches r-space.
-    method="warren": closed-form sum-rule alpha, no background. Needs rho.
+    method="warren": closed-form sum-rule scale_factor, no background. Needs rho.
         Uses the full Q-range integral directly (no windowing applies);
         avoid on strongly Bragg-peaked data -- there is no way to shield
         a single closed-form integral from Bragg content the way the
@@ -1159,11 +1149,11 @@ def normalise_intensity(
         Experimental -- see convergence caveats before relying on it.
     method="billinge": runs the krogh_moe fit first, then applies a
         PDFgetX3-style additive polynomial correction (degree from Nyquist,
-        target zero) to the background only. Alpha is never touched, and
+        target zero) to the background only. scale_factor is never touched, and
         rho is not required. Use r_poly (defaults to r_max_unphysical) to
         set the correction's upper r bound.
 
-    termination_window / super_lorch_power / qdamp: for method="eggert"
+    termination_window / soper_lorch_power / qdamp: for method="eggert"
     or "billinge" only. These low-r criteria transform Q-space data into
     r-space, so on Bragg-peak (crystalline) data they need the same
     termination window and Q-damping already applied to F(Q) elsewhere in
@@ -1176,7 +1166,7 @@ def normalise_intensity(
     q_max_fit = min(q_max_fit, float(np.amax(q_values)))
     q_min_fit = max(q_min_fit, float(np.amin(q_values)))
     window = make_termination_window(
-        q_values, q_max_fit, termination_window, super_lorch_power
+        q_values, q_max_fit, termination_window, soper_lorch_power
     ) * np.exp(-0.5 * (qdamp * q_values) ** 2)
 
     def _run_krogh_moe(
@@ -1185,7 +1175,7 @@ def normalise_intensity(
         last_error: Exception | None = None
         while True:
             try:
-                return _fit_norman_alpha(
+                return _fit_norman_scale_factor(
                     q_values,
                     intensity_q,
                     f_sq_mean,
@@ -1225,14 +1215,14 @@ def normalise_intensity(
     if method == "billinge":
         if f_mean_sq is None:
             raise ValueError("method='billinge' requires f_mean_sq")
-        alpha, background = _run_krogh_moe(poly_degree, background_type)
+        scale_factor, background = _run_krogh_moe(poly_degree, background_type)
         background = _billinge_refine_background(
             q_values,
             intensity_q,
             f_sq_mean,
             f_mean_sq,
             compton,
-            alpha,
+            scale_factor,
             background,
             q_min_fit,
             q_max_fit,
@@ -1241,7 +1231,7 @@ def normalise_intensity(
             background_type,
             window,
         )
-        return alpha, background
+        return scale_factor, background
 
     if f_mean_sq is None or rho is None:
         raise ValueError(f"method='{method}' requires f_mean_sq and rho")
@@ -1253,10 +1243,12 @@ def normalise_intensity(
         )
 
     if method == "warren":
-        return _warren_alpha(q_values, intensity_q, f_sq_mean, f_mean_sq, compton, rho)
+        return _warren_scale_factor(
+            q_values, intensity_q, f_sq_mean, f_mean_sq, compton, rho
+        )
 
     if method == "eggert":
-        return _eggert_alpha(
+        return _eggert_scale_factor(
             q_values,
             intensity_q,
             f_sq_mean,
@@ -1278,13 +1270,13 @@ def make_termination_window(
     q_values: SerialisableNDArray,
     q_max: float,
     window_type: WindowType | None,
-    super_lorch_power: int | float | None = 2,
+    soper_lorch_power: int | float | None = 2,
 ) -> np.ndarray:
     """Multiplicative window W(Q) applied to F(Q) to reduce Fourier
     termination ripples. "lorch" gives the strongest ripple suppression at
     the cost of peak broadening; "cosine" is intermediate; "none" applies
     no window.
-    super_lorch_power
+    soper_lorch_power
     Exponent used for the Super-Lorch window. A value of 2 reproduces
     the commonly used Super-Lorch window. A value of 1 is identical to
     the standard Lorch window.
@@ -1298,23 +1290,23 @@ def make_termination_window(
         return window
     elif window_type == "cosine":
         return 0.5 * (1.0 + np.cos(np.pi * q_values / q_max))
-    elif window_type == "super_lorch" and super_lorch_power is not None:
+    elif window_type == "soper_lorch" and soper_lorch_power is not None:
         window = np.ones_like(q_values)
         nonzero = q_values > 0.0
         arg = np.pi * q_values[nonzero] / q_max
         sinc = np.sin(arg) / arg
-        window[nonzero] = sinc**super_lorch_power
+        window[nonzero] = sinc**soper_lorch_power
         return window
     elif window_type is None or window_type == "none":
         return np.ones_like(q_values)
-    elif window_type == "super_lorch" and super_lorch_power is None:
+    elif window_type == "soper_lorch" and soper_lorch_power is None:
         raise ValueError(
-            f"If window_type is '{window_type}'. Then super_lorch_power must be int"
+            f"If window_type is '{window_type}'. Then soper_lorch_power must be int"
         )
     else:
         raise ValueError(
             f"Unknown termination_window '{window_type}'. Choose 'lorch', "
-            "'cosine', 'super_lorch' or 'none'."
+            "'cosine', 'soper_lorch' or 'none'."
         )
 
 
@@ -1351,7 +1343,7 @@ def sine_transform_sigma(
     """Propagate independent per-Q uncertainty in F(Q) through the linear
     sine transform to G(r): sigma_G(r)^2 = (2/pi*dq)^2 * sum_Q sin(Qr)^2 *
     sigma_F(Q)^2. Assumes uncorrelated errors between Q points; does not
-    include alpha/background fit uncertainty (see PDFResult docstring).
+    include scale_factor/background fit uncertainty (see PDFResult docstring).
     """
     sin_qr_sq = np.sin(np.outer(r_values, q_values)) ** 2
     return (2.0 / np.pi) * q_step_size * np.sqrt(sin_qr_sq @ sigma_f_q**2)
@@ -1461,7 +1453,7 @@ def apply_real_space_constraint(
 def _propagate_uncertainty_independent(
     q_values,
     sigma_i_q,
-    alpha,
+    scale_factor,
     inv_f_mean_sq,
     below_q_min_mask,
     window,
@@ -1479,7 +1471,7 @@ def _propagate_uncertainty_independent(
     caller never has a possibly-unbound variable regardless of which
     branch runs.
     """
-    sigma_i_eu = sigma_i_q / alpha
+    sigma_i_eu = sigma_i_q / scale_factor
     sigma_s_q = sigma_i_eu * inv_f_mean_sq
     sigma_s_q[below_q_min_mask] = 0.0
     sigma_f_q = q_values * sigma_s_q
@@ -1500,7 +1492,7 @@ def _propagate_uncertainty_independent(
 def _propagate_uncertainty_full_covariance(
     q_values,
     intensity_q,
-    alpha,
+    scale_factor,
     background,
     f_sq_mean,
     compton,
@@ -1530,7 +1522,7 @@ def _propagate_uncertainty_full_covariance(
     calling this.
 
     Known approximations:
-    - alpha/background's bound constraint (alpha >= 0) is assumed
+    - scale_factor/background's bound constraint (scale_factor >= 0) is assumed
       inactive, so the normalisation fit is treated as ordinary least
       squares for Jacobian purposes; if the normalisation retry loop
       silently fell back to a lower degree or a constant background, this
@@ -1565,25 +1557,27 @@ def _propagate_uncertainty_full_covariance(
     selector_matrix[np.arange(fit_window_mask.sum()), fit_indices] = 1.0
     pseudo_inverse_design = np.linalg.pinv(design)
     # normalisation_fit_jacobian maps the full intensity_q vector ->
-    # [alpha; background_coeffs], exactly reproducing the (unconstrained)
+    # [scale_factor; background_coeffs], exactly reproducing the (unconstrained)
     # normalisation fit.
     normalisation_fit_jacobian = pseudo_inverse_design @ (
         fit_weights[:, None] * selector_matrix
     )
 
-    reconstructed_alpha = float(normalisation_fit_jacobian[0, :] @ intensity_q)
-    if abs(reconstructed_alpha - alpha) > 0.05 * max(abs(alpha), 1e-12):
+    reconstructed_scale_factor = float(normalisation_fit_jacobian[0, :] @ intensity_q)
+    if abs(reconstructed_scale_factor - scale_factor) > 0.05 * max(
+        abs(scale_factor), 1e-12
+    ):
         warnings.warn(
             "Reconstructed normalisation Jacobian does not match the "
-            "point-estimate alpha within 5% -- the normalisation retry "
+            "point-estimate scale_factor within 5% -- the normalisation retry "
             "loop likely fell back to a different degree/background_type "
             "than requested. G(r) uncertainties may not exactly "
             "correspond to the point estimate.",
             stacklevel=2,
         )
         logger.warning(
-            f"normalisation Jacobian mismatch: reconstructed alpha="
-            f"{reconstructed_alpha:.6g} vs point-estimate alpha={alpha:.6g}"
+            f"normalisation Jacobian mismatch: reconstructed scale_factor="
+            f"{reconstructed_scale_factor:.6g} vs point-estimate scale_factor={scale_factor:.6g}"  # noqa
         )
 
     full_background_basis = _background_basis(
@@ -1604,12 +1598,14 @@ def _propagate_uncertainty_full_covariance(
             for coeff_index in range(full_background_basis.shape[1])
         ]
     )
-    dalpha_d_intensity = normalisation_fit_jacobian[0, :]
+    d_scale_factor_d_intensity = normalisation_fit_jacobian[0, :]
     dcoeffs_d_intensity = normalisation_fit_jacobian[1:, :]
     dbackground_d_intensity = clipped_full_basis @ dcoeffs_d_intensity
 
-    jacobian_i_eu = (np.eye(num_q_points) - dbackground_d_intensity) / alpha - np.outer(
-        (intensity_q - background) / alpha**2, dalpha_d_intensity
+    jacobian_i_eu = (
+        np.eye(num_q_points) - dbackground_d_intensity
+    ) / scale_factor - np.outer(
+        (intensity_q - background) / scale_factor**2, d_scale_factor_d_intensity
     )
 
     jacobian_s_q = inv_f_mean_sq[:, None] * jacobian_i_eu
@@ -1681,7 +1677,7 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     2. Convert 2-theta -> Q; optionally auto-select q_max from signal/noise.
        Spline-resample onto a uniform Q grid.
     3. Compute Waasmaier-Kirfel form factors and Compton scattering.
-    4. Normalise: determine alpha and background.
+    4. Normalise: determine scale_factor and background.
     5. Coherent elastic intensity in electron units.
     6. Total structure function S(Q); reduced structure function F(Q).
     7. Apply termination window.
@@ -1877,7 +1873,7 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     )
 
     normalisation_start_time = time.perf_counter()
-    alpha, background = normalise_intensity(
+    scale_factor, background = normalise_intensity(
         q_values,
         intensity_q,
         f_sq_mean=f_sq_mean,
@@ -1892,16 +1888,16 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
         r_min=config.r_min,
         r_step=config.r_step,
         termination_window=config.termination_window,
-        super_lorch_power=config.super_lorch_power,
+        soper_lorch_power=config.soper_lorch_power,
         qdamp=0.0,  # qdamp is now applied in r-space, below -- see PDFConfig.qdamp
     )
     logger.info(
         f"normalisation ({config.normalisation_method}) done in "
-        f"{time.perf_counter() - normalisation_start_time:.2f}s: alpha={alpha:.6g}, "
+        f"{time.perf_counter() - normalisation_start_time:.2f}s: scale_factor={scale_factor:.6g}, "  # noqa
         f"background range [{background.min():.4g}, {background.max():.4g}]"
     )
 
-    i_eu = (intensity_q - background) / alpha
+    i_eu = (intensity_q - background) / scale_factor
 
     # S(Q) = [I_eu - I_Compton - (<f^2> - <f>^2)] / <f>^2
     # (<f^2> - <f>^2) is the Laue monotonic diffuse term, zero for a
@@ -1918,7 +1914,7 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
     f_q[q_values == 0.0] = 0.0
 
     window = make_termination_window(
-        q_values, q_max_use, config.termination_window, config.super_lorch_power
+        q_values, q_max_use, config.termination_window, config.soper_lorch_power
     )
     f_mod = f_q * window
 
@@ -1978,7 +1974,7 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
             _propagate_uncertainty_full_covariance(
                 q_values,
                 intensity_q,
-                alpha,
+                scale_factor,
                 background,
                 f_sq_mean,
                 compton,
@@ -2009,7 +2005,7 @@ def compute_pdf(xy_path: Path, config: PDFConfig) -> PDFResult:
             _propagate_uncertainty_independent(
                 q_values,
                 sigma_i_q,
-                alpha,
+                scale_factor,
                 inv_f_mean_sq,
                 below_q_min_mask,
                 window,
@@ -2068,8 +2064,8 @@ def run_pdf(
     r_step: float = 0.01,
     qdamp: float = 0.030,
     qbroad: float = 0.0,
-    termination_window: WindowType = "super_lorch",
-    super_lorch_power: int | float = 2,
+    termination_window: WindowType = "soper_lorch",
+    soper_lorch_power: int | float = 2,
     use_real_space_constraint: bool = True,
     real_space_constraint_iterations: int = 10,
     r_constraint_max: float | None = None,
@@ -2127,7 +2123,7 @@ def run_pdf(
         qdamp=qdamp,
         qbroad=qbroad,
         termination_window=termination_window,
-        super_lorch_power=super_lorch_power,
+        soper_lorch_power=soper_lorch_power,
         use_real_space_constraint=use_real_space_constraint,
         real_space_constraint_iterations=real_space_constraint_iterations,
         r_constraint_max=r_constraint_max,
@@ -2171,12 +2167,12 @@ if __name__ == "__main__":
         q_min=0.8,
         q_max=24.0,
         r_max=30.0,
-        r_step=0.01,
+        r_step=0.02,
         qdamp=0.003,
         is_synchrotron=True,
         polarisation_p=0.99,
-        termination_window="super_lorch",
-        super_lorch_power=2,
+        termination_window="soper_lorch",
+        soper_lorch_power=2,
         background_type="polynomial",
         normalisation_method="krogh_moe",
         use_real_space_constraint=True,
@@ -2187,12 +2183,12 @@ if __name__ == "__main__":
         export_formats=["gr", "sq", "fq", "iq"],
     )
 
-    result.plot(ref_file=ref_file)
+    result.plot(ref_file=ref_file, save_filepath="./pdf.png")
 
     coordination_fits = analyze_rdf_coordination(result, n_peaks=3)
     for fit_index, coordination_fit in enumerate(coordination_fits, start=1):
         logger.info(
-            f"peak {fit_index}: r={coordination_fit.center:.3f} A, "
+            f"peak {fit_index}: r={coordination_fit.centre:.3f} A, "
             f"cn={coordination_fit.coordination_number:.3f}"
         )
-    plot_rdf_coordination(result, coordination_fits)
+    plot_rdf_coordination(result, coordination_fits, save_filepath="./cn.png")

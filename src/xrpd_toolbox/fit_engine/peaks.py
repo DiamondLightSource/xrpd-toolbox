@@ -56,38 +56,32 @@ def gaussian(
     x: np.ndarray,
     amplitude: float | int,
     centre: float | int,
-    fwhm: float | int,
+    fwhm: float | int | None = None,
+    sigma: float | int | None = None,
     background: float | int | np.ndarray = 0,
     normalised: bool = True,
 ) -> np.ndarray:
     """
-    Gaussian peak function.
+    Gaussian peak function. Equivalent to:
 
-    Parameters
-    ----------
-    x : array-like
-        Input coordinate(s).
-    amplitude : float | int
-        Amplitude parameter:
+    return amplitude * np.exp(-0.5 * ((r - center) / sigma) ** 2) + background
+
+    re amplitude parameter:
         - If normalised=True: total area under the curve.
         - If normalised=False: peak height.
-    centre : float | int
-        Peak center.
-    fwhm : float | int
-        Full-Wdth at half maximum of the peak - the peak width (must be > 0).
-    background : float | int | array-like, optional
-        Additive background (constant or array matching `x`). Default is 0.
-    normalised : bool, optional
+    normalised
         If True (default), returns an area-normalised Gaussian.
-        If False, returns a Gaussian with peak height A.
+        If False, returns a Gaussian with peak height = amplitude.
 
-    Returns
-    -------
-    NDArray[np.float64]
-        Evaluated Gaussian function.
+    Returns and evaluated Gaussian function.
     """
 
-    sigma = gaussian_fwhm_to_sigma(fwhm)
+    if fwhm is not None and sigma is None:
+        sigma = gaussian_fwhm_to_sigma(fwhm)
+    elif sigma is not None and fwhm is None:
+        sigma = sigma
+    else:
+        raise ValueError("Either sigma or fwhm must be given")
 
     if normalised:
         prefactor = amplitude / (sigma * np.sqrt(2 * np.pi))
