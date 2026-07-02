@@ -69,28 +69,7 @@ class PDFNormalisationError(RuntimeError):
 
 
 class PDFConfig(XRPDBaseModel):
-    """All parameters controlling the PDF calculation.
-
-    composition / wavelength / number_density: required physical inputs.
-    q_min, q_max, q_step: Fourier transform Q-range and grid spacing (Å⁻¹).
-    polarisation_factor, is_synchrotron, polarisation_p: instrument
-        polarisation correction.
-    background_file, background_scale: optional background subtraction.
-    norm_poly_degree, norm_q_min: Krogh-Moe/Norman high-Q normalisation
-        window and the degree of the smooth background fitted jointly
-        with the scale factor.
-    background_type: basis for that smooth background — "chebyshev"
-        (default, best conditioned), "polynomial" (plain power basis),
-        or "constant" (single offset, most robust for noisy/narrow data).
-    r_min, r_max, r_step: real-space output grid (Å).
-    termination_window, qdamp: Fourier termination window and Q-resolution
-        damping applied before transforming to r-space.
-    use_real_space_constraint, real_space_constraint_iterations,
-        r_constraint_max, r_constraint_search_min/max: Toby-Egami
-        constraint that enforces G(r) = -4*pi*r*rho0 below the first
-        interatomic distance. r_constraint_max is auto-detected within
-        [r_constraint_search_min, r_constraint_search_max] if not given.
-    """
+    """All parameters controlling the PDF calculation."""
 
     composition: ChemicalFormula
     sample_name: str = Field(default="pdf")
@@ -240,16 +219,9 @@ class PDFConfig(XRPDBaseModel):
 
 
 class PDFResult(XRPDBaseModel):
-    """Computed PDF results, each stage carrying its own propagated
+    """PDF results, each stage carrying its own propagated
     uncertainty via XYEData/ScatteringData rather than bare arrays.
 
-    Uncertainty propagation covers: counting statistics -> polarisation
-    correction -> Q-grid interpolation -> scale_factor/background normalisation
-    -> S(Q)/F(Q) -> the sine transform to G(r). scale_factor and the background
-    coefficients are themselves treated as fixed (their own fit
-    uncertainty is not propagated) -- a standard simplification, but a
-    real one: error bars here are a lower bound, not the full covariance
-    PDFgetX3 computes.
     """
 
     iq: ScatteringData  # I(Q) in electron units, x_unit="q"
@@ -1137,15 +1109,6 @@ def normalise_intensity(
         rho is not required. Use r_poly (defaults to r_max_unphysical) to
         set the correction's upper r bound.
 
-    termination_window / soper_lorch_power / qdamp: for method="eggert"
-    or "billinge" only. These low-r criteria transform Q-space data into
-    r-space, so on Bragg-peak (crystalline) data they need the same
-    termination window and Q-damping already applied to F(Q) elsewhere in
-    the pipeline -- otherwise sharp Bragg content produces termination
-    ripple that gets mistaken for background contamination. Pass the same
-    values used for the main G(r) transform (e.g. config.termination_window,
-    config.qdamp) rather than leaving these at their defaults for
-    crystalline samples.
     """
     q_max_fit = min(q_max_fit, float(np.amax(q_values)))
     q_min_fit = max(q_min_fit, float(np.amin(q_values)))
