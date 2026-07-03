@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # from numba import njit
-from pydantic import Field, computed_field, model_validator
+from pydantic import ConfigDict, Field, computed_field, model_validator
 
 from xrpd_toolbox.constants import (
     ELEMENT_ATOMIC_NUMBER,
@@ -951,6 +951,8 @@ class ReitveldRefinement(Model[ScatteringData]):
     calculated_intensity: SerialisableNDArray | None = Field(
         default=None, repr=False
     )  # this gets created the first time calc profile is run
+
+    model_config = ConfigDict(extra="allow")
 
     """How can we divide down a reitveld refinement -
     peaks pos/intensity, peak width function, background, detecor parameters

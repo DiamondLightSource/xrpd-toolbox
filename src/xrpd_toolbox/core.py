@@ -103,9 +103,25 @@ class Parameter(BaseModel, Real):
     value: float | int | str
     refine: bool = True
     bounds: list[float] = [-np.inf, np.inf]
+    initial_value: float = np.nan
 
     _name: str | None = None
     _model: Any = None  # back reference to RefinementBaseModel
+
+    def model_post_init(self, __context):
+        if np.isnan(self.initial_value):
+            self.initial_value = self._compute_value()
+
+    @property
+    def lower_bound(self):
+        return self.bounds[0]
+
+    @property
+    def upper_bound(self):
+        return self.bounds[1]
+
+    def __float__(self):
+        return self._compute_value()
 
     def _ctx(self) -> dict[str, float]:
         """
@@ -130,9 +146,6 @@ class Parameter(BaseModel, Real):
             return other.value
         else:
             return other
-
-    def __float__(self):
-        return self._compute_value()
 
     def _expr(self):
         """formats the Parameter so that it shows as either
@@ -224,6 +237,14 @@ class Parameter(BaseModel, Real):
     def __pos__(self):
         return self
 
+    @property
+    def real(self):
+        return float(self)
+
+    @property
+    def imag(self):
+        return 0
+
     # numeric
     def __int__(self):
         return int(float(self))
@@ -243,14 +264,6 @@ class Parameter(BaseModel, Real):
     def __array__(self):
         return np.array([self._compute_value()], dtype=float)
 
-    @property
-    def real(self):
-        return float(self)
-
-    @property
-    def imag(self):
-        return 0
-
     def conjugate(self):
         return self
 
@@ -259,141 +272,6 @@ class Parameter(BaseModel, Real):
 
     def __rdivmod__(self, other):
         return divmod(float(other), float(self))
-
-
-# class Parameter(BaseModel, Real):
-#     """A parameter acts like a value, that can be refined"""
-
-#     value: float
-#     refine: bool = Field(default=True)
-#     bounds: list[float] = Field(default=[-np.inf, np.inf], repr=False)
-
-#     def set_refine(self):
-#         self.refine = True
-
-#     def dont_refine(self):
-#         self.refine = False
-
-#     # helpers
-#     def get_other_value(self, other):
-#         if isinstance(other, Parameter):
-#             return other.value
-#         return other
-
-#     def _op(self, other, fn):
-#         return fn(self.value, self.get_other_value(other))
-
-#     def _rop(self, other, fn):
-#         return fn(self.get_other_value(other), self.value)
-
-#     # required conversions
-#     def __float__(self):
-#         return float(self.value)
-
-#     def __int__(self):
-#         return int(self.value)
-
-#     def __complex__(self):
-#         return complex(self.value)
-
-#     # Real abstract methods
-#     def __trunc__(self):
-#         return math.trunc(self.value)
-
-#     def __floor__(self):
-#         return math.floor(self.value)
-
-#     def __ceil__(self):
-#         return math.ceil(self.value)
-
-#     def __round__(self, ndigits=None):
-#         return round(self.value, ndigits)
-
-#     # unary
-#     def __neg__(self):
-#         return -self.value
-
-#     def __pos__(self):
-#         return +self.value
-
-#     def __abs__(self):
-#         return abs(self.value)
-
-#     # comparisons
-#     def __eq__(self, other):
-#         return self.value == self.get_other_value(other)
-
-#     def __lt__(self, other):
-#         return self.value < self.get_other_value(other)
-
-#     def __le__(self, other):
-#         return self.value <= self.get_other_value(other)
-
-#     def __gt__(self, other):
-#         return self.value > self.get_other_value(other)
-
-#     def __ge__(self, other):
-#         return self.value >= self.get_other_value(other)
-
-#     # arithmetic
-#     def __add__(self, other):
-#         return self._op(other, operator.add)
-
-#     def __radd__(self, other):
-#         return self._rop(other, operator.add)
-
-#     def __sub__(self, other):
-#         return self._op(other, operator.sub)
-
-#     def __rsub__(self, other):
-#         return self._rop(other, operator.sub)
-
-#     def __mul__(self, other):
-#         return self._op(other, operator.mul)
-
-#     def __rmul__(self, other):
-#         return self._rop(other, operator.mul)
-
-#     def __truediv__(self, other):
-#         return self._op(other, operator.truediv)
-
-#     def __rtruediv__(self, other):
-#         return self._rop(other, operator.truediv)
-
-#     def __floordiv__(self, other):
-#         return self._op(other, operator.floordiv)
-
-#     def __rfloordiv__(self, other):
-#         return self._rop(other, operator.floordiv)
-
-#     def __mod__(self, other):
-#         return self._op(other, operator.mod)
-
-#     def __rmod__(self, other):
-#         return self._rop(other, operator.mod)
-
-#     def __pow__(self, other):
-#         return self._op(other, operator.pow)
-
-#     def __rpow__(self, other):
-#         return self._rop(other, operator.pow)
-
-#     # numpy support
-#     def __array__(self, dtype=float):
-#         return np.asarray(self.value, dtype=dtype)
-
-#     def __array_priority__(self):
-#         return 1000
-
-#     def link(self, other: Parameter):
-#         """Use this to constrain two parmeters to be the same value
-#         custom_parameter = Parameter(value=5.5, refine=True)
-#         lattice.a.link(custom_parameter)
-#         """
-#         self.value = other.value
-#         self.refine = other.refine
-#         self.refinable = other.refinable
-#         self.set_to = other.__name__
 
 
 # ParameterLike = int | float | Parameter
@@ -417,11 +295,13 @@ class ParameterArray(BaseModel):
             "refine": [],
             "lower_bounds": [],
             "upper_bounds": [],
+            "initial_values": [],
         }
 
         for p in self.parameter_array:
             out["value"].append(p.value)
             out["refine"].append(p.refine)
+            out["initial_values"].append(p.initial_value)
 
             lb, ub = p.bounds
             out["lower_bounds"].append(lb)
@@ -450,6 +330,7 @@ class ParameterArray(BaseModel):
                             data["lower_bounds"][i],
                             data["upper_bounds"][i],
                         ],
+                        initial_value=data["initial_values"][i],
                     )
                 )
 
