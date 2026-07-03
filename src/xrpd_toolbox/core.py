@@ -103,14 +103,14 @@ class Parameter(BaseModel, Real):
     value: float | int | str
     refine: bool = True
     bounds: list[float] = [-np.inf, np.inf]
-    initial_value: float = np.nan
+    initial_value: float | int | str = np.nan
 
     _name: str | None = None
-    _model: Any = None  # back reference to RefinementBaseModel
+    _model: Any | None = None  # back reference to RefinementBaseModel
 
     def model_post_init(self, __context):
         if np.isnan(self.initial_value):
-            self.initial_value = self._compute_value()
+            self.initial_value = self.value
 
     @property
     def lower_bound(self):
@@ -128,7 +128,10 @@ class Parameter(BaseModel, Real):
         IMPORTANT:
         Only uses RAW values, never float(v), never recursion.
         """
-        return {k: float(v.value) for k, v in self._model._params.items()}  # noqa
+        if self._model is not None:
+            return {k: float(v.value) for k, v in self._model._params.items()}  # noqa
+        else:
+            return {}
 
     def _compute_value(self) -> float:
         # print(self, self.value, "\n\n")
@@ -330,7 +333,9 @@ class ParameterArray(BaseModel):
                             data["lower_bounds"][i],
                             data["upper_bounds"][i],
                         ],
-                        initial_value=data["initial_values"][i],
+                        initial_value=data["initial_values"][i]
+                        if "initial_values" in data
+                        else data["value"][i],
                     )
                 )
 
