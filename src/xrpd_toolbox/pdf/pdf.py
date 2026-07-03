@@ -335,6 +335,7 @@ class PDFResult(XRPDBaseModel):
     def plot(
         self,
         save_filepath: str | Path | None = None,
+        ref_filepath: str | Path | None = None,
     ) -> None:
         """Diagnostic 2x2 plot of I(Q), S(Q), F(Q) and G(r), with 1-sigma
         uncertainty bands where available.
@@ -365,6 +366,17 @@ class PDFResult(XRPDBaseModel):
         self.style_axis(
             ax_fq, "Q (Å⁻¹)", "F(Q) = Q[S(Q)−1] (Å⁻¹)", "Reduced structure function"
         )
+
+        if ref_filepath is not None and Path(ref_filepath).exists():
+            ref_data_x, ref_data_y = load_xy(Path(ref_filepath))
+            ax_gr.plot(
+                ref_data_x,
+                ref_data_y,
+                color="darkorange",
+                lw=1.0,
+                ls="--",
+                label="Reference G(r)",
+            )
 
         plot_r = self.r[self.r < 5]
         plot_baseline = self.baseline[self.r < 5]
@@ -1319,11 +1331,14 @@ def sine_transform_fq_to_gr(
     f_q: SerialisableNDArray,
     r_values: SerialisableNDArray,
     q_step_size: float,
+    sin_qr: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Forward sine transform G(r) = (2/pi) * integral F(Q) sin(Qr) dQ,
-    via direct matrix product (avoids FFT grid constraints).
+    """Forward sine transform G(r) = (2/pi) * integral F(Q) sin(Qr) dQ.
+
+    If sin_qr is supplied, it should have shape (len(r_values), len(q_values)).
     """
-    sin_qr = np.sin(np.outer(r_values, q_values))
+    if sin_qr is None:
+        sin_qr = np.sin(np.outer(r_values, q_values))
     return (2.0 / np.pi) * q_step_size * (sin_qr @ f_q)
 
 
@@ -1331,10 +1346,15 @@ def sine_transform_gr_to_fq(
     r_values: SerialisableNDArray,
     g_r: SerialisableNDArray,
     q_values: SerialisableNDArray,
+    r_weights: np.ndarray | None = None,
+    sin_qr: np.ndarray | None = None,
 ) -> np.ndarray:
     """Inverse (back) sine transform F(Q) = integral G(r) sin(Qr) dr."""
-    sin_qr = np.sin(np.outer(q_values, r_values))
-    return np.trapezoid(sin_qr * g_r[np.newaxis, :], r_values, axis=1)  # type: ignore - it will be an array of floats
+    if sin_qr is None:
+        sin_qr = np.sin(np.outer(q_values, r_values))
+    if r_weights is None:
+        return np.trapezoid(sin_qr * g_r[np.newaxis, :], r_values, axis=1)  # type: ignore - it will be an array of floats
+    return sin_qr @ (g_r * r_weights)
 
 
 def sine_transform_sigma(
@@ -1342,13 +1362,15 @@ def sine_transform_sigma(
     sigma_f_q: SerialisableNDArray,
     r_values: SerialisableNDArray,
     q_step_size: float,
+    sin_qr_sq: np.ndarray | None = None,
 ) -> np.ndarray:
     """Propagate independent per-Q uncertainty in F(Q) through the linear
     sine transform to G(r): sigma_G(r)^2 = (2/pi*dq)^2 * sum_Q sin(Qr)^2 *
     sigma_F(Q)^2. Assumes uncorrelated errors between Q points; does not
     include scale_factor/background fit uncertainty (see PDFResult docstring).
     """
-    sin_qr_sq = np.sin(np.outer(r_values, q_values)) ** 2
+    if sin_qr_sq is None:
+        sin_qr_sq = np.sin(np.outer(r_values, q_values)) ** 2
     return (2.0 / np.pi) * q_step_size * np.sqrt(sin_qr_sq @ sigma_f_q**2)
 
 
@@ -1433,6 +1455,13 @@ def apply_real_space_constraint(
     mask_low = r_values <= r_max_constraint
     mask_phys = ~mask_low
 
+    # Precompute sine matrices for all 10 iterations
+    sin_qr_gr_to_fq = np.sin(np.outer(q_values, r_values))
+    sin_qr_fq_to_gr = np.sin(np.outer(r_values, q_values))
+    sin_qr_fq_to_gr_pos = sin_qr_fq_to_gr[1:, :]
+    r_values_pos = r_values[1:]
+    r_weights = _trapz_weights(r_values)
+
     for _ in range(n_iterations):
         delta_g = np.where(mask_low, g_values - g_physical_full, 0.0)
 
@@ -1443,11 +1472,18 @@ def apply_real_space_constraint(
         if rms / max(g_peak, 1e-12) < 1e-5:
             break
 
-        delta_f = sine_transform_gr_to_fq(r_values, delta_g, q_values)
+        delta_f = sine_transform_gr_to_fq(
+            r_values, delta_g, q_values, r_weights=r_weights, sin_qr=sin_qr_gr_to_fq
+        )
         f_q -= delta_f
 
-        r_pos = r_values[1:]
-        g_pos = sine_transform_fq_to_gr(q_values, f_q, r_pos, q_step_size)
+        g_pos = sine_transform_fq_to_gr(
+            q_values,
+            f_q,
+            r_values_pos,
+            q_step_size,
+            sin_qr=sin_qr_fq_to_gr_pos,
+        )
         g_values = np.concatenate([[0.0], g_pos])
 
     return r_values, g_values, f_q
@@ -1476,7 +1512,10 @@ def _propagate_uncertainty(
     sigma_f_mod = sigma_f_q * window
 
     sigma_g_full = np.concatenate(
-        [[0.0], sine_transform_sigma(q_values, sigma_f_mod, r_pos, q_step_size)]
+        [
+            [0.0],
+            sine_transform_sigma(q_values, sigma_f_mod, r_pos, q_step_size),
+        ]
     )
     sigma_g_full = sigma_g_full * envelope
     if broadening_kernel is not None:
@@ -1703,8 +1742,9 @@ def _transform_to_gr(
     )
     f_mod = f_q * window
 
-    g_pos = sine_transform_fq_to_gr(q_values, f_mod, r_pos, q_step_size)
     r_full = np.concatenate([[0.0], r_pos])
+
+    g_pos = sine_transform_fq_to_gr(q_values, f_mod, r_pos, q_step_size)
     g_full = np.concatenate([[0.0], g_pos])
 
     real_space_constraint_applied = False
@@ -1734,8 +1774,6 @@ def _transform_to_gr(
         )
         real_space_constraint_applied = True
 
-    # qdamp: r-space envelope decay (standard PDFgetX3/PDFgui convention --
-    # NOT a Q-space damping of F(Q), which instead broadens peak widths).
     envelope = np.exp(-0.5 * (config.qdamp * r_full) ** 2)
     g_full = g_full * envelope
 
@@ -1960,7 +1998,12 @@ def run_pdf(
         export_formats=[ExportFormat(fmt) for fmt in export_formats],
         output_dir=Path(output_dir),
     )
+    import time
+
+    t0 = time.perf_counter()
     result: PDFResult = compute_pdf(Path(xy_path), config)
+    t_compute = time.perf_counter() - t0
+    logger.info(f"compute_pdf elapsed time: {t_compute:.4f}s")
     result.save_results(
         export_formats=config.export_formats, output_dir=config.output_dir
     )
@@ -1981,7 +2024,7 @@ if __name__ == "__main__":
         xy_path=xy_file,
         formula="Si",
         sample_name="Si_pdf",
-        wavelength=0.161669,
+        wavelength=0.16,
         number_density=rho_si,
         q_min=0.8,
         q_max=24.0,
@@ -1990,9 +2033,9 @@ if __name__ == "__main__":
         qdamp=0.003,
         is_synchrotron=True,
         polarisation_p=0.99,
-        termination_window="soper_lorch",
+        termination_window="lorch",
         soper_lorch_power=2,
-        background_type="polynomial",
+        background_type="chebyshev",
         normalisation_method="krogh_moe",
         use_real_space_constraint=True,
         real_space_constraint_iterations=10,
@@ -2002,7 +2045,10 @@ if __name__ == "__main__":
         export_formats=["gr", "sq", "fq", "iq"],
     )
 
-    result.plot(save_filepath="./pdf.png")
+    result.plot(
+        save_filepath="./pdf.png",
+        ref_filepath=Path("/workspaces/xrpd-toolbox/tests/data/Si_pe2_i15_1.gr"),
+    )
 
     coordination_fits = analyse_rdf_coordination(result, n_peaks=3)
     for fit_index, coordination_fit in enumerate(coordination_fits, start=1):
