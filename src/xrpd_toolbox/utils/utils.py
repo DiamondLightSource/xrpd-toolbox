@@ -672,10 +672,55 @@ def load_xy(path: Path) -> tuple[np.ndarray, np.ndarray]:
 
 
 def save_xy(
-    path: Path,
+    filepath: str | Path,
     x_values: np.ndarray,
     y_values: np.ndarray,
     header: str = "",
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    np.savetxt(path, np.column_stack([x_values, y_values]), header=header, fmt="%.8e")
+    """Save an xy file, two columns"""
+
+    if isinstance(filepath, str):
+        filepath = Path(filepath)
+
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    xy_out_data = np.stack((x_values, y_values), axis=-1)
+
+    np.savetxt(
+        filepath,
+        xy_out_data,
+        fmt="%.6f",
+        delimiter=" ",
+        header=header,
+        newline="\n",
+    )
+
+
+def save_xye(
+    filepath: str | Path,
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    e_values: np.ndarray | None = None,
+    header: str = "",
+) -> None:
+    """Save an xye file, 3 columns, with final columns being error. If no error is given
+    it will assume poisson stats and calculate error"""
+
+    if isinstance(filepath, str):
+        filepath = Path(filepath)
+
+    if e_values is None:
+        error = np.sqrt(y_values)
+    else:
+        error = e_values
+
+    xye_out_data = np.stack((x_values, y_values, error), axis=-1)
+
+    np.savetxt(
+        filepath,
+        xye_out_data,
+        fmt="%.6f",
+        delimiter=" ",
+        header=header,
+        newline="\n",
+    )

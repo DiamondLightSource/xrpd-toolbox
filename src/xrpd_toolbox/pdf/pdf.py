@@ -1441,7 +1441,7 @@ def apply_real_space_constraint(
     r_max_constraint: float,
     n_iterations: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Iterative Toby-Egami back-Fourier correction (Toby & Egami, 1992).
+    """Iterative mean density subtraction.
 
     Below r_max_constraint, G(r) must equal -4*pi*r*rho0 (no atom pairs).
     Any deviation there is unphysical (normalisation error, residual

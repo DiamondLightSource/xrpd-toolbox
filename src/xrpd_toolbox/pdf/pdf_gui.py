@@ -520,7 +520,7 @@ class PDFMainWindow(QMainWindow):
         return box
 
     def _real_space_constraint_group(self) -> QGroupBox:
-        box = QGroupBox("Real-space (Toby-Egami) constraint")
+        box = QGroupBox("Real-space constraint")
         form = QFormLayout(box)
 
         self.use_real_space_constraint = QCheckBox()
