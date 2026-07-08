@@ -1100,6 +1100,229 @@ def _billinge_refine_background(
 
 
 # Krogh-Moe / Norman normalisation (dispatcher: method selects the residual)
+#
+# Refactor note: each normalisation convention now lives in its own
+# `_normalise_<method>` function, taking only the parameters that method
+# actually uses. `normalise_intensity` itself is a thin dispatcher: it does
+# the shared setup (clamping the fit window, building the r-space window
+# only when a method needs it) and then delegates. This replaces a single
+# ~185-line function that mixed retry logic, three duplicated
+# "known_scale_factor supplied -> background-only fit" branches, and four
+# methods' worth of unrelated parameters into one body.
+
+
+def _fit_krogh_moe_with_fallback(
+    q_values: SerialisableNDArray,
+    intensity_q: SerialisableNDArray,
+    f_sq_mean: SerialisableNDArray,
+    compton: SerialisableNDArray,
+    q_min_fit: float,
+    q_max_fit: float,
+    poly_degree: int,
+    background_type: BackgroundType,
+) -> tuple[float, np.ndarray]:
+    """Fit scale_factor + background via Krogh-Moe/Norman, degrading
+    gracefully if the fit fails: lower the background polynomial degree one
+    step at a time, and once degree=0 also fails, fall back to a constant
+    background. Raises PDFNormalisationError only once every fallback is
+    exhausted.
+    """
+    degree = poly_degree
+    current_type = background_type
+    last_error: Exception | None = None
+
+    while True:
+        try:
+            return _fit_norman_scale_factor(
+                q_values,
+                intensity_q,
+                f_sq_mean,
+                compton,
+                q_min_fit,
+                q_max_fit,
+                degree,
+                current_type,
+            )
+        except PDFNormalisationError as exc:
+            last_error = exc
+            if degree > 0:
+                warnings.warn(
+                    f"Normalisation failed at degree={degree} ({exc}); "
+                    f"retrying with degree={degree - 1}.",
+                    stacklevel=2,
+                )
+                degree -= 1
+            elif current_type != "constant":
+                warnings.warn(
+                    f"Normalisation failed ({exc}); falling back to a "
+                    "constant background.",
+                    stacklevel=2,
+                )
+                current_type = "constant"
+            else:
+                raise PDFNormalisationError(
+                    "Krogh-Moe/Norman normalisation failed even with a "
+                    "constant background. Check q_max, the normalisation "
+                    "window (norm_q_min), and the input composition."
+                ) from last_error
+
+
+def _normalise_krogh_moe(
+    q_values: SerialisableNDArray,
+    intensity_q: SerialisableNDArray,
+    f_sq_mean: SerialisableNDArray,
+    compton: SerialisableNDArray,
+    q_min_fit: float,
+    q_max_fit: float,
+    poly_degree: int,
+    background_type: BackgroundType,
+    known_scale_factor: float | None,
+) -> tuple[float, np.ndarray]:
+    """krogh_moe: safe for Bragg-peak (crystalline) data, never touches r-space.
+
+    If known_scale_factor is supplied, only the background is fit (scale is
+    fixed). Otherwise both are fit jointly, with the degree/constant fallback.
+    """
+    if known_scale_factor is not None:
+        background = _fit_background_given_scale_factor(
+            q_values,
+            intensity_q,
+            f_sq_mean + compton,
+            known_scale_factor,
+            q_min_fit,
+            q_max_fit,
+            poly_degree,
+            background_type,
+        )
+        return known_scale_factor, background
+
+    return _fit_krogh_moe_with_fallback(
+        q_values,
+        intensity_q,
+        f_sq_mean,
+        compton,
+        q_min_fit,
+        q_max_fit,
+        poly_degree,
+        background_type,
+    )
+
+
+def _normalise_billinge(
+    q_values: SerialisableNDArray,
+    intensity_q: SerialisableNDArray,
+    f_sq_mean: SerialisableNDArray,
+    f_mean_sq: SerialisableNDArray | None,
+    compton: SerialisableNDArray,
+    q_min_fit: float,
+    q_max_fit: float,
+    poly_degree: int,
+    background_type: BackgroundType,
+    r_poly: float,
+    r_step: float,
+    window: np.ndarray,
+    known_scale_factor: float | None,
+) -> tuple[float, np.ndarray]:
+    """billinge: a krogh_moe fit (or a known scale_factor), then a
+    PDFgetX3-style additive polynomial correction to the background only.
+    scale_factor is never touched by the correction step, rho isn't needed.
+    """
+    if f_mean_sq is None:
+        raise ValueError("method='billinge' requires f_mean_sq")
+
+    scale_factor, background = _normalise_krogh_moe(
+        q_values,
+        intensity_q,
+        f_sq_mean,
+        compton,
+        q_min_fit,
+        q_max_fit,
+        poly_degree,
+        background_type,
+        known_scale_factor,
+    )
+    background = _billinge_refine_background(
+        q_values,
+        intensity_q,
+        f_sq_mean,
+        f_mean_sq,
+        compton,
+        scale_factor,
+        background,
+        q_min_fit,
+        q_max_fit,
+        r_poly,
+        r_step,
+        background_type,
+        window,
+    )
+    return scale_factor, background
+
+
+def _normalise_warren(
+    q_values: SerialisableNDArray,
+    intensity_q: SerialisableNDArray,
+    f_sq_mean: SerialisableNDArray,
+    f_mean_sq: SerialisableNDArray | None,
+    compton: SerialisableNDArray,
+    rho: float | None,
+    known_scale_factor: float | None,
+) -> tuple[float, np.ndarray]:
+    """warren: closed-form sum-rule scale_factor, no background; needs rho.
+    Uses the full Q-range integral directly, so avoid on strongly
+    Bragg-peaked data.
+    """
+    if f_mean_sq is None or rho is None:
+        raise ValueError("method='warren' requires f_mean_sq and rho")
+    if known_scale_factor is not None:
+        return known_scale_factor, np.zeros_like(q_values)
+    return _warren_scale_factor(
+        q_values, intensity_q, f_sq_mean, f_mean_sq, compton, rho
+    )
+
+
+def _normalise_eggert(
+    q_values: SerialisableNDArray,
+    intensity_q: SerialisableNDArray,
+    f_sq_mean: SerialisableNDArray,
+    f_mean_sq: SerialisableNDArray | None,
+    compton: SerialisableNDArray,
+    rho: float | None,
+    r_min: float,
+    r_max_unphysical: float,
+    r_step: float,
+    eggert_max_iter: int,
+    eggert_tol: float,
+    eggert_damping: float,
+    window: np.ndarray,
+    known_scale_factor: float | None,
+) -> tuple[float, np.ndarray]:
+    """eggert: iterative low-r Fourier-filter correction; needs rho; experimental."""
+    if f_mean_sq is None or rho is None:
+        raise ValueError("method='eggert' requires f_mean_sq and rho")
+
+    r_low = np.arange(r_min, r_max_unphysical, r_step)
+    if r_low.size == 0:
+        raise PDFNormalisationError(
+            "r_max_unphysical must exceed r_min by at least r_step"
+        )
+
+    return _eggert_scale_factor(
+        q_values,
+        intensity_q,
+        f_sq_mean,
+        f_mean_sq,
+        compton,
+        rho,
+        r_low,
+        eggert_max_iter,
+        eggert_tol,
+        eggert_damping,
+        window,
+        known_scale_factor,
+    )
+
+
 def normalise_intensity(
     q_values: SerialisableNDArray,
     intensity_q: SerialisableNDArray,
@@ -1142,149 +1365,81 @@ def normalise_intensity(
     transform Q-space into r-space, so on crystalline data they need the same window/
     damping already applied to F(Q) elsewhere -- pass config.termination_window/qdamp
     rather than the defaults, or Bragg content gets mistaken for background.
+
+    This is a thin dispatcher: each method's actual logic lives in its own
+    _normalise_<method> function above, which only takes the parameters
+    relevant to it.
     """
     q_max_fit = min(q_max_fit, float(np.amax(q_values)))
     q_min_fit = max(q_min_fit, float(np.amin(q_values)))
-    window = make_termination_window(
-        q_values, q_max_fit, termination_window, soper_lorch_power
-    ) * np.exp(-0.5 * (qdamp * q_values) ** 2)
-
-    def _run_krogh_moe(
-        degree: int, current_type: BackgroundType
-    ) -> tuple[float, np.ndarray]:
-        last_error: Exception | None = None
-        while True:
-            try:
-                return _fit_norman_scale_factor(
-                    q_values,
-                    intensity_q,
-                    f_sq_mean,
-                    compton,
-                    q_min_fit,
-                    q_max_fit,
-                    degree,
-                    current_type,
-                )
-            except PDFNormalisationError as exc:
-                last_error = exc
-                if degree > 0:
-                    warnings.warn(
-                        f"Normalisation failed at degree={degree} ({exc}); "
-                        f"retrying with degree={degree - 1}.",
-                        stacklevel=2,
-                    )
-                    degree -= 1
-                elif current_type != "constant":
-                    warnings.warn(
-                        f"Normalisation failed ({exc}); falling back to a "
-                        "constant background.",
-                        stacklevel=2,
-                    )
-                    current_type = "constant"
-                else:
-                    break
-        raise PDFNormalisationError(
-            "Krogh-Moe/Norman normalisation failed even with a constant "
-            "background. Check q_max, the normalisation window (norm_q_min), "
-            "and the input composition."
-        ) from last_error
 
     if method == "krogh_moe":
-        if known_scale_factor is not None:
-            background = _fit_background_given_scale_factor(
-                q_values,
-                intensity_q,
-                f_sq_mean + compton,
-                known_scale_factor,
-                q_min_fit,
-                q_max_fit,
-                poly_degree,
-                background_type,
-            )
-            return known_scale_factor, background
-        return _run_krogh_moe(poly_degree, background_type)
-
-    if method == "billinge":
-        if f_mean_sq is None:
-            raise ValueError("method='billinge' requires f_mean_sq")
-        if known_scale_factor is not None:
-            background = _fit_background_given_scale_factor(
-                q_values,
-                intensity_q,
-                f_sq_mean + compton,
-                known_scale_factor,
-                q_min_fit,
-                q_max_fit,
-                poly_degree,
-                background_type,
-            )
-            background = _billinge_refine_background(
-                q_values,
-                intensity_q,
-                f_sq_mean,
-                f_mean_sq,
-                compton,
-                known_scale_factor,
-                background,
-                q_min_fit,
-                q_max_fit,
-                r_poly if r_poly is not None else r_max_unphysical,
-                r_step,
-                background_type,
-                window,
-            )
-            return known_scale_factor, background
-        scale_factor, background = _run_krogh_moe(poly_degree, background_type)
-        background = _billinge_refine_background(
+        return _normalise_krogh_moe(
             q_values,
             intensity_q,
             f_sq_mean,
-            f_mean_sq,
             compton,
-            scale_factor,
-            background,
             q_min_fit,
             q_max_fit,
-            r_poly if r_poly is not None else r_max_unphysical,
-            r_step,
+            poly_degree,
             background_type,
-            window,
-        )
-        return scale_factor, background
-
-    if f_mean_sq is None or rho is None:
-        raise ValueError(f"method='{method}' requires f_mean_sq and rho")
-
-    r_low = np.arange(r_min, r_max_unphysical, r_step)
-    if r_low.size == 0:
-        raise PDFNormalisationError(
-            "r_max_unphysical must exceed r_min by at least r_step"
+            known_scale_factor,
         )
 
     if method == "warren":
-        if known_scale_factor is not None:
-            return known_scale_factor, np.zeros_like(q_values)
-        return _warren_scale_factor(
-            q_values, intensity_q, f_sq_mean, f_mean_sq, compton, rho
-        )
-
-    if method == "eggert":
-        return _eggert_scale_factor(
+        return _normalise_warren(
             q_values,
             intensity_q,
             f_sq_mean,
             f_mean_sq,
             compton,
             rho,
-            r_low,
-            eggert_max_iter,
-            eggert_tol,
-            eggert_damping,
+            known_scale_factor,
+        )
+
+    if method not in ("billinge", "eggert"):
+        raise ValueError(f"Unknown method '{method}'.")
+
+    # Only billinge/eggert transform Q-space into r-space, so only they need
+    # the termination window + qdamp damping already applied to F(Q)
+    # elsewhere in the pipeline (krogh_moe/warren never build this).
+    window = make_termination_window(
+        q_values, q_max_fit, termination_window, soper_lorch_power
+    ) * np.exp(-0.5 * (qdamp * q_values) ** 2)
+
+    if method == "billinge":
+        return _normalise_billinge(
+            q_values,
+            intensity_q,
+            f_sq_mean,
+            f_mean_sq,
+            compton,
+            q_min_fit,
+            q_max_fit,
+            poly_degree,
+            background_type,
+            r_poly if r_poly is not None else r_max_unphysical,
+            r_step,
             window,
             known_scale_factor,
         )
 
-    raise ValueError(f"Unknown method '{method}'.")
+    return _normalise_eggert(
+        q_values,
+        intensity_q,
+        f_sq_mean,
+        f_mean_sq,
+        compton,
+        rho,
+        r_min,
+        r_max_unphysical,
+        r_step,
+        eggert_max_iter,
+        eggert_tol,
+        eggert_damping,
+        window,
+        known_scale_factor,
+    )
 
 
 # Termination window functions
@@ -1441,7 +1596,7 @@ def apply_real_space_constraint(
     r_max_constraint: float,
     n_iterations: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Iterative mean density subtraction.
+    """Iterative Toby-Egami back-Fourier correction (Toby & Egami, 1992).
 
     Below r_max_constraint, G(r) must equal -4*pi*r*rho0 (no atom pairs).
     Any deviation there is unphysical (normalisation error, residual
