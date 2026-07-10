@@ -6,8 +6,8 @@ from pathlib import Path
 import numpy as np
 from yaml import safe_load
 
+from xrpd_toolbox.constants.constants import get_spacegroup_symbol
 from xrpd_toolbox.core import XRPDBaseModel
-from xrpd_toolbox.fit_engine.constants import get_spacegroup_symbol
 
 _FRAC_RE = re.compile(r"([+-]?\d+)/(\d+)")
 
@@ -297,10 +297,10 @@ class IntTabCryst(XRPDBaseModel):
 
     @classmethod
     def load(cls, filepath: str | Path | None = None) -> "IntTabCryst":
-        constants_folder = os.path.join(os.path.dirname(__file__), "constants")
+        constants_folder = Path(__file__).parent.parent / "constants"
 
-        default_filepath = os.path.join(
-            constants_folder, "international_tables_of_crystallography.yaml"
+        default_filepath = (
+            constants_folder / "international_tables_of_crystallography.yaml"
         )
 
         return cls.load_from_yaml(filepath or default_filepath)

@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import toml
 import yaml
 from pydantic import (
@@ -24,7 +25,7 @@ from pydantic import (
 
 SUPPORTED_FILE_TYPES = [".json", ".toml", ".yaml"]
 
-XUnit: TypeAlias = Literal["tth", "tof", "q", "d"]
+XUnit: TypeAlias = Literal["tth", "tof", "q", "d", "r"]
 
 DataType: TypeAlias = Literal[
     "xray",
@@ -40,6 +41,10 @@ def to_ndarray(v):
     if isinstance(v, list):
         return np.asarray(v)
     return v
+
+
+FloatArray = npt.NDArray[np.floating]
+IntArray = npt.NDArray[np.integer]
 
 
 SerialisableNDArray = Annotated[
@@ -98,16 +103,39 @@ class Parameter(BaseModel, Real):
     value: float | int | str
     refine: bool = True
     bounds: list[float] = [-np.inf, np.inf]
+    initial_value: float | int | str = np.nan
 
     _name: str | None = None
-    _model: Any = None  # back reference to RefinementBaseModel
+    _model: Any | None = None  # back reference to RefinementBaseModel
+
+    # @value.setter
+    # def value(self, value: float | int | str):
+    #     self._value = value
+
+    def model_post_init(self, __context):
+        if np.isnan(self.initial_value):
+            self.initial_value = self.value
+
+    @property
+    def lower_bound(self):
+        return self.bounds[0]
+
+    @property
+    def upper_bound(self):
+        return self.bounds[1]
+
+    def __float__(self):
+        return self._compute_value()
 
     def _ctx(self) -> dict[str, float]:
         """
         IMPORTANT:
         Only uses RAW values, never float(v), never recursion.
         """
-        return {k: float(v.value) for k, v in self._model._params.items()}  # noqa
+        if self._model is not None:
+            return {k: float(v.value) for k, v in self._model._params.items()}  # noqa
+        else:
+            return {}
 
     def _compute_value(self) -> float:
         # print(self, self.value, "\n\n")
@@ -125,9 +153,6 @@ class Parameter(BaseModel, Real):
             return other.value
         else:
             return other
-
-    def __float__(self):
-        return self._compute_value()
 
     def _expr(self):
         """formats the Parameter so that it shows as either
@@ -198,7 +223,7 @@ class Parameter(BaseModel, Real):
 
     # comparisons
     def __eq__(self, other):
-        return float(self) == float(other)
+        return float(self) == float(other)  # type: ignore
 
     def __lt__(self, other):
         return float(self) < float(other)
@@ -219,6 +244,14 @@ class Parameter(BaseModel, Real):
     def __pos__(self):
         return self
 
+    @property
+    def real(self):
+        return float(self)
+
+    @property
+    def imag(self):
+        return 0
+
     # numeric
     def __int__(self):
         return int(float(self))
@@ -238,14 +271,6 @@ class Parameter(BaseModel, Real):
     def __array__(self):
         return np.array([self._compute_value()], dtype=float)
 
-    @property
-    def real(self):
-        return float(self)
-
-    @property
-    def imag(self):
-        return 0
-
     def conjugate(self):
         return self
 
@@ -254,141 +279,6 @@ class Parameter(BaseModel, Real):
 
     def __rdivmod__(self, other):
         return divmod(float(other), float(self))
-
-
-# class Parameter(BaseModel, Real):
-#     """A parameter acts like a value, that can be refined"""
-
-#     value: float
-#     refine: bool = Field(default=True)
-#     bounds: list[float] = Field(default=[-np.inf, np.inf], repr=False)
-
-#     def set_refine(self):
-#         self.refine = True
-
-#     def dont_refine(self):
-#         self.refine = False
-
-#     # helpers
-#     def get_other_value(self, other):
-#         if isinstance(other, Parameter):
-#             return other.value
-#         return other
-
-#     def _op(self, other, fn):
-#         return fn(self.value, self.get_other_value(other))
-
-#     def _rop(self, other, fn):
-#         return fn(self.get_other_value(other), self.value)
-
-#     # required conversions
-#     def __float__(self):
-#         return float(self.value)
-
-#     def __int__(self):
-#         return int(self.value)
-
-#     def __complex__(self):
-#         return complex(self.value)
-
-#     # Real abstract methods
-#     def __trunc__(self):
-#         return math.trunc(self.value)
-
-#     def __floor__(self):
-#         return math.floor(self.value)
-
-#     def __ceil__(self):
-#         return math.ceil(self.value)
-
-#     def __round__(self, ndigits=None):
-#         return round(self.value, ndigits)
-
-#     # unary
-#     def __neg__(self):
-#         return -self.value
-
-#     def __pos__(self):
-#         return +self.value
-
-#     def __abs__(self):
-#         return abs(self.value)
-
-#     # comparisons
-#     def __eq__(self, other):
-#         return self.value == self.get_other_value(other)
-
-#     def __lt__(self, other):
-#         return self.value < self.get_other_value(other)
-
-#     def __le__(self, other):
-#         return self.value <= self.get_other_value(other)
-
-#     def __gt__(self, other):
-#         return self.value > self.get_other_value(other)
-
-#     def __ge__(self, other):
-#         return self.value >= self.get_other_value(other)
-
-#     # arithmetic
-#     def __add__(self, other):
-#         return self._op(other, operator.add)
-
-#     def __radd__(self, other):
-#         return self._rop(other, operator.add)
-
-#     def __sub__(self, other):
-#         return self._op(other, operator.sub)
-
-#     def __rsub__(self, other):
-#         return self._rop(other, operator.sub)
-
-#     def __mul__(self, other):
-#         return self._op(other, operator.mul)
-
-#     def __rmul__(self, other):
-#         return self._rop(other, operator.mul)
-
-#     def __truediv__(self, other):
-#         return self._op(other, operator.truediv)
-
-#     def __rtruediv__(self, other):
-#         return self._rop(other, operator.truediv)
-
-#     def __floordiv__(self, other):
-#         return self._op(other, operator.floordiv)
-
-#     def __rfloordiv__(self, other):
-#         return self._rop(other, operator.floordiv)
-
-#     def __mod__(self, other):
-#         return self._op(other, operator.mod)
-
-#     def __rmod__(self, other):
-#         return self._rop(other, operator.mod)
-
-#     def __pow__(self, other):
-#         return self._op(other, operator.pow)
-
-#     def __rpow__(self, other):
-#         return self._rop(other, operator.pow)
-
-#     # numpy support
-#     def __array__(self, dtype=float):
-#         return np.asarray(self.value, dtype=dtype)
-
-#     def __array_priority__(self):
-#         return 1000
-
-#     def link(self, other: Parameter):
-#         """Use this to constrain two parmeters to be the same value
-#         custom_parameter = Parameter(value=5.5, refine=True)
-#         lattice.a.link(custom_parameter)
-#         """
-#         self.value = other.value
-#         self.refine = other.refine
-#         self.refinable = other.refinable
-#         self.set_to = other.__name__
 
 
 # ParameterLike = int | float | Parameter
@@ -412,11 +302,13 @@ class ParameterArray(BaseModel):
             "refine": [],
             "lower_bounds": [],
             "upper_bounds": [],
+            "initial_values": [],
         }
 
         for p in self.parameter_array:
             out["value"].append(p.value)
             out["refine"].append(p.refine)
+            out["initial_values"].append(p.initial_value)
 
             lb, ub = p.bounds
             out["lower_bounds"].append(lb)
@@ -445,6 +337,9 @@ class ParameterArray(BaseModel):
                             data["lower_bounds"][i],
                             data["upper_bounds"][i],
                         ],
+                        initial_value=data["initial_values"][i]
+                        if "initial_values" in data
+                        else data["value"][i],
                     )
                 )
 
@@ -597,7 +492,20 @@ class XYEData(XRPDBaseModel):
 
         return cls(x=x, y=y, e=e, source=str(filepath))
 
-    def save_to_xye(self, filepath):
+    def save_to_xy(self, filepath: str | Path, header: str = ""):
+
+        xy_out_data = np.stack((self.x, self.y), axis=-1)
+
+        np.savetxt(
+            filepath,
+            xy_out_data,
+            fmt="%.6f",
+            delimiter=" ",
+            header=header,
+            newline="\n",
+        )
+
+    def save_to_xye(self, filepath: str | Path, header: str = ""):
         if self.e is None:
             error = np.sqrt(self.y)
         else:
@@ -605,7 +513,14 @@ class XYEData(XRPDBaseModel):
 
         xye_out_data = np.stack((self.x, self.y, error), axis=-1)
 
-        np.savetxt(filepath, xye_out_data, fmt="%.6f", delimiter=" ", newline="\n")
+        np.savetxt(
+            filepath,
+            xye_out_data,
+            fmt="%.6f",
+            delimiter=" ",
+            header=header,
+            newline="\n",
+        )
 
 
 # TODO: Decide whether better to put x_unit into XYEData, remove generic ModelDataVar
@@ -614,7 +529,7 @@ class XYEData(XRPDBaseModel):
 class ScatteringData(XYEData):
     x_unit: XUnit = "tth"  # type: ignore[override]
     data_type: DataType = "xray"
-    wavelength: float | Parameter  # for x-ray or CW neutron data
+    wavelength: float | Parameter = Field(gt=0)  # for x-ray or CW neutron data
 
     @model_validator(mode="after")
     def validate_data_units(self):
