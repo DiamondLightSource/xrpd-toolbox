@@ -7,8 +7,8 @@ from xrpd_toolbox.utils.utils import (
 )
 
 DETECTOR_MAXIMUM_COUNT_RATES = {
-    "eiger": 3.8e6
-}  # https://media.dectris.com/210630-Technical_Specifications-DECTRIS_EIGER2_R_500K.pdf
+    "CdTe_Eiger": 1.7e9
+}  # https://media.dectris.com/filer_public/d9/17/d917ef9c-46f6-4c67-9139-ae34d41d53f2/technicalspecifications_eiger2_x_cdte_500k_v190.pdf
 
 
 SAFETY_MARGIN = 0.9  # 10% safety margin
