@@ -75,6 +75,23 @@ class BaseDataLoader:
 
         return summed_images
 
+    def max_value_per_frame(self) -> np.ndarray:
+        data = get_dataset(filepath=self.filepath, dataset_path=self.dataset_path)
+
+        n_frames = data.shape[1]
+
+        max_values = []
+
+        for frame in range(n_frames):
+            frame_image = data[..., frame, :, :]
+            max_value = np.max(frame_image)
+
+            max_values.append(max_value)
+
+        max_values = np.array(max_values)
+
+        return max_values
+
     @property
     def data(self) -> np.ndarray:
         """Load the entire dataset."""
