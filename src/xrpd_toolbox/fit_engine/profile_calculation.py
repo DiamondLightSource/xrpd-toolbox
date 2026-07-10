@@ -9,7 +9,7 @@ import numpy as np
 # from numba import njit
 from pydantic import ConfigDict, Field, computed_field, model_validator
 
-from xrpd_toolbox.constants import (
+from xrpd_toolbox.constants.constants import (
     ELEMENT_ATOMIC_NUMBER,
 )
 from xrpd_toolbox.core import (
@@ -1057,6 +1057,10 @@ if __name__ == "__main__":
         cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
         si_structure = Structure.load_from_cif(cif_filepath)
 
+        si_structure.lattice.a = 5.430940
+        si_structure.lattice.b = 5.430940
+        si_structure.lattice.c = 5.430940
+
         beam_energy = 15
         wavelength = beam_energy_to_wavelength(beam_energy)
 
@@ -1065,7 +1069,7 @@ if __name__ == "__main__":
             #  "/workspaces/outputs/1429744_summed_mythen3.xye",
             x_unit="tth",
             data_type="xray",
-            wavelength=Parameter(value=wavelength, refine=False),
+            wavelength=Parameter(value=wavelength, refine=True),
         )
 
         from xrpd_toolbox.fit_engine.background import (
@@ -1082,11 +1086,16 @@ if __name__ == "__main__":
         assert isinstance(model.background, Background)
         model.background.refine_none()
 
+        print(model.data.wavelength)
+        # quit()
+
         print(model.get_refinement_parameters())
 
         model.irf.refine_none()
 
         updated, model, result = refine_model(model, plot=True)
+
+        print(model.data.wavelength)
 
         model.save(output_name)
 

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from itertools import combinations
 
 from pydantic import Field, computed_field, model_validator
 from scipy.constants import Avogadro
 
-from xrpd_toolbox.constants import ATOMIC_MASSES, get_atomic_mass
+from xrpd_toolbox.constants.constants import ATOMIC_MASSES, get_atomic_mass
+from xrpd_toolbox.constants.radii import ElementRadii
 from xrpd_toolbox.core import XRPDBaseModel
 
 
@@ -182,6 +184,27 @@ class ChemicalFormula(XRPDBaseModel):
         return list(self.chemical_formula.keys())
 
     @cached_property
+    def estimated_min_distance(self) -> float | None:
+
+        element_pairs = combinations(set(self.elements), 2)
+
+        radii = ElementRadii()
+
+        min_distance = None
+
+        for elem1, elem2 in element_pairs:
+            if elem1 == elem2:
+                distance = radii.get_crystal_radius(elem1)
+            else:
+                distance = radii.get_interatomic_distance(elem1, elem2)
+
+            if distance is not None:
+                if min_distance is None or distance < min_distance:
+                    min_distance = distance
+
+        return min_distance
+
+    @cached_property
     def atomic_fraction(self) -> list[float | int]:
 
         atomic_fraction = [
@@ -242,3 +265,5 @@ if __name__ == "__main__":
             density_g_cm3=si_density_g_cm3, molar_mass_g_mol=si_molar_mass_g_mol
         )
     )
+
+    print(ChemicalFormula(formula="SiO2").estimated_min_distance)

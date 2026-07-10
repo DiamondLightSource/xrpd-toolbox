@@ -2,7 +2,7 @@ from collections.abc import Collection
 
 import numpy as np
 
-from xrpd_toolbox.constants import ELEMENT_ATOMIC_NUMBER
+from xrpd_toolbox.constants.constants import ELEMENT_ATOMIC_NUMBER
 
 """
 Contains atomic scattering factors from

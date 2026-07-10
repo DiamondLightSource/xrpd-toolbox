@@ -12,5 +12,12 @@
     },
     "python-envs.defaultEnvManager": "ms-python.python:system",
     "python-envs.pythonProjects": [],
-    "python.analysis.diagnosticMode": "openFilesOnly"
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "python.analysis.exclude": [
+        "**/.venv/**",
+        "**/cache/**",
+        "**/node_modules",
+        "**/__pycache__",
+        "**/.*"
+    ]
 }

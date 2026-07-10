@@ -724,3 +724,16 @@ def save_xye(
         header=header,
         newline="\n",
     )
+
+
+def lorentz_polarisation(
+    two_theta_deg: np.ndarray, synchrotron: bool, polarisation: float
+) -> np.ndarray:
+    """Polarisation factor P(2*theta) for synchrotron or lab X-rays.
+    Degree of polarisation (0 = unpolarised, 1 = fully polarised).
+    """
+    cos2t = np.cos(np.deg2rad(two_theta_deg))
+    if synchrotron:
+        return (1.0 - polarisation) + polarisation * cos2t**2
+    else:
+        return (1.0 + cos2t**2) / 2.0

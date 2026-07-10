@@ -40,7 +40,12 @@ from PyQt6.QtWidgets import (
 )
 
 from xrpd_toolbox.core import ScatteringData
-from xrpd_toolbox.pdf.pdf import ExportFormat, PDFConfig, PDFResult, compute_pdf
+from xrpd_toolbox.pdf.pdf import (
+    ExportFormat,
+    PDFConfig,
+    PDFResult,
+    compute_pdf,
+)
 from xrpd_toolbox.utils.chemical_formula import ChemicalFormula
 
 RECOMPUTE_DEBOUNCE_MS = 300
@@ -381,7 +386,7 @@ class PDFMainWindow(QMainWindow):
         return box
 
     def _background_group(self) -> QGroupBox:
-        box = QGroupBox("Background / absorption")
+        box = QGroupBox("Background / absorption / fluorescence")
         form = QFormLayout(box)
         self.background_file_edit = QLineEdit()
         browse_row = QWidget()
@@ -416,6 +421,30 @@ class PDFMainWindow(QMainWindow):
             "mu_r (required if absorption)",
             "mu_r",
             self.mu_r,
+        )
+
+        self.fluorescence_correction = QCheckBox()
+        self._add_row(
+            form,
+            "fluorescence_correction",
+            "fluorescence_correction",
+            self.fluorescence_correction,
+        )
+
+        self.fluorescence_level = OptionalFloat(0.0, 10000.0, 0.0, 2)
+        self._add_row(
+            form,
+            "fluorescence_level (auto if unset)",
+            "fluorescence_level",
+            self.fluorescence_level,
+        )
+
+        self.fluorescence_percentile = SliderSpin(0.0, 50.0, 1.0, 2)
+        self._add_row(
+            form,
+            "fluorescence_percentile",
+            "fluorescence_percentile",
+            self.fluorescence_percentile,
         )
         return box
 
@@ -497,7 +526,7 @@ class PDFMainWindow(QMainWindow):
         form = QFormLayout(box)
 
         self.termination_window = _combo(
-            ["soper_lorch", "lorch", "cosine", "none"], "lorch"
+            ["soper_lorch", "lorch", "cosine", "none"], "soper_lorch"
         )
         self._add_row(
             form,
@@ -635,6 +664,9 @@ class PDFMainWindow(QMainWindow):
             background_scale=self.background_scale.value(),
             absorption_correction=self.absorption_correction.isChecked(),
             mu_r=self.mu_r.value(),
+            fluorescence_correction=self.fluorescence_correction.isChecked(),
+            fluorescence_level=self.fluorescence_level.value(),
+            fluorescence_percentile=self.fluorescence_percentile.value(),
             norm_poly_degree=self.norm_poly_degree.value(),
             norm_q_min=self.norm_q_min.value(),
             background_type=self.background_type.currentText(),  # type: ignore

@@ -108,6 +108,10 @@ class Parameter(BaseModel, Real):
     _name: str | None = None
     _model: Any | None = None  # back reference to RefinementBaseModel
 
+    # @value.setter
+    # def value(self, value: float | int | str):
+    #     self._value = value
+
     def model_post_init(self, __context):
         if np.isnan(self.initial_value):
             self.initial_value = self.value
