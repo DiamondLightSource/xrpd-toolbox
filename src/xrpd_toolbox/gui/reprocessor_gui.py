@@ -1,3 +1,4 @@
+import datetime
 import sys
 import time
 from pathlib import Path
@@ -5,15 +6,15 @@ from types import UnionType
 from typing import Any, Literal, cast, get_args, get_origin
 
 from pydantic import ValidationError
-from PyQt5.QtCore import QDir, Qt, QThread, pyqtSignal
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QDir, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFileSystemModel
+from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFileDialog,
-    QFileSystemModel,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -29,6 +30,9 @@ from PyQt5.QtWidgets import (
 )
 
 from xrpd_toolbox.i11.mythen import MythenSettings
+
+CURRENT_YEAR: int = datetime.datetime.now().year
+DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
 
 # =========================
 # Worker Thread
@@ -74,7 +78,11 @@ class MainWindow(QWidget):
     ) -> None:
         super().__init__()
 
-        self.output_dir: str = str(Path.home())
+        if Path(DEFAULT_DATA_FOLDER).exists():
+            self.output_dir: str = DEFAULT_DATA_FOLDER
+        else:
+            self.output_dir: str = str(Path.home())
+
         self.beamline = beamline
 
         self.settings_columns: int = max(1, settings_columns)
@@ -126,7 +134,7 @@ class MainWindow(QWidget):
         self.tree = QTreeView()
         self.tree.setModel(self.fs_model)
         self.tree.setRootIndex(self.fs_model.index(self.base_path))
-        self.tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
         for col in range(1, self.fs_model.columnCount()):
             self.tree.hideColumn(col)
@@ -386,4 +394,4 @@ if __name__ == "__main__":
     settings = MythenSettings()
     window = MainWindow(settings=settings, settings_columns=1)
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

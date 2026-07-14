@@ -1,23 +1,27 @@
 """Interface for ``python -m xrpd_toolbox``."""
 
-from argparse import ArgumentParser
-from collections.abc import Sequence
+import click
 
-from . import __version__
+from xrpd_toolbox.gui.bad_pixel_gui import run_bad_pixel_gui
+
+from ._version import __version__
 
 __all__ = ["main"]
 
 
-def main(args: Sequence[str] | None = None) -> None:
-    """Argument parser for the CLI."""
-    parser = ArgumentParser()
-    parser.add_argument(
-        "-v",
-        "--version",
-        action="version",
-        version=__version__,
-    )
-    parser.parse_args(args)
+@click.group(invoke_without_command=True)
+@click.version_option(version=__version__, message="%(version)s")
+@click.pass_context
+def main(ctx: click.Context) -> None:
+    """xrpd_toolbox command line interface."""
+    pass
+
+
+@main.command(name="bad_pixel_gui")
+@click.pass_context
+def bad_pixel_gui(ctx: click.Context) -> None:
+    """Launch the bad pixel GUI."""
+    run_bad_pixel_gui()
 
 
 if __name__ == "__main__":

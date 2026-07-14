@@ -36,6 +36,7 @@ dependencies = [
     "numba",
     "gql",
     "ipywidgets",
+    "click",
 
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]

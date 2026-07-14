@@ -267,6 +267,11 @@ class BadModuleMainWindow(QMainWindow):
             self._toggle_index,
         )
 
+        self.file_label = QLabel(f"File: {self.data.filepath}")
+        self.status = self.statusBar()
+        if self.status is not None:
+            self.status.addPermanentWidget(self.file_label)
+
         self.list_widget = QListWidget()
 
         self.module_bad_pixels_box = QTextEdit()
@@ -305,6 +310,25 @@ class BadModuleMainWindow(QMainWindow):
         self._setup_layout()
         self._setup_menu()
         self._sync_all()
+
+    def load_nexus_file_from_dialog(self) -> None:
+
+        filepath, _ = QFileDialog.getOpenFileName(
+            self, "Mythen Nexus File", str(CWD), "NeXus Files (*.nxs)"
+        )
+
+        if filepath:
+            self.load_nexus_file(filepath)
+
+    def load_nexus_file(self, filepath: str) -> None:
+        self.data = MythenDataLoader(filepath)
+        self.canvas.data = self.data
+        self.canvas.raw_data = self.data.data
+        self.canvas.pixels_per_modules = self.data.pixels_per_module
+        self.canvas.set_module(0)
+        self.module_slider.setRange(0, self.data.n_modules_in_data - 1)
+        self._update_bad_channel_canvas()
+        self.file_label.setText(f"File: {self.data.filepath}")
 
     def load_initial_bad_channels(self) -> None:
 
@@ -380,6 +404,9 @@ class BadModuleMainWindow(QMainWindow):
         file_menu = menu.addMenu("File")
         if file_menu is None:
             raise Exception("file_menu has broken")
+
+        file_menu.addAction("Load Nexus File", self.load_nexus_file_from_dialog)
+
         file_menu.addAction("Save", self._save)
         file_menu.addAction("Save As...", self._save_as)
         file_menu.addAction("Load Bad Channels...", self.load_initial_bad_channels)
