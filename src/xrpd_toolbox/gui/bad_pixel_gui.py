@@ -7,7 +7,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -322,6 +322,8 @@ class BadModuleMainWindow(QMainWindow):
         dialog = QFileDialog()
         dialog.setNameFilter("*.nxs *.nexus")
         dialog.setOption(QFileDialog.Option.DontUseNativeDialog, False)
+        model = dialog.findChild(QFileSystemModel)  # or wire your own
+        model.setOption(QFileSystemModel.Option.DontWatchForChanges, True)
 
         return dialog.getOpenFileName(
             self, "Mythen Nexus File", folder, "NeXus Files (*.nxs)"
