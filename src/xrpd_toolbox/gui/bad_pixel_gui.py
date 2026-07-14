@@ -313,8 +313,15 @@ class BadModuleMainWindow(QMainWindow):
 
     def load_nexus_file_from_dialog(self) -> None:
 
+        bad_channel_folder = Path(DEFAULT_BAD_CHANNEL_FILEPATH).parent
+
+        if bad_channel_folder.exists() and bad_channel_folder.is_dir():
+            folder = str(bad_channel_folder)
+        else:
+            folder = str(CWD)
+
         filepath, _ = QFileDialog.getOpenFileName(
-            self, "Mythen Nexus File", str(CWD), "NeXus Files (*.nxs)"
+            self, "Mythen Nexus File", str(folder), "NeXus Files (*.nxs)"
         )
 
         if filepath:
