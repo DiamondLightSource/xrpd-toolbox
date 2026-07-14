@@ -46,7 +46,6 @@ class PlotCanvas(FigureCanvasQTAgg):
         data: MythenDataLoader,
         global_selected_indices: set[int],
         selection_callback,
-        pixels_per_modules: int = 1280,
         parent: QWidget | None = None,
     ) -> None:
         self.figure = Figure()
@@ -58,19 +57,27 @@ class PlotCanvas(FigureCanvasQTAgg):
 
         self._pan_start = None
 
-        self.data = data
-        self.raw_data = data.data
-        self.pixels_per_modules = pixels_per_modules
-
         self.current_module = 0
         self.global_selected_indices = global_selected_indices
         self.selection_callback = selection_callback
 
-        self.x = np.arange(self.pixels_per_modules)
-        self.scatter = None
-        self.reference_curve = None
+        self.bad_pixel_lines = None
 
         self._connect_events()
+        self.set_data(data)
+
+    @property
+    def pixels_per_modules(self) -> int:
+        # Always sourced from the loaded data — never a separate value that
+        # can drift out of sync with it (that drift was the cause of bad
+        # pixel markers landing away from where you actually clicked).
+        return self.data.pixels_per_module
+
+    def set_data(self, data: MythenDataLoader) -> None:
+        self.data = data
+        self.raw_data = data.data
+        self.x = np.arange(self.pixels_per_modules)
+        self.current_module = 0
         self._plot_module(0)
 
     def _connect_events(self) -> None:
@@ -91,8 +98,6 @@ class PlotCanvas(FigureCanvasQTAgg):
         for intensity in intensities:
             self.ax.plot(self.x, intensity, alpha=0.3, linewidth=1)
 
-        self.reference_curve = intensities[0]
-
         self.ax2.set_xlim(self.ax.get_xlim())  # 0 .. pixels_per_modules
 
         # choose some local tick positions (reuse ax's ticks, clipped to range)
@@ -109,7 +114,8 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.ax.set_xlabel("Module Pixel Channel")
         self.ax.set_ylabel("Intensity (a.u.)")
 
-        self.scatter = self.ax.scatter([], [], color="red", zorder=5)
+        # bad-pixel markers are (re)created fresh for this module
+        self.bad_pixel_lines = None
         self._update_selected_points()
 
         self._enable_rectangle_zoom()
@@ -124,8 +130,11 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.rect_selector = RectangleSelector(
             self.ax,
             self._on_rectangle_select,
-            useblit=True,
+            useblit=False,
             button=[1],  # type: ignore
+            minspanx=5,
+            minspany=5,
+            spancoords="pixels",
             interactive=False,
             props={"facecolor": "blue", "alpha": 0.2},
         )
@@ -134,9 +143,18 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.current_module = module
         self._plot_module(module)
 
+    def _sync_ax2_xlim(self) -> None:
+        # ax2 (the twiny "global channel" axis) sits on top of ax and is
+        # what matplotlib resolves mouse events against. If its x-limits
+        # aren't kept in sync with ax's current (zoomed/panned) limits,
+        # event.xdata on a click gets computed from ax2's stale range,
+        # so clicks land on the wrong pixel whenever the view is zoomed.
+        self.ax2.set_xlim(self.ax.get_xlim())
+
     def reset_zoom(self) -> None:
         self.ax.relim()
         self.ax.autoscale()
+        self._sync_ax2_xlim()
         self.draw_idle()
 
     def _on_scroll(self, event) -> None:
@@ -157,13 +175,28 @@ class PlotCanvas(FigureCanvasQTAgg):
             event.ydata - (y1 - y0) * factor / 2,
             event.ydata + (y1 - y0) * factor / 2,
         )
+        self._sync_ax2_xlim()
         self.draw_idle()
 
     def _on_rectangle_select(self, eclick, erelease) -> None:
         if eclick.xdata is None or erelease.xdata is None:
             return
-        self.ax.set_xlim(sorted((eclick.xdata, erelease.xdata)))  # type: ignore
-        self.ax.set_ylim(sorted((eclick.ydata, erelease.ydata)))  # type: ignore
+        if eclick.ydata is None or erelease.ydata is None:
+            return
+
+        x0, x1 = sorted((eclick.xdata, erelease.xdata))
+        y0, y1 = sorted((eclick.ydata, erelease.ydata))
+
+        # A plain click (no real drag) fires this callback with an almost
+        # zero-size box. Ignore it instead of collapsing the axes limits,
+        # which triggered the "identical low and high ylims" warning and
+        # zoomed the view down to a sliver that hid newly toggled pixels.
+        if x0 == x1 or y0 == y1:
+            return
+
+        self.ax.set_xlim(x0, x1)
+        self.ax.set_ylim(y0, y1)
+        self._sync_ax2_xlim()
         self.draw_idle()
 
     def _on_click(self, event) -> None:
@@ -193,6 +226,7 @@ class PlotCanvas(FigureCanvasQTAgg):
 
         self.ax.set_xlim(x0 - dx, x1 - dx)
         self.ax.set_ylim(y0 - dy, y1 - dy)
+        self._sync_ax2_xlim()
         self.draw_idle()
 
     def _on_mouse_release(self, event) -> None:
@@ -200,8 +234,13 @@ class PlotCanvas(FigureCanvasQTAgg):
             self._pan_start = None
 
     def _update_selected_points(self) -> None:
-        if self.scatter is None or self.reference_curve is None:
-            return
+        # Bad pixels are drawn as full-height vertical lines using the
+        # x-axis transform (x in data coords, y in axes-fraction coords),
+        # so they always span the plot regardless of intensity values or
+        # the current zoom/pan state.
+        if self.bad_pixel_lines is not None:
+            self.bad_pixel_lines.remove()
+            self.bad_pixel_lines = None
 
         start = self.current_module * self.pixels_per_modules
         end = start + self.pixels_per_modules
@@ -211,11 +250,16 @@ class PlotCanvas(FigureCanvasQTAgg):
         ]
 
         if local:
-            x = self.x[local]
-            y = self.reference_curve[local]
-            self.scatter.set_offsets(np.column_stack((x, y)))
-        else:
-            self.scatter.set_offsets(np.empty((0, 2)))
+            self.bad_pixel_lines = self.ax.vlines(
+                local,
+                0,
+                1,
+                transform=self.ax.get_xaxis_transform(),
+                colors="red",
+                linewidth=1,
+                alpha=0.6,
+                zorder=5,
+            )
 
         self.draw_idle()
 
@@ -338,10 +382,7 @@ class BadModuleMainWindow(QMainWindow):
 
     def load_nexus_file(self, filepath: str) -> None:
         self.data = MythenDataLoader(filepath)
-        self.canvas.data = self.data
-        self.canvas.raw_data = self.data.data
-        self.canvas.pixels_per_modules = self.data.pixels_per_module
-        self.canvas.set_module(0)
+        self.canvas.set_data(self.data)
         self.module_slider.setRange(0, self.data.n_modules_in_data - 1)
         self._update_bad_channel_canvas()
         self.file_label.setText(f"File: {self.data.filepath}")
