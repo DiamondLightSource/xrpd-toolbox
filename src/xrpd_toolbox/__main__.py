@@ -2,8 +2,6 @@
 
 import click
 
-from xrpd_toolbox.gui.bad_pixel_gui import run_bad_pixel_gui
-
 from ._version import __version__
 
 __all__ = ["main"]
@@ -21,6 +19,9 @@ def main(ctx: click.Context) -> None:
 @click.pass_context
 def bad_pixel_gui(ctx: click.Context) -> None:
     """Launch the bad pixel GUI."""
+
+    from xrpd_toolbox.gui.bad_pixel_gui import run_bad_pixel_gui
+
     run_bad_pixel_gui()
 
 
