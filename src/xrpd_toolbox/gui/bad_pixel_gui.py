@@ -340,9 +340,23 @@ class BadModuleMainWindow(QMainWindow):
         self.reset_zoom_button = QPushButton("Reset Zoom")
         self.reset_zoom_button.clicked.connect(self.canvas.reset_zoom)
 
-        self.toggle_bad_pixels_button = QPushButton("Hide Bad Pixels")
+        self.toggle_bad_pixels_button = QPushButton("Hide Bad Pixels", self.canvas)
         self.toggle_bad_pixels_button.setCheckable(True)
         self.toggle_bad_pixels_button.toggled.connect(self._on_toggle_bad_pixels)
+        self.toggle_bad_pixels_button.setStyleSheet(
+            "QPushButton {"
+            "  background-color: rgba(255, 255, 255, 200);"
+            "  border: 1px solid #888;"
+            "  border-radius: 4px;"
+            "  padding: 3px 8px;"
+            "}"
+            "QPushButton:checked {"
+            "  background-color: rgba(220, 220, 220, 220);"
+            "}"
+        )
+        self.toggle_bad_pixels_button.adjustSize()
+        self.toggle_bad_pixels_button.move(8, 8)
+        self.toggle_bad_pixels_button.raise_()
 
         self.save_button = QPushButton("Save Selected Indices")
         self.save_button.clicked.connect(self._save)
@@ -458,7 +472,6 @@ class BadModuleMainWindow(QMainWindow):
         left.addWidget(self.canvas)
         left.addWidget(self.module_slider)
         left.addWidget(self.reset_zoom_button)
-        left.addWidget(self.toggle_bad_pixels_button)
 
         central = QWidget()
         main = QHBoxLayout(central)
