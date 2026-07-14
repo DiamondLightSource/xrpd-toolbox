@@ -1,3 +1,4 @@
+import datetime
 import sys
 from pathlib import Path
 
@@ -27,6 +28,13 @@ from PyQt6.QtWidgets import (
 from xrpd_toolbox.i11.mythen import MythenDataLoader
 from xrpd_toolbox.utils.utils import load_int_array_from_file
 
+CURRENT_YEAR = datetime.datetime.now().year
+
+DEFAULT_BAD_CHANNEL_FILEPATH: str = "/dls_sw/i11/software/mythen/badchannels.txt"
+DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
+CWD = Path.cwd()
+
+
 # =========================
 # Plot canvas
 # =========================
@@ -46,6 +54,8 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.setParent(parent)
 
         self.ax = self.figure.add_subplot(111)
+        self.ax2 = self.ax.twiny()
+
         self._pan_start = None
 
         self.data = data
@@ -74,15 +84,29 @@ class PlotCanvas(FigureCanvasQTAgg):
 
         start = module * self.pixels_per_modules
         end = start + self.pixels_per_modules
-        curves = self.raw_data[:, start:end]
+        intensities = self.raw_data[:, start:end]
 
-        for curve in curves:
-            self.ax.plot(self.x, curve, alpha=0.3, linewidth=1)
+        # module_channel_number = np.arange(start, end).tolist()
 
-        self.reference_curve = curves[0]
+        for intensity in intensities:
+            self.ax.plot(self.x, intensity, alpha=0.3, linewidth=1)
+
+        self.reference_curve = intensities[0]
+
+        self.ax2.set_xlim(self.ax.get_xlim())  # 0 .. pixels_per_modules
+
+        # choose some local tick positions (reuse ax's ticks, clipped to range)
+        tick_positions = self.ax.get_xticks()
+        tick_positions = tick_positions[
+            (tick_positions >= 0) & (tick_positions <= self.pixels_per_modules)
+        ]
+
+        self.ax2.set_xticks(tick_positions)
+        self.ax2.set_xticklabels((tick_positions + start).astype(int))
+        self.ax2.set_xlabel(r"Detector Channel Number (global)")
 
         self.ax.set_title(f"Mythen Data — Module {module}")
-        self.ax.set_xlabel("Pixel (within module)")
+        self.ax.set_xlabel("Module Pixel Channel")
         self.ax.set_ylabel("Intensity (a.u.)")
 
         self.scatter = self.ax.scatter([], [], color="red", zorder=5)
@@ -200,15 +224,36 @@ class PlotCanvas(FigureCanvasQTAgg):
 # Main window
 # =========================
 
+EMPTY_BAD_CHANNELS: set[int] = set()
 
-class MainWindow(QMainWindow):
-    def __init__(self, data: MythenDataLoader, initial_indices: set[int]) -> None:
+
+class BadModuleMainWindow(QMainWindow):
+    def __init__(
+        self,
+        data: MythenDataLoader | None = None,
+        bad_channels: set[int] = EMPTY_BAD_CHANNELS,
+    ) -> None:
         super().__init__()
 
         self.setWindowTitle("Mythen NXS Viewer")
 
+        if data is None:
+            if Path(DEFAULT_DATA_FOLDER).exists():
+                folder = str(DEFAULT_DATA_FOLDER)
+            else:
+                folder = str(CWD)
+
+            filepath, _ = QFileDialog.getOpenFileName(
+                self, "Mythen Nexus File", folder, "NeXus Files (*.nxs)"
+            )
+
+            data = MythenDataLoader(filepath)
+
+        else:
+            data = data
+
         self.data = data
-        self.global_selected_indices = initial_indices
+        self.global_selected_indices = bad_channels
         self._current_save_path: Path | None = None
 
         # undo / redo
@@ -261,6 +306,33 @@ class MainWindow(QMainWindow):
         self._setup_menu()
         self._sync_all()
 
+    def load_initial_bad_channels(self) -> None:
+
+        bad_channel_folder = Path(DEFAULT_BAD_CHANNEL_FILEPATH).parent
+
+        if bad_channel_folder.exists() and bad_channel_folder.is_dir():
+            folder = str(bad_channel_folder)
+        else:
+            folder = str(CWD)
+
+        bad_channels_file, _ = QFileDialog.getOpenFileName(
+            self, "Bad Channel File", folder, "Text Files (*.txt)"
+        )
+        if not bad_channels_file:
+            return
+
+        try:
+            new_global_selected_indices = set(
+                load_int_array_from_file(bad_channels_file)
+            )
+            self.global_selected_indices.update(new_global_selected_indices)
+
+        except Exception as e:
+            print(f"Error occurred while loading initial indices: {e}")
+            pass
+
+        self._update_bad_channel_canvas()
+
     # ---------- UI ----------
 
     def _setup_layout(self) -> None:
@@ -310,6 +382,7 @@ class MainWindow(QMainWindow):
             raise Exception("file_menu has broken")
         file_menu.addAction("Save", self._save)
         file_menu.addAction("Save As...", self._save_as)
+        file_menu.addAction("Load Bad Channels...", self.load_initial_bad_channels)
 
         help_menu = menu.addMenu("Help")
         if help_menu is None:
@@ -365,6 +438,10 @@ class MainWindow(QMainWindow):
         self.canvas._update_selected_points()  # noqa
         self._sync_all()
 
+    def _update_bad_channel_canvas(self) -> None:
+        self.canvas._update_selected_points()  # noqa
+        self._sync_all()
+
     def _redo(self) -> None:
         if not self.redo_stack:
             return
@@ -409,13 +486,22 @@ class MainWindow(QMainWindow):
     # ---------- save ----------
 
     def _save(self) -> None:
+
         if self._current_save_path is None:
             self._save_as()
             return
 
-        with self._current_save_path.open("w", encoding="utf-8") as f:
-            for idx in sorted(self.global_selected_indices):
-                f.write(f"{idx}\n")
+        else:
+            reply = QMessageBox.question(
+                self,
+                "Save to badchannels file?",
+                "This will overwrite the existing badchannels file. Are you sure?",
+            )
+
+            if reply != QMessageBox.StandardButton.Yes:
+                with self._current_save_path.open("w", encoding="utf-8") as f:
+                    for idx in sorted(self.global_selected_indices):
+                        f.write(f"{idx}\n")
 
     def _save_as(self) -> None:
         path_str, _ = QFileDialog.getSaveFileName(
@@ -449,18 +535,29 @@ class MainWindow(QMainWindow):
 # =========================
 # Entrypoint
 # =========================
+def run_bad_pixel_gui(
+    filepath: str | None = None,
+    bad_channel_file: str | None = None,
+) -> None:
 
-
-def run_bad_pixel_gui(filepath: str, indices_file: str | None = None) -> None:
-    data = MythenDataLoader(filepath)
-
-    if indices_file:
-        initial_indices = set(load_int_array_from_file(indices_file))
+    if filepath is not None:
+        data = MythenDataLoader(filepath)
     else:
-        initial_indices = set()
+        data = None
+
+    if bad_channel_file:
+        initial_indices = set(load_int_array_from_file(bad_channel_file))
+    else:
+        try:
+            initial_indices = set(
+                load_int_array_from_file(DEFAULT_BAD_CHANNEL_FILEPATH)
+            )
+        except Exception as e:
+            print(f"Error occurred while loading initial indices: {e}")
+            initial_indices = set()
 
     app = QApplication(sys.argv)
-    win = MainWindow(data, initial_indices)
+    win = BadModuleMainWindow(data, initial_indices)
     win.resize(1500, 900)
     win.show()
     win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)  # optional
@@ -468,7 +565,7 @@ def run_bad_pixel_gui(filepath: str, indices_file: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1410286.nxs"
+    DATA_FILE = "/workspaces/outputs/step_scan/1410286.nxs"
 
     run_bad_pixel_gui(
         DATA_FILE,
