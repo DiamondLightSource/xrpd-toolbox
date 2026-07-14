@@ -62,6 +62,7 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.selection_callback = selection_callback
 
         self.bad_pixel_lines = None
+        self.show_bad_pixels = True
 
         self._connect_events()
         self.set_data(data)
@@ -98,7 +99,7 @@ class PlotCanvas(FigureCanvasQTAgg):
         for intensity in intensities:
             self.ax.plot(self.x, intensity, alpha=0.3, linewidth=1)
 
-        self.ax2.set_xlim(self.ax.get_xlim())  # 0 .. pixels_per_modules
+        self._sync_ax2_xlim()  # 0 .. pixels_per_modules
 
         # choose some local tick positions (reuse ax's ticks, clipped to range)
         tick_positions = self.ax.get_xticks()
@@ -233,6 +234,10 @@ class PlotCanvas(FigureCanvasQTAgg):
         if event.button == 2:
             self._pan_start = None
 
+    def set_bad_pixels_visible(self, visible: bool) -> None:
+        self.show_bad_pixels = visible
+        self._update_selected_points()
+
     def _update_selected_points(self) -> None:
         # Bad pixels are drawn as full-height vertical lines using the
         # x-axis transform (x in data coords, y in axes-fraction coords),
@@ -241,6 +246,10 @@ class PlotCanvas(FigureCanvasQTAgg):
         if self.bad_pixel_lines is not None:
             self.bad_pixel_lines.remove()
             self.bad_pixel_lines = None
+
+        if not self.show_bad_pixels:
+            self.draw_idle()
+            return
 
         start = self.current_module * self.pixels_per_modules
         end = start + self.pixels_per_modules
@@ -330,6 +339,10 @@ class BadModuleMainWindow(QMainWindow):
 
         self.reset_zoom_button = QPushButton("Reset Zoom")
         self.reset_zoom_button.clicked.connect(self.canvas.reset_zoom)
+
+        self.toggle_bad_pixels_button = QPushButton("Hide Bad Pixels")
+        self.toggle_bad_pixels_button.setCheckable(True)
+        self.toggle_bad_pixels_button.toggled.connect(self._on_toggle_bad_pixels)
 
         self.save_button = QPushButton("Save Selected Indices")
         self.save_button.clicked.connect(self._save)
@@ -445,6 +458,7 @@ class BadModuleMainWindow(QMainWindow):
         left.addWidget(self.canvas)
         left.addWidget(self.module_slider)
         left.addWidget(self.reset_zoom_button)
+        left.addWidget(self.toggle_bad_pixels_button)
 
         central = QWidget()
         main = QHBoxLayout(central)
@@ -614,6 +628,12 @@ class BadModuleMainWindow(QMainWindow):
     def _on_module_changed(self, module: int) -> None:
         self.canvas.set_module(module)
         self._update_module_bad_pixels()
+
+    def _on_toggle_bad_pixels(self, hidden: bool) -> None:
+        self.canvas.set_bad_pixels_visible(not hidden)
+        self.toggle_bad_pixels_button.setText(
+            "Show Bad Pixels" if hidden else "Hide Bad Pixels"
+        )
 
 
 # =========================
