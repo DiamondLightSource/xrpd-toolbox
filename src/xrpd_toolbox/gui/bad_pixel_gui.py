@@ -323,14 +323,7 @@ class BadModuleMainWindow(QMainWindow):
         self.setWindowTitle("Mythen NXS Viewer")
 
         if data is None:
-            if Path(DEFAULT_DATA_FOLDER).exists():
-                folder = str(DEFAULT_DATA_FOLDER)
-            else:
-                folder = str(CWD)
-
-            filepath, _ = QFileDialog.getOpenFileName(
-                self, "Mythen Nexus File", folder, "NeXus Files (*.nxs)"
-            )
+            filepath = self.nexus_file_dialog()
 
             data = MythenDataLoader(filepath)
 
@@ -455,11 +448,16 @@ class BadModuleMainWindow(QMainWindow):
             self.load_nexus_file(filepath)
 
     def load_nexus_file(self, filepath: str) -> None:
-        self.data = MythenDataLoader(filepath)
-        self.canvas.set_data(self.data)
-        self.module_slider.setRange(0, self.data.n_modules_in_data - 1)
-        self._update_bad_channel_canvas()
-        self.file_label.setText(f"File: {self.data.filepath}")
+
+        try:
+            self.data = MythenDataLoader(filepath)
+            self.canvas.set_data(self.data)
+            self.module_slider.setRange(0, self.data.n_modules_in_data - 1)
+            self._update_bad_channel_canvas()
+            self.file_label.setText(f"File: {self.data.filepath}")
+
+        except ValueError as e:
+            QMessageBox.information(self, title="error", text=f"{e}")
 
     def load_initial_bad_channels(self) -> None:
 
