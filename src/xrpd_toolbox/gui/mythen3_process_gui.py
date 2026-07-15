@@ -43,7 +43,7 @@ from xrpd_toolbox.i11.mythen import MythenDetector, MythenSettings
 CURRENT_YEAR: int = datetime.datetime.now().year
 DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
 ROOT: str = str(Path.root)
-ROOT = "/workspaces/outputs"
+# ROOT = "/workspaces/outputs"
 
 # Qt.ItemDataRole.UserRole is used to store the input Path on a list item;
 # UserRole + 1 stores the .xye output Path once processing finishes
