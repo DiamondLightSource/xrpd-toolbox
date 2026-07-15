@@ -473,25 +473,28 @@ class XRPDBaseModel(BaseModel):
     serialised/deserialise from file but wont be used for a refinement."""
 
     model_config = ConfigDict(
-        from_attributes=True, arbitrary_types_allowed=True, validate_assignment=True
+        from_attributes=True,
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        validate_default=True,
     )
 
     @classmethod
     def load_from_toml(cls, filepath: str | Path):
-        with open(filepath, "rb") as file:
+        with open(str(filepath), "rb") as file:
             settings_dict = tomllib.load(file)
 
         return cls.model_validate(settings_dict)
 
     @classmethod
     def load_from_yaml(cls, filepath: str | Path):
-        with open(filepath, "rb") as file:
+        with open(str(filepath), "rb") as file:
             settings_dict = yaml.safe_load(file)
         return cls.model_validate(settings_dict)
 
     @classmethod
     def load_from_json(cls, filepath: str | Path):
-        with open(filepath, "rb") as file:
+        with open(str(filepath), "rb") as file:
             settings_dict = json.load(file)
         return cls.model_validate(settings_dict)
 
@@ -506,7 +509,9 @@ class XRPDBaseModel(BaseModel):
         elif file_extension == ".toml":
             return cls.load_from_toml(filepath)
         else:
-            raise ValueError(f"Filetype must be: {SUPPORTED_FILE_TYPES}")
+            raise ValueError(
+                f"{cls.__name__} {filepath} filetype must be: {SUPPORTED_FILE_TYPES}"
+            )
 
     def save_to_toml(self, filepath: str | Path) -> None:
         if not str(filepath).endswith(".toml"):
@@ -516,7 +521,7 @@ class XRPDBaseModel(BaseModel):
 
         config_dict = self.model_dump()
 
-        with open(filepath, "w") as outfile:
+        with open(str(filepath), "w") as outfile:
             toml.dump(config_dict, outfile)
 
     def save_to_json(self, filepath: str | Path) -> None:
@@ -527,18 +532,18 @@ class XRPDBaseModel(BaseModel):
 
         config_dict = self.model_dump()
 
-        with open(filepath, "w") as outfile:
+        with open(str(filepath), "w") as outfile:
             json.dump(config_dict, outfile, indent=2, sort_keys=False)
 
-    def save_to_yaml(self, file_path: str | Path) -> None:
-        if not str(file_path).endswith(".yaml"):
+    def save_to_yaml(self, filepath: str | Path) -> None:
+        if not str(filepath).endswith(".yaml"):
             raise ValueError("file_path name must end with .yaml")
 
-        print("Saving configuration to:", file_path)
+        print("Saving configuration to:", filepath)
 
-        config_dict = self.model_dump()
+        config_dict = self.model_dump(mode="json")
 
-        with open(file_path, "w") as outfile:
+        with open(str(filepath), "w") as outfile:
             yaml.dump(
                 config_dict,
                 outfile,

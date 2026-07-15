@@ -13,8 +13,9 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from h5py import Dataset, File
-from pydantic import Field
+from pydantic import Field, field_validator
 
+from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.core import XRPDBaseModel, XYEData
 from xrpd_toolbox.fit_engine.peaks import fit_peaks
 from xrpd_toolbox.fit_engine.profile_calculation import Structure
@@ -29,6 +30,10 @@ from xrpd_toolbox.utils.utils import (
     load_int_array_from_file,
     save_data_to_h5,
 )
+
+MYTHEN_CONFIG_DIR = BASE_PATH.parent.parent / "config" / "i11"
+DEFAULT_BAD_CHANS = MYTHEN_CONFIG_DIR / "badchannels.txt"
+DEFAULT_ANG_CAL = MYTHEN_CONFIG_DIR / "default_angcal.json"
 
 # np.set_printoptions(threshold=sys.maxsize)
 
@@ -103,7 +108,7 @@ class AngularCalibration(XRPDBaseModel):
 
 class MythenSettings(XRPDBaseModel):
     active_modules: list[int] = list(range(MODULES_IN_DETECTOR))
-    bad_modules: list[int] = []
+    bad_modules: list[int] = [11, 17, 24]
     bad_channel_masking: bool = True
     zero_channel_masking: bool = True
     flatfield_filepath: str | Path = ""
@@ -118,7 +123,27 @@ class MythenSettings(XRPDBaseModel):
         "step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"
     ] = "step_scan"
     bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
-    angcal_filepath: str | Path = ""
+    angcal_filepath: str | Path = (
+        "/dls_sw/i11/software/mythen3/ang_cal_020426_cen_639.5_least_squares.json"
+    )
+
+    @field_validator("bad_channels_filepath")
+    @classmethod
+    def validate_bad_chans(cls, value):
+
+        if not Path(value).exists():
+            return str(DEFAULT_BAD_CHANS)
+        else:
+            return value
+
+    @field_validator("angcal_filepath")
+    @classmethod
+    def validate_angcal_filepath(cls, value):
+
+        if not Path(value).exists():
+            return str(DEFAULT_ANG_CAL)
+        else:
+            return value
 
 
 class BadChannels:
@@ -420,7 +445,7 @@ class MythenDetector:
             raise ValueError(f"{self.filepath} does not exist!!")
 
         self.file_dir = os.path.dirname(str(self.filepath))
-        self.filename = os.path.basename(str(self.filepath))
+        self.filename = str(Path(self.filepath).stem)
 
         self.output_directory = output_directory or os.path.join(
             str(self.file_dir), "processed"
@@ -435,7 +460,7 @@ class MythenDetector:
         )
 
         self.xye_filepath_out = xye_filepath_out or os.path.join(
-            self.file_dir,
+            self.output_directory,
             f"{self.filename}_summed_mythen3{self.filename_suffix}.xye",
         )
 
@@ -575,7 +600,7 @@ class MythenDetector:
                 str(self.filepath), str(self.xye_filepath_out)
             )  # sends to ispyb
 
-    def process_step_scan(self):
+    def process_step_scan(self, plot: bool = False, control: bool = True):
         """Analyses the data using the settings provided by the MythenSettings class
         Takes all of the data from each module and each step of the multistep scan
         and calculates the tth for each delta position, orders them, concatenates
@@ -608,15 +633,17 @@ class MythenDetector:
 
         print(f"Data saved to: {self.processed_nexus_filepath}")
 
-        self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
-        self.data_plot.plot()
-
-        try:
-            self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
+        if plot:
             self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
-        except Exception as e:
-            print(f"Could not connect with control - {e}")
-            pass
+            self.data_plot.plot()
+
+        if control:
+            try:
+                self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
+                self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
+            except Exception as e:
+                print(f"Could not connect with control - {e}")
+                pass
 
     def get_ring1_ring2_data(self):
         first_ring_pixels = len(self.active_ring1_modules) * PIXELS_PER_MODULE
@@ -753,7 +780,7 @@ def convert_angcal_to_pydantic_json(
                 "offset": legacy_dict[f"offset_{module}"],
             }
 
-    pydantic_model = AngularCalibration(**pydantic_dict)
+    pydantic_model = AngularCalibration.model_validate(pydantic_dict)
     pydantic_model.save_to_json(new_path)
 
 
@@ -805,7 +832,7 @@ if __name__ == "__main__":
 
     # MythenDataLoader(DATA_FILE)
 
-    BAD_CHAN_FILE = "/workspaces/XRPD-Toolbox/config/i11/bad_channels.txt"
+    BAD_CHAN_FILE = "/workspaces/XRPD-Toolbox/config/i11/badchannels.txt"
 
     angular_calibration = AngularCalibration.load_from_json(ANG_CAL)
     # angular_calibration.beamline_offset = -0.4979739

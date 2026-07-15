@@ -857,6 +857,20 @@ class I11Reduction:
                 & (~self.angular_corrected_data_unmasked["frame"].isin(self.bad_frames))
             ]  # keep non-bad modules only
 
+        zeros = (
+            self.angular_corrected_data[self.angular_corrected_data["counts"] == 0]
+        ).sort_values(by="det_channel", ascending=True)
+
+        self.logger.log(
+            f"Bad channels: {zeros['det_channel'].unique()}. Channels reading 0 removed"
+        )
+
+        angular_corrected_data = self.angular_corrected_data_unmasked[
+            ~self.angular_corrected_data_unmasked["det_channel"].isin(
+                zeros["det_channel"].unique()
+            )
+        ]  # keep non-zero channels modules only
+
         return angular_corrected_data
 
     def concatenate_frames_and_modules(self) -> pd.DataFrame:
@@ -2135,14 +2149,8 @@ class I11Reduction:
                 )
 
             if self.live:
-                self.communicate_with_control(self.send_to_ispyb)
+                self.communicate_with_control(self.send_to_ispyb, send_to_ispyb=True)
 
-            zeros = (
-                self.angular_corrected_data[self.angular_corrected_data["counts"] == 0]
-            ).sort_values(by="det_channel", ascending=True)
-            # print("bad channel", zeros)
-            self.logger.log(f"Possible bad channels: {zeros['det_channel'].unique()}")
-            ##########################################################################
             self.logger.log("###############END###############\n")
 
 

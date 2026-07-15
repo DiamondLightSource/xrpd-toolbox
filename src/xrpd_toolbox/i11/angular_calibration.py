@@ -530,7 +530,7 @@ class AngularCalibrateMythen:
             settings1 = MythenSettings.load_from_toml(config_file)
             settings2 = MythenSettings.load_from_toml(config_file)
 
-            bad_chan_file = "/workspaces/XRPD-Toolbox/config/i11/bad_channels.txt"
+            bad_chan_file = "/workspaces/XRPD-Toolbox/config/i11/badchannels.txt"
 
             data_file = "/host-home/projects/outputs/angular_calibration/1410289.nxs"
             settings1.bad_channels_filepath = bad_chan_file
@@ -944,7 +944,7 @@ class AngularCalibrateMythen:
         )  # ["offset"], module_cal["conv"], module_cal["centre"]
 
         bad_channels = load_int_array_from_file(
-            "/workspaces/XRPD-Toolbox/config/i11/bad_channels.txt"
+            "/workspaces/XRPD-Toolbox/config/i11/badchannels.txt"
         )
 
         calibrant = get_calibrant("Si")

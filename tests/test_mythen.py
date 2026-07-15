@@ -3,11 +3,16 @@ from pathlib import Path
 
 import pytest
 
-from xrpd_toolbox.i11.mythen import MythenSettings
+from xrpd_toolbox import BASE_PATH
+from xrpd_toolbox.core import XYEData
+from xrpd_toolbox.i11.mythen import MythenDetector, MythenSettings
 
 CONFIG_FILE = (
     Path(__file__).parent.parent / "config" / "i11" / "mythen3_reduction_config.toml"
 )
+
+
+SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "1410696.nxs"
 
 
 @pytest.fixture
@@ -75,6 +80,23 @@ def test_mythen_load_fails_when_incorrect_file_extension(
 
     with pytest.raises(ValueError):
         mythen_settings.save_to_toml(file_path)
+
+
+def test_mythen_data_reduction():
+
+    detector = MythenDetector(filepath=SI_DATA_FILE, filename_suffix="_test")
+
+    detector.process_step_scan(control=False)
+
+    assert str(detector.output_directory) == str(SI_DATA_FILE.parent / "processed")
+    assert Path(detector.xye_filepath_out).exists()
+    assert str(Path(detector.xye_filepath_out).parent) == str(
+        SI_DATA_FILE.parent / "processed"
+    )
+
+    _ = XYEData.from_csv(detector.xye_filepath_out)
+
+    os.remove(detector.xye_filepath_out)
 
 
 # def test_mythen_data_loader():
