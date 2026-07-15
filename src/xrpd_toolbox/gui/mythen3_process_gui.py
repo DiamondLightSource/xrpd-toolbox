@@ -343,7 +343,6 @@ class MainWindow(QWidget):
                 continue
 
             widget = self.make_setting(setting_name, setting_val, annotation)
-            print("\n")
 
             normal_settings.append((setting_name, widget))
 
