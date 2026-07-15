@@ -6,12 +6,11 @@ import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
-from PyQt6.QtCore import QFileInfo, Qt
-from PyQt6.QtGui import QFileSystemModel, QIcon, QKeySequence, QShortcut
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
-    QFileIconProvider,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -21,12 +20,12 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSlider,
     QSpinBox,
-    QStyle,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from xrpd_toolbox.gui.fast_icons import FastIconProvider
 from xrpd_toolbox.i11.mythen import MythenDataLoader
 from xrpd_toolbox.utils.utils import load_int_array_from_file
 
@@ -35,37 +34,6 @@ CURRENT_YEAR = datetime.datetime.now().year
 DEFAULT_BAD_CHANNEL_FILEPATH: str = "/dls_sw/i11/software/mythen/badchannels.txt"
 DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
 CWD = Path.cwd()
-
-
-class _FastIconProvider(QFileIconProvider):
-    """Cheap folder-vs-file icons for QFileDialog."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        style = QApplication.style()
-        self._folder_icon = (
-            style.standardIcon(QStyle.StandardPixmap.SP_DirIcon)
-            if style is not None
-            else QIcon()
-        )
-        self._file_icon = (
-            style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
-            if style is not None
-            else QIcon()
-        )
-
-    def icon(self, type_or_info) -> QIcon:  # type: ignore
-        if isinstance(type_or_info, QFileInfo):
-            return self._folder_icon if type_or_info.isDir() else self._file_icon
-
-        # Called with an IconType enum value (Folder/File/Computer/etc.)
-        # for chrome elements like the sidebar — no per-file cost either way.
-        if type_or_info == QFileIconProvider.IconType.Folder:
-            return self._folder_icon
-        if type_or_info == QFileIconProvider.IconType.File:
-            return self._file_icon
-        return super().icon(type_or_info)
-
 
 # =========================
 # Plot canvas
@@ -426,7 +394,7 @@ class BadModuleMainWindow(QMainWindow):
         # go through QFileSystemModel/QFileIconProvider.
         dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
         dialog.setViewMode(QFileDialog.ViewMode.List)
-        dialog.setIconProvider(_FastIconProvider())
+        dialog.setIconProvider(FastIconProvider())
 
         model = dialog.findChild(QFileSystemModel)
         if model is not None:

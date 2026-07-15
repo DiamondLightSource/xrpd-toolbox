@@ -36,6 +36,7 @@ from PyQt6.QtWidgets import (
 )
 
 from xrpd_toolbox.core import XYEData
+from xrpd_toolbox.gui.fast_icons import FastIconProvider
 from xrpd_toolbox.i11.mythen import MythenDetector, MythenSettings
 
 # from xrpd_toolbox.i11.mythen3_reduction_legacy import I11Reduction
@@ -240,6 +241,15 @@ class MainWindow(QWidget):
 
         self.fs_model = QFileSystemModel()
 
+        # Performance: avoid per-directory file-watchers, per-file shell
+        # icon lookups, and symlink resolution. These are what make
+        # QFileSystemModel lock up on folders with thousands of entries on
+        # a network mount - none of them are needed here, we only care
+        # about folder-vs-.nxs-file.
+        self.fs_model.setOption(QFileSystemModel.Option.DontWatchForChanges, True)
+        self.fs_model.setIconProvider(FastIconProvider())
+        self.fs_model.setResolveSymlinks(False)
+
         if Path(DEFAULT_DATA_FOLDER).exists():
             self.base_path = DEFAULT_DATA_FOLDER
         else:
@@ -253,6 +263,12 @@ class MainWindow(QWidget):
         self.tree.setModel(self.fs_model)
         self.tree.setRootIndex(self.fs_model.index(self.base_path))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+
+        # Performance: skip per-row height recalculation and expand/collapse
+        # animation, both of which add up at thousands of rows.
+        self.tree.setUniformRowHeights(True)
+        self.tree.setAnimated(False)
+        self.tree.setSortingEnabled(False)
 
         for col in range(1, self.fs_model.columnCount()):
             self.tree.hideColumn(col)
