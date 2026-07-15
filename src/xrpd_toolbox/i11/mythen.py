@@ -132,7 +132,7 @@ class MythenSettings(XRPDBaseModel):
     def validate_bad_chans(cls, value):
 
         if not Path(value).exists():
-            return DEFAULT_BAD_CHANS
+            return str(DEFAULT_BAD_CHANS)
         else:
             return value
 
@@ -141,7 +141,7 @@ class MythenSettings(XRPDBaseModel):
     def validate_angcal_filepath(cls, value):
 
         if not Path(value).exists():
-            return DEFAULT_ANG_CAL
+            return str(DEFAULT_ANG_CAL)
         else:
             return value
 
