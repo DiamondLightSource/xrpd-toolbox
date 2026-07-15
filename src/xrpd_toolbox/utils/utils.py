@@ -20,7 +20,7 @@ class AnalysisLogger:
     """A class that can be use as a logger to log data to a
     filepath and print at the same time - possibly superfluous"""
 
-    def __init__(self, log_filepath: str | Path, logging: bool = False):
+    def __init__(self, log_filepath: str | Path, logging: bool = True):
         self.log_filepath = log_filepath
         self.logging = logging
 

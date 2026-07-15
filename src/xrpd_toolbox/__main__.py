@@ -25,5 +25,15 @@ def bad_pixel_gui(ctx: click.Context) -> None:
     run_bad_pixel_gui()
 
 
+@main.command(name="mythen_process_gui")
+@click.pass_context
+def mythen_process_gui(ctx: click.Context) -> None:
+    """Launch the bad pixel GUI."""
+
+    from xrpd_toolbox.gui.mythen3_process_gui import run_mythen_process
+
+    run_mythen_process()
+
+
 if __name__ == "__main__":
     main()

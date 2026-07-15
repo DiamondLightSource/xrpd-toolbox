@@ -473,7 +473,10 @@ class XRPDBaseModel(BaseModel):
     serialised/deserialise from file but wont be used for a refinement."""
 
     model_config = ConfigDict(
-        from_attributes=True, arbitrary_types_allowed=True, validate_assignment=True
+        from_attributes=True,
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        validate_default=True,
     )
 
     @classmethod
@@ -506,7 +509,9 @@ class XRPDBaseModel(BaseModel):
         elif file_extension == ".toml":
             return cls.load_from_toml(filepath)
         else:
-            raise ValueError(f"Filetype must be: {SUPPORTED_FILE_TYPES}")
+            raise ValueError(
+                f"{cls.__name__} {filepath} filetype must be: {SUPPORTED_FILE_TYPES}"
+            )
 
     def save_to_toml(self, filepath: str | Path) -> None:
         if not str(filepath).endswith(".toml"):
