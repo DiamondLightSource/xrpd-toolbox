@@ -42,7 +42,7 @@ from xrpd_toolbox.i11.mythen import MythenDetector, MythenSettings
 # from xrpd_toolbox.i11.mythen3_reduction_legacy import I11Reduction
 
 CURRENT_YEAR: int = datetime.datetime.now().year
-DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
+DEFAULT_DATA_FOLDER: str = "/dls/i11/data"
 ROOT: str = str(Path.root)
 # ROOT = "/workspaces/outputs"
 
