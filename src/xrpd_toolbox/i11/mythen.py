@@ -124,7 +124,7 @@ class MythenSettings(XRPDBaseModel):
     ] = "step_scan"
     bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
     angcal_filepath: str | Path = (
-        "/dls_sw/i11/software/mythen3/ang_cal_020426_cen_639.5_least_squares.json"
+        "/dls_sw/i11/software/mythen3/diamond/ang_cal_020426_cen_639.5_least_squares.json"
     )
 
     @field_validator("bad_channels_filepath")
