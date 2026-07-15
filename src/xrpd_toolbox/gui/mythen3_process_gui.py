@@ -55,8 +55,6 @@ OUTPUT_PATH_ROLE: int = int(Qt.ItemDataRole.UserRole) + 1
 # =========================
 # Worker Thread
 # =========================
-
-
 class ProcessingWorker(QThread):
     file_started = pyqtSignal(Path)
     # Emits (input .nxs path, output .xye path) once a file is done.
