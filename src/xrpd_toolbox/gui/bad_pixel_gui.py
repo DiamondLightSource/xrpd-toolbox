@@ -33,8 +33,10 @@ CURRENT_YEAR = datetime.datetime.now().year
 
 DEFAULT_BAD_CHANNEL_FILEPATH: str = "/dls_sw/i11/software/mythen/badchannels.txt"
 DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
-CWD = Path.cwd()
-
+try:
+    CWD = Path.cwd()
+except Exception:
+    CWD = Path.home()
 # =========================
 # Plot canvas
 # =========================
