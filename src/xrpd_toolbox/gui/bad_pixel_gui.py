@@ -626,6 +626,8 @@ class BadModuleMainWindow(QMainWindow):
             backup_name = f"{self._current_save_path.stem}_{timestamp}{self._current_save_path.suffix}"  # noqa
             backup_path = backup_folder / backup_name
 
+            backup_folder.mkdir(parents=True, exist_ok=True)
+
             shutil.copy2(self._current_save_path, backup_path)
 
     # ---------- save ----------
