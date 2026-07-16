@@ -209,8 +209,6 @@ class PlotCanvas(FigureCanvasQTAgg):
 # =========================
 # Main window
 # =========================
-
-
 class BadModuleMainWindow(QMainWindow):
     def __init__(
         self,
