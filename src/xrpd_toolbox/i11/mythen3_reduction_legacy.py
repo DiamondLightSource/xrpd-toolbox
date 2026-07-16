@@ -22,6 +22,7 @@ np.seterr(
     divide="ignore", invalid="ignore"
 )  # dividing by zero throws a warning, this is expected due to some pixels being dead
 
+REMOVE_ZEROS = True
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -857,19 +858,24 @@ class I11Reduction:
                 & (~self.angular_corrected_data_unmasked["frame"].isin(self.bad_frames))
             ]  # keep non-bad modules only
 
-        zeros = (
-            self.angular_corrected_data[self.angular_corrected_data["counts"] == 0]
-        ).sort_values(by="det_channel", ascending=True)
+        if REMOVE_ZEROS:
+            try:
+                zeros = (
+                    angular_corrected_data[angular_corrected_data["counts"] == 0]
+                ).sort_values(by="det_channel", ascending=True)
 
-        self.logger.log(
-            f"Bad channels: {zeros['det_channel'].unique()}. Channels reading 0 removed"
-        )
+                self.logger.log(
+                    f"Bad channels: {zeros['det_channel'].unique()} Channels reading 0 removed"  # noqa
+                )
 
-        angular_corrected_data = self.angular_corrected_data_unmasked[
-            ~self.angular_corrected_data_unmasked["det_channel"].isin(
-                zeros["det_channel"].unique()
-            )
-        ]  # keep non-zero channels modules only
+                angular_corrected_data = angular_corrected_data[
+                    ~angular_corrected_data["det_channel"].isin(
+                        zeros["det_channel"].unique()
+                    )
+                ]  # keep non-zero channels modules only
+
+            except Exception:
+                self.logger.log("Auto bad channel removal failed")
 
         return angular_corrected_data
 
