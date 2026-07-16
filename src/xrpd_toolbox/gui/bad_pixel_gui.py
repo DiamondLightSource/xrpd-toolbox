@@ -220,7 +220,7 @@ class BadModuleMainWindow(QMainWindow):
     ) -> None:
         super().__init__()
 
-        self.setWindowTitle("Mythen NXS Viewer")
+        self.setWindowTitle("Mythen Bad Pixel GUI")
 
         if data is None:
             filepath = self.nexus_file_dialog()
