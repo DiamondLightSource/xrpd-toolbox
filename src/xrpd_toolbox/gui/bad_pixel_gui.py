@@ -39,11 +39,13 @@ try:
     CWD = Path.cwd()
 except Exception:
     CWD = Path.home()
+
+EMPTY_BAD_CHANNELS: set[int] = set()
+
+
 # =========================
 # Plot canvas
 # =========================
-
-
 class PlotCanvas(FigureCanvasQTAgg):
     def __init__(
         self,
@@ -207,8 +209,6 @@ class PlotCanvas(FigureCanvasQTAgg):
 # =========================
 # Main window
 # =========================
-
-EMPTY_BAD_CHANNELS: set[int] = set()
 
 
 class BadModuleMainWindow(QMainWindow):
