@@ -697,7 +697,9 @@ def run_bad_pixel_gui(
             initial_indices = set()
 
     app = QApplication(sys.argv)
-    win = BadModuleMainWindow(data, initial_indices, bad_channel_file)
+    win = BadModuleMainWindow(
+        data=data, bad_channels=initial_indices, bad_channels_save_path=bad_channel_file
+    )
     win.resize(1500, 900)
     win.show()
     win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)  # optional
