@@ -429,7 +429,7 @@ class BadModuleMainWindow(QMainWindow):
         except ValueError as e:
             QMessageBox.information(self, title="error", text=f"{e}")
 
-    def load_initial_bad_channels(self) -> None:
+    def load_bad_channels(self) -> None:
 
         bad_channel_folder = Path(DEFAULT_BAD_CHANNEL_FILEPATH).parent
 
@@ -451,7 +451,7 @@ class BadModuleMainWindow(QMainWindow):
             self.global_selected_indices.update(new_global_selected_indices)
 
         except Exception as e:
-            print(f"Error occurred while loading initial indices: {e}")
+            print(f"Error occurred while loading bad channels: {e}")
             pass
 
         self._update_bad_channel_canvas()
@@ -508,7 +508,7 @@ class BadModuleMainWindow(QMainWindow):
 
         file_menu.addAction("Save", self._save)
         file_menu.addAction("Save As...", self._save_as)
-        file_menu.addAction("Load Bad Channels...", self.load_initial_bad_channels)
+        file_menu.addAction("Load Bad Channels...", self.load_bad_channels)
 
         help_menu = menu.addMenu("Help")
         if help_menu is None:
@@ -682,11 +682,12 @@ def run_bad_pixel_gui(
         initial_indices = set(load_int_array_from_file(bad_channel_file))
     else:
         try:
+            print("Using default badchannels:", DEFAULT_BAD_CHANNEL_FILEPATH)
             initial_indices = set(
                 load_int_array_from_file(DEFAULT_BAD_CHANNEL_FILEPATH)
             )
         except Exception as e:
-            print(f"Error occurred while loading initial indices: {e}")
+            print(f"Error occurred while loading initial indices on startup: {e}")
             initial_indices = set()
 
     app = QApplication(sys.argv)
