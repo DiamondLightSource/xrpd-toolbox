@@ -1,4 +1,5 @@
 import datetime
+import shutil
 import sys
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from xrpd_toolbox.utils.utils import load_int_array_from_file
 CURRENT_YEAR = datetime.datetime.now().year
 
 DEFAULT_BAD_CHANNEL_FILEPATH: str = "/dls_sw/i11/software/mythen/badchannels.txt"
+BAD_CHANNEL_BACKUP_FOLDER: str = "/dls_sw/i11/software/mythen/badchannels"
 DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
 try:
     CWD = Path.cwd()
@@ -612,6 +614,20 @@ class BadModuleMainWindow(QMainWindow):
         self.canvas._update_selected_points()  # noqa
         self._sync_all()
 
+    def _backup(self):
+
+        if (
+            (self._current_save_path is not None)
+            and self._current_save_path.exists()
+            and (str(self._current_save_path) == DEFAULT_BAD_CHANNEL_FILEPATH)
+        ):
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_folder = Path(BAD_CHANNEL_BACKUP_FOLDER)
+            backup_name = f"{self._current_save_path.stem}_{timestamp}{self._current_save_path.suffix}"  # noqa
+            backup_path = backup_folder / backup_name
+
+            shutil.copy2(self._current_save_path, backup_path)
+
     # ---------- save ----------
 
     def _save(self) -> None:
@@ -627,7 +643,11 @@ class BadModuleMainWindow(QMainWindow):
                 "This will overwrite the existing badchannels file. Are you sure?",
             )
 
-            if reply != QMessageBox.StandardButton.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
+                # Try to back up the file before overwriting,
+                # if file exists and is the default
+                self._backup()
+
                 with self._current_save_path.open("w", encoding="utf-8") as f:
                     for idx in sorted(self.global_bad_channels):
                         f.write(f"{idx}\n")
