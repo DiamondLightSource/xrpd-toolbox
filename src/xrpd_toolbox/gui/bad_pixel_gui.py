@@ -1,4 +1,5 @@
 import datetime
+import shutil
 import sys
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from xrpd_toolbox.utils.utils import load_int_array_from_file
 CURRENT_YEAR = datetime.datetime.now().year
 
 DEFAULT_BAD_CHANNEL_FILEPATH: str = "/dls_sw/i11/software/mythen/badchannels.txt"
+BAD_CHANNEL_BACKUP_FOLDER: str = "/dls_sw/i11/software/mythen/badchannels"
 DEFAULT_DATA_FOLDER: str = f"/dls/i11/data/{CURRENT_YEAR}"
 try:
     CWD = Path.cwd()
@@ -287,6 +289,7 @@ class BadModuleMainWindow(QMainWindow):
         self,
         data: MythenDataLoader | None = None,
         bad_channels: set[int] = EMPTY_BAD_CHANNELS,
+        bad_channels_save_path: str | Path | None = None,
     ) -> None:
         super().__init__()
 
@@ -301,8 +304,12 @@ class BadModuleMainWindow(QMainWindow):
             data = data
 
         self.data = data
-        self.global_selected_indices = bad_channels
-        self._current_save_path: Path | None = None
+        self.global_bad_channels = bad_channels
+
+        if bad_channels_save_path is not None:
+            bad_channels_save_path = Path(bad_channels_save_path)
+
+        self._current_save_path: Path | None = bad_channels_save_path
 
         # undo / redo
         self.undo_stack: list[set[int]] = []
@@ -311,7 +318,7 @@ class BadModuleMainWindow(QMainWindow):
 
         self.canvas = PlotCanvas(
             self.data,
-            self.global_selected_indices,
+            self.global_bad_channels,
             self._toggle_index,
         )
 
@@ -448,7 +455,7 @@ class BadModuleMainWindow(QMainWindow):
             new_global_selected_indices = set(
                 load_int_array_from_file(bad_channels_file)
             )
-            self.global_selected_indices.update(new_global_selected_indices)
+            self.global_bad_channels.update(new_global_selected_indices)
 
         except Exception as e:
             print(f"Error occurred while loading bad channels: {e}")
@@ -520,12 +527,12 @@ class BadModuleMainWindow(QMainWindow):
 
     def _sync_all(self) -> None:
         self.list_widget.clear()
-        for idx in sorted(self.global_selected_indices):
+        for idx in sorted(self.global_bad_channels):
             self.list_widget.addItem(QListWidgetItem(str(idx)))
 
         self._update_module_bad_pixels()
         self.global_count_label.setText(
-            f"Total bad pixels (global): {len(self.global_selected_indices)}"
+            f"Total bad pixels (global): {len(self.global_bad_channels)}"
         )
 
     def _update_module_bad_pixels(self) -> None:
@@ -535,7 +542,7 @@ class BadModuleMainWindow(QMainWindow):
         end = start + ppm
 
         module_globals = sorted(
-            idx for idx in self.global_selected_indices if start <= idx < end
+            idx for idx in self.global_bad_channels if start <= idx < end
         )
 
         self.module_bad_pixels_box.setPlainText(
@@ -546,7 +553,7 @@ class BadModuleMainWindow(QMainWindow):
     # ---------- undo / redo ----------
 
     def _record_state(self) -> None:
-        self.undo_stack.append(self.global_selected_indices.copy())
+        self.undo_stack.append(self.global_bad_channels.copy())
         if len(self.undo_stack) > self.undo_limit:
             self.undo_stack.pop(0)
         self.redo_stack.clear()
@@ -555,11 +562,11 @@ class BadModuleMainWindow(QMainWindow):
         if not self.undo_stack:
             return
 
-        self.redo_stack.append(self.global_selected_indices.copy())
+        self.redo_stack.append(self.global_bad_channels.copy())
         prev = self.undo_stack.pop()
 
-        self.global_selected_indices.clear()
-        self.global_selected_indices.update(prev)
+        self.global_bad_channels.clear()
+        self.global_bad_channels.update(prev)
 
         self.canvas._update_selected_points()  # noqa
         self._sync_all()
@@ -572,11 +579,11 @@ class BadModuleMainWindow(QMainWindow):
         if not self.redo_stack:
             return
 
-        self.undo_stack.append(self.global_selected_indices.copy())
+        self.undo_stack.append(self.global_bad_channels.copy())
         nxt = self.redo_stack.pop()
 
-        self.global_selected_indices.clear()
-        self.global_selected_indices.update(nxt)
+        self.global_bad_channels.clear()
+        self.global_bad_channels.update(nxt)
 
         self.canvas._update_selected_points()  # noqa
         self._sync_all()
@@ -586,10 +593,10 @@ class BadModuleMainWindow(QMainWindow):
     def _toggle_index(self, idx: int) -> None:
         self._record_state()
 
-        if idx in self.global_selected_indices:
-            self.global_selected_indices.remove(idx)
+        if idx in self.global_bad_channels:
+            self.global_bad_channels.remove(idx)
         else:
-            self.global_selected_indices.add(idx)
+            self.global_bad_channels.add(idx)
 
         self.canvas._update_selected_points()  # noqa
         self._sync_all()
@@ -601,13 +608,27 @@ class BadModuleMainWindow(QMainWindow):
         for m in range(self.data.n_modules_in_data):
             base = m * self.data.pixels_per_module
             for i in range(n):
-                self.global_selected_indices.add(base + i)
-                self.global_selected_indices.add(
-                    base + self.data.pixels_per_module - 1 - i
-                )
+                self.global_bad_channels.add(base + i)
+                self.global_bad_channels.add(base + self.data.pixels_per_module - 1 - i)
 
         self.canvas._update_selected_points()  # noqa
         self._sync_all()
+
+    def _backup(self):
+
+        if (
+            (self._current_save_path is not None)
+            and self._current_save_path.exists()
+            and (str(self._current_save_path) == DEFAULT_BAD_CHANNEL_FILEPATH)
+        ):
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_folder = Path(BAD_CHANNEL_BACKUP_FOLDER)
+            backup_name = f"{self._current_save_path.stem}_{timestamp}{self._current_save_path.suffix}"  # noqa
+            backup_path = backup_folder / backup_name
+
+            backup_folder.mkdir(parents=True, exist_ok=True)
+
+            shutil.copy2(self._current_save_path, backup_path)
 
     # ---------- save ----------
 
@@ -624,9 +645,13 @@ class BadModuleMainWindow(QMainWindow):
                 "This will overwrite the existing badchannels file. Are you sure?",
             )
 
-            if reply != QMessageBox.StandardButton.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
+                # Try to back up the file before overwriting,
+                # if file exists and is the default
+                self._backup()
+
                 with self._current_save_path.open("w", encoding="utf-8") as f:
-                    for idx in sorted(self.global_selected_indices):
+                    for idx in sorted(self.global_bad_channels):
                         f.write(f"{idx}\n")
 
     def _save_as(self) -> None:
@@ -686,12 +711,17 @@ def run_bad_pixel_gui(
             initial_indices = set(
                 load_int_array_from_file(DEFAULT_BAD_CHANNEL_FILEPATH)
             )
+
+            bad_channel_file = DEFAULT_BAD_CHANNEL_FILEPATH
+
         except Exception as e:
             print(f"Error occurred while loading initial indices on startup: {e}")
             initial_indices = set()
 
     app = QApplication(sys.argv)
-    win = BadModuleMainWindow(data, initial_indices)
+    win = BadModuleMainWindow(
+        data=data, bad_channels=initial_indices, bad_channels_save_path=bad_channel_file
+    )
     win.resize(1500, 900)
     win.show()
     win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)  # optional
