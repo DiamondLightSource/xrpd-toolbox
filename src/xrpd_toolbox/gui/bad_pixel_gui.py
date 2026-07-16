@@ -4,10 +4,10 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib.widgets import RectangleSelector
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
@@ -56,17 +56,33 @@ class PlotCanvas(FigureCanvasQTAgg):
         super().__init__(self.figure)
         self.setParent(parent)
 
-        self.ax = self.figure.add_subplot(111)
-        self.ax2 = self.ax.twiny()
-
-        self._pan_start = None
-
         self.current_module = 0
+
+        self.ax = self.figure.add_subplot(111)
+
+        # ax2 (the "global channel" axis on top) is created fresh inside
+        # _plot_module every time, not here. It's a secondary axis (NOT
+        # ax.twiny()): twiny() makes a second, fully independent Axes
+        # stacked on top of ax, which both steals mouse events from ax
+        # (clicks/drags resolve against whichever Axes is topmost) and is
+        # invisible to the navigation toolbar's pan/zoom, which only ever
+        # acts on the Axes that actually holds the data. secondary_xaxis
+        # avoids both problems — but it only stays linked to `ax` until
+        # the next `ax.cla()`, which severs that link entirely (not just
+        # the tick cache). Since every module switch calls `ax.cla()`,
+        # ax2 has to be rebuilt after each one, or the global-channel
+        # numbers freeze/break after the very first draw.
+        self.ax2 = None
+
         self.global_selected_indices = global_selected_indices
         self.selection_callback = selection_callback
 
         self.bad_pixel_lines = None
         self.show_bad_pixels = True
+
+        # Set by the owning window once the toolbar exists, so click
+        # handling can check whether Pan/Zoom mode is currently active.
+        self.toolbar: NavigationToolbar2QT | None = None
 
         self._connect_events()
         self.set_data(data)
@@ -78,6 +94,14 @@ class PlotCanvas(FigureCanvasQTAgg):
         # pixel markers landing away from where you actually clicked).
         return self.data.pixels_per_module
 
+    def _module_to_global(self, x):
+        start = self.current_module * self.pixels_per_modules
+        return np.asarray(x) + start
+
+    def _global_to_module(self, x):
+        start = self.current_module * self.pixels_per_modules
+        return np.asarray(x) - start
+
     def set_data(self, data: MythenDataLoader) -> None:
         self.data = data
         self.raw_data = data.data
@@ -86,34 +110,26 @@ class PlotCanvas(FigureCanvasQTAgg):
         self._plot_module(0)
 
     def _connect_events(self) -> None:
-        self.mpl_connect("scroll_event", self._on_scroll)
         self.mpl_connect("button_press_event", self._on_click)
-        self.mpl_connect("motion_notify_event", self._on_mouse_move)
-        self.mpl_connect("button_release_event", self._on_mouse_release)
 
     def _plot_module(self, module: int) -> None:
         self.ax.cla()
+
+        # Rebuild the secondary "global channel" axis immediately after
+        # cla() — cla() severs the link a secondary axis needs to stay
+        # synced with ax, so it must be recreated on every module switch
+        # (see the note on self.ax2 = None in __init__).
+        self.ax2 = self.ax.secondary_xaxis(
+            "top", functions=(self._module_to_global, self._global_to_module)
+        )
+        self.ax2.set_xlabel("Detector Channel Number (global)")
 
         start = module * self.pixels_per_modules
         end = start + self.pixels_per_modules
         intensities = self.raw_data[:, start:end]
 
-        # module_channel_number = np.arange(start, end).tolist()
-
         for intensity in intensities:
             self.ax.plot(self.x, intensity, alpha=0.3, linewidth=1)
-
-        self._sync_ax2_xlim()  # 0 .. pixels_per_modules
-
-        # choose some local tick positions (reuse ax's ticks, clipped to range)
-        tick_positions = self.ax.get_xticks()
-        tick_positions = tick_positions[
-            (tick_positions >= 0) & (tick_positions <= self.pixels_per_modules)
-        ]
-
-        self.ax2.set_xticks(tick_positions)
-        self.ax2.set_xticklabels((tick_positions + start).astype(int))
-        self.ax2.set_xlabel(r"Detector Channel Number (global)")
 
         self.ax.set_title(f"Mythen Data — Module {module}")
         self.ax.set_xlabel("Module Pixel Channel")
@@ -123,120 +139,31 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.bad_pixel_lines = None
         self._update_selected_points()
 
-        self._enable_rectangle_zoom()
         self.ax.relim()
         self.ax.autoscale()
         self.draw_idle()
 
-    def _enable_rectangle_zoom(self) -> None:
-        if hasattr(self, "rect_selector"):
-            self.rect_selector.disconnect_events()
-
-        self.rect_selector = RectangleSelector(
-            self.ax,
-            self._on_rectangle_select,
-            useblit=False,
-            button=[1],  # type: ignore
-            minspanx=5,
-            minspany=5,
-            spancoords="pixels",
-            interactive=False,
-            props={"facecolor": "blue", "alpha": 0.2},
-        )
+        # Reset the toolbar's Home/Back/Forward history so "Home" points
+        # at this module's freshly autoscaled view, not the previous
+        # module's. Without this, Home after switching modules would
+        # jump back to wherever the old module happened to be zoomed.
+        if self.toolbar is not None:
+            self.toolbar.update()
 
     def set_module(self, module: int) -> None:
         self.current_module = module
         self._plot_module(module)
 
-    def _sync_ax2_xlim(self) -> None:
-        # ax2 (the twiny "global channel" axis) sits on top of ax and is
-        # what matplotlib resolves mouse events against. If its x-limits
-        # aren't kept in sync with ax's current (zoomed/panned) limits,
-        # event.xdata on a click gets computed from ax2's stale range,
-        # so clicks land on the wrong pixel whenever the view is zoomed.
-        self.ax2.set_xlim(self.ax.get_xlim())
-
-    def reset_zoom(self) -> None:
-        self.ax.relim()
-        self.ax.autoscale()
-        self._sync_ax2_xlim()
-        self.draw_idle()
-
-    def _on_scroll(self, event) -> None:
-        if event.xdata is None or event.ydata is None:
-            return
-
-        zoom = 1.05
-        factor = 1 / zoom if event.button == "up" else zoom
-
-        x0, x1 = self.ax.get_xlim()
-        y0, y1 = self.ax.get_ylim()
-
-        self.ax.set_xlim(
-            event.xdata - (x1 - x0) * factor / 2,
-            event.xdata + (x1 - x0) * factor / 2,
-        )
-        self.ax.set_ylim(
-            event.ydata - (y1 - y0) * factor / 2,
-            event.ydata + (y1 - y0) * factor / 2,
-        )
-        self._sync_ax2_xlim()
-        self.draw_idle()
-
-    def _on_rectangle_select(self, eclick, erelease) -> None:
-        if eclick.xdata is None or erelease.xdata is None:
-            return
-        if eclick.ydata is None or erelease.ydata is None:
-            return
-
-        x0, x1 = sorted((eclick.xdata, erelease.xdata))
-        y0, y1 = sorted((eclick.ydata, erelease.ydata))
-
-        # A plain click (no real drag) fires this callback with an almost
-        # zero-size box. Ignore it instead of collapsing the axes limits,
-        # which triggered the "identical low and high ylims" warning and
-        # zoomed the view down to a sliver that hid newly toggled pixels.
-        if x0 == x1 or y0 == y1:
-            return
-
-        self.ax.set_xlim(x0, x1)
-        self.ax.set_ylim(y0, y1)
-        self._sync_ax2_xlim()
-        self.draw_idle()
-
     def _on_click(self, event) -> None:
+        # A stationary right click (press+release with no movement) is
+        # a no-op for the toolbar's Pan/Zoom tools — they only act on a
+        # drag — so toggling a bad pixel here never conflicts with them,
+        # even while Pan or Zoom mode is switched on.
         if event.button == 3 and event.xdata is not None:
             idx = int(round(event.xdata))
             if 0 <= idx < self.data.pixels_per_module:
                 global_idx = self.current_module * self.data.pixels_per_module + idx
                 self.selection_callback(global_idx)
-
-        elif event.button == 2 and event.xdata is not None and event.ydata is not None:
-            self._pan_start = {
-                "x": event.xdata,
-                "y": event.ydata,
-                "xlim": self.ax.get_xlim(),
-                "ylim": self.ax.get_ylim(),
-            }
-
-    def _on_mouse_move(self, event) -> None:
-        if self._pan_start is None or event.xdata is None or event.ydata is None:
-            return
-
-        dx = event.xdata - self._pan_start["x"]
-        dy = event.ydata - self._pan_start["y"]
-
-        x0, x1 = self._pan_start["xlim"]
-        y0, y1 = self._pan_start["ylim"]
-
-        self.ax.set_xlim(x0 - dx, x1 - dx)
-        self.ax.set_ylim(y0 - dy, y1 - dy)
-        self._sync_ax2_xlim()
-        self.draw_idle()
-
-    def _on_mouse_release(self, event) -> None:
-        if event.button == 2:
-            self._pan_start = None
 
     def set_bad_pixels_visible(self, visible: bool) -> None:
         self.show_bad_pixels = visible
@@ -293,7 +220,7 @@ class BadModuleMainWindow(QMainWindow):
     ) -> None:
         super().__init__()
 
-        self.setWindowTitle("Mythen NXS Viewer")
+        self.setWindowTitle("Mythen Bad Pixel GUI")
 
         if data is None:
             filepath = self.nexus_file_dialog()
@@ -322,10 +249,33 @@ class BadModuleMainWindow(QMainWindow):
             self._toggle_index,
         )
 
+        # Standard matplotlib navigation toolbar: Home, Back, Forward,
+        # Pan, Zoom-to-rect, Configure Subplots, Save. Pan/Zoom now work
+        # correctly because PlotCanvas uses secondary_xaxis (not
+        # twiny()) for the global-channel axis, so there's no second
+        # overlapping Axes for the toolbar or mouse events to get
+        # confused by.
+        self.toolbar = NavigationToolbar2QT(self.canvas, self)
+        self.canvas.toolbar = self.toolbar
+
         self.file_label = QLabel(f"File: {self.data.filepath}")
+        self.save_path_label = QLabel()
+        self._update_save_path_label()
+
+        # QStatusBar arranges permanent widgets left-to-right, so to get
+        # the two labels stacked on top of each other we group them in
+        # our own container with a vertical layout and add that single
+        # container as the (one) permanent widget instead.
+        status_labels = QWidget()
+        status_labels_layout = QVBoxLayout(status_labels)
+        status_labels_layout.setContentsMargins(0, 0, 0, 0)
+        status_labels_layout.setSpacing(0)
+        status_labels_layout.addWidget(self.file_label)
+        status_labels_layout.addWidget(self.save_path_label)
+
         self.status = self.statusBar()
         if self.status is not None:
-            self.status.addPermanentWidget(self.file_label)
+            self.status.addPermanentWidget(status_labels)
 
         self.list_widget = QListWidget()
 
@@ -338,9 +288,6 @@ class BadModuleMainWindow(QMainWindow):
         self.module_slider = QSlider(Qt.Orientation.Horizontal)
         self.module_slider.setRange(0, self.data.n_modules_in_data - 1)
         self.module_slider.valueChanged.connect(self._on_module_changed)
-
-        self.reset_zoom_button = QPushButton("Reset Zoom")
-        self.reset_zoom_button.clicked.connect(self.canvas.reset_zoom)
 
         self.toggle_bad_pixels_button = QPushButton("Hide Bad Pixels", self.canvas)
         self.toggle_bad_pixels_button.setCheckable(True)
@@ -383,6 +330,16 @@ class BadModuleMainWindow(QMainWindow):
         self._setup_layout()
         self._setup_menu()
         self._sync_all()
+
+        # Start with the toolbar's Zoom tool active, as if the user had
+        # already clicked it. This is deferred with a 0ms QTimer rather
+        # than called directly here: at this point in __init__ the
+        # window hasn't been shown yet and the canvas hasn't done its
+        # first real paint/resize, so the zoom tool's mouse-event
+        # handling doesn't fully engage until something (e.g. a click)
+        # forces Qt to finish that first paint. Scheduling it to run
+        # right after the event loop starts sidesteps that entirely.
+        QTimer.singleShot(0, self.toolbar.zoom)
 
     def nexus_file_dialog(self) -> str:
         data_folder = Path(DEFAULT_DATA_FOLDER).parent
@@ -463,6 +420,12 @@ class BadModuleMainWindow(QMainWindow):
 
         self._update_bad_channel_canvas()
 
+    def _update_save_path_label(self) -> None:
+        if self._current_save_path is None:
+            self.save_path_label.setText("Save path: (not set — will prompt on Save)")
+        else:
+            self.save_path_label.setText(f"Save path: {self._current_save_path}")
+
     # ---------- UI ----------
 
     def _setup_layout(self) -> None:
@@ -491,9 +454,9 @@ class BadModuleMainWindow(QMainWindow):
         right.addWidget(self.save_button)
 
         left = QVBoxLayout()
+        left.addWidget(self.toolbar)
         left.addWidget(self.canvas)
         left.addWidget(self.module_slider)
-        left.addWidget(self.reset_zoom_button)
 
         central = QWidget()
         main = QHBoxLayout(central)
@@ -662,6 +625,7 @@ class BadModuleMainWindow(QMainWindow):
             return
 
         self._current_save_path = Path(path_str)
+        self._update_save_path_label()
         self._save()
 
     # ---------- help ----------
@@ -670,10 +634,8 @@ class BadModuleMainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Controls",
-            "Right click: toggle bad pixel\n"
-            "Middle click + drag: pan\n"
-            "Scroll wheel: zoom\n"
-            "Left click + drag: rectangle zoom\n"
+            "Toolbar: Home / Back / Forward, Pan, Zoom-to-rect, Save\n"
+            "Right click: toggle bad pixel (only while Pan/Zoom tool is off)\n"
             "Slider: change module\n"
             "Ctrl+Z / Ctrl+Y: undo / redo",
         )
