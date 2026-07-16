@@ -39,13 +39,11 @@ try:
     CWD = Path.cwd()
 except Exception:
     CWD = Path.home()
-
-EMPTY_BAD_CHANNELS: set[int] = set()
-
-
 # =========================
 # Plot canvas
 # =========================
+
+
 class PlotCanvas(FigureCanvasQTAgg):
     def __init__(
         self,
@@ -209,6 +207,10 @@ class PlotCanvas(FigureCanvasQTAgg):
 # =========================
 # Main window
 # =========================
+
+EMPTY_BAD_CHANNELS: set[int] = set()
+
+
 class BadModuleMainWindow(QMainWindow):
     def __init__(
         self,
@@ -257,9 +259,23 @@ class BadModuleMainWindow(QMainWindow):
         self.canvas.toolbar = self.toolbar
 
         self.file_label = QLabel(f"File: {self.data.filepath}")
+        self.save_path_label = QLabel()
+        self._update_save_path_label()
+
+        # QStatusBar arranges permanent widgets left-to-right, so to get
+        # the two labels stacked on top of each other we group them in
+        # our own container with a vertical layout and add that single
+        # container as the (one) permanent widget instead.
+        status_labels = QWidget()
+        status_labels_layout = QVBoxLayout(status_labels)
+        status_labels_layout.setContentsMargins(0, 0, 0, 0)
+        status_labels_layout.setSpacing(0)
+        status_labels_layout.addWidget(self.file_label)
+        status_labels_layout.addWidget(self.save_path_label)
+
         self.status = self.statusBar()
         if self.status is not None:
-            self.status.addPermanentWidget(self.file_label)
+            self.status.addPermanentWidget(status_labels)
 
         self.list_widget = QListWidget()
 
@@ -403,6 +419,12 @@ class BadModuleMainWindow(QMainWindow):
             pass
 
         self._update_bad_channel_canvas()
+
+    def _update_save_path_label(self) -> None:
+        if self._current_save_path is None:
+            self.save_path_label.setText("Save path: (not set — will prompt on Save)")
+        else:
+            self.save_path_label.setText(f"Save path: {self._current_save_path}")
 
     # ---------- UI ----------
 
@@ -603,6 +625,7 @@ class BadModuleMainWindow(QMainWindow):
             return
 
         self._current_save_path = Path(path_str)
+        self._update_save_path_label()
         self._save()
 
     # ---------- help ----------
