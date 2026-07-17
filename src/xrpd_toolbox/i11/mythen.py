@@ -127,6 +127,7 @@ class MythenSettings(XRPDBaseModel):
     angcal_filepath: str | Path = (
         "/dls_sw/i11/software/mythen3/diamond/ang_cal_020426_cen_639.5_least_squares.json"
     )
+    normalise: bool = False
 
     @field_validator("bad_channels_filepath")
     @classmethod
@@ -648,6 +649,7 @@ class MythenDetector:
                 masked=self.settings.bad_channel_masking,
                 rebin_step=self.settings.rebin_step,
                 error_calc=self.settings.error_calc,
+                normalise=self.settings.normalise,
             )
         )
 
