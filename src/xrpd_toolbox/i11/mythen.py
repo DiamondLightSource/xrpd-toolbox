@@ -17,14 +17,15 @@ from pydantic import Field, field_validator
 
 from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.core import XRPDBaseModel, XYEData
-from xrpd_toolbox.fit_engine.peaks import fit_peaks
+
+# from xrpd_toolbox.fit_engine.peaks import fit_peaks
 from xrpd_toolbox.fit_engine.profile_calculation import Structure
 from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
-    get_calibrant_peaks,
+    # get_calibrant_peaks,
     get_entry,
     h5_to_array,
     load_int_array_from_file,
@@ -147,15 +148,47 @@ class MythenSettings(XRPDBaseModel):
 
 
 class BadChannels:
-    def __init__(self, filepath: str | Path):
+    def __init__(
+        self, filepath: str | Path, n_edge_bad_channels: int = 5, n_modules: int = 28
+    ):
         self.filepath = filepath
-        self.array = self.load_bad_channels()
+        self.n_edge_bad_channels = n_edge_bad_channels
+        self.n_modules = n_modules
+
+        self.bad_channels = self.load_bad_channels()
         self.masks = self.bad_channels_to_mask()
+
+    @property
+    def edge_bad_channels(self):
+
+        start_bad_chans = np.arange(0, self.n_edge_bad_channels, 1)
+        end_bad_chans = np.arange(
+            PIXELS_PER_MODULE - self.n_edge_bad_channels, PIXELS_PER_MODULE, 1
+        )
+
+        edge_bad_channels = []
+        for m in range(self.n_modules):
+            offset = m * PIXELS_PER_MODULE
+            start_bad_chans = np.arange(offset, offset + self.n_edge_bad_channels, 1)
+            end_bad_chans = np.arange(
+                offset + PIXELS_PER_MODULE - self.n_edge_bad_channels,
+                offset + PIXELS_PER_MODULE,
+                1,
+            )
+            edge_bad_channels.append(start_bad_chans)
+            edge_bad_channels.append(end_bad_chans)
+
+        edge_bad_channels = np.concatenate(edge_bad_channels)
+        edge_bad_channels = np.sort(edge_bad_channels)
+
+        return edge_bad_channels
 
     def load_bad_channels(self):
         if not self.filepath:
             raise ValueError("Bad channels file path is not set.")
         self.bad_channels = load_int_array_from_file(self.filepath)
+        self.bad_channels = np.append(self.bad_channels, self.edge_bad_channels)
+
         return self.bad_channels
 
     def _split_bad_channels_into_modules(self, bad_channels: np.ndarray):
@@ -484,7 +517,11 @@ class MythenDetector:
             set(self.active_modules) ^ set(self.ring1_modules)
         )
 
-        self.bad_channels = BadChannels(self.settings.bad_channels_filepath)
+        self.bad_channels = BadChannels(
+            filepath=self.settings.bad_channels_filepath,
+            n_edge_bad_channels=self.settings.edge_bad_channels,
+            n_modules=len(self.active_modules),
+        )
 
         # mythen data loader, just loads the data,
         # it has no information about which modules are which
@@ -813,78 +850,87 @@ def convert_angcal_to_new_pydantic_json(
     pydantic_model.save_to_json(new_path)
 
 
+# if __name__ == "__main__":
+#     PARENT_PATH = Path(__file__).parent.parent
+
+#     print(PARENT_PATH)
+
+#     CONFIG_FILE = "/workspaces/XRPD-Toolbox/config/i11/mythen3_reduction_config.toml"
+
+#     DATA_FILE = "//host-home/projects/outputs/step_scan/1410289.nxs"
+
+#     ANG_CAL = "/host-home/projects/outputs/mythen_calibration/processed/ang_cal_020426_cen_639.5_leastsq_[11, 17, 27]_new.json"  # noqa
+
+#     settings = MythenSettings.load_from_toml(CONFIG_FILE)
+#     # settings.bad_modules = list(range(27))
+#     print("Loaded settings:", settings)
+
+#     # print(DATA_FILE)
+
+#     # MythenDataLoader(DATA_FILE)
+
+#     BAD_CHAN_FILE = "/workspaces/XRPD-Toolbox/config/i11/badchannels.txt"
+
+#     angular_calibration = AngularCalibration.load_from_json(ANG_CAL)
+#     # angular_calibration.beamline_offset = -0.4979739
+
+#     settings.bad_channels_filepath = BAD_CHAN_FILE
+
+#     # DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1414223.nxs"
+#     DATA_FILE = "/host-home/projects/outputs/angular_calibration/1410289.nxs"
+
+#     mythen3 = MythenDetector(
+#         filepath=DATA_FILE,
+#         settings=settings,
+#         angular_calibration=angular_calibration,
+#     )
+
+#     tth, counts, error = mythen3.plot_diffraction(
+#         filepath="/host-home/projects/outputs/diff.png", calibrant="Si"
+#     )
+
+#     # mythen3.plot_diffraction_by_mod()
+
+#     quit()
+
+#     active_modules = list(range(28))
+
+#     for module in range(28):
+#         module_name = f"module_{module}"
+#         bad_modules = [f for f in active_modules if f != module]
+#         settings.bad_modules = bad_modules
+
+#         mythen3 = MythenDetector(
+#             filepath=DATA_FILE,
+#             settings=settings,
+#             angular_calibration=angular_calibration,
+#         )
+
+#         tth, counts, error = mythen3.plot_diffraction(
+#             filepath="/host-home/projects/outputs/peak_fits.png", calibrant="Si"
+#         )
+
+#         si_tth = get_calibrant_peaks("Si", wavelength_in_ang=0.828783)
+#         peaks = fit_peaks(tth, counts, si_tth)
+
+#         centres, amps, fwhms = map(
+#             list, zip(*[(p.centre, p.amplitude, p.fwhm) for p in peaks], strict=True)
+#         )
+
+#         plt.plot(si_tth, centres - si_tth)
+#         plt.ylabel("Fit Peak - Calc Peak (deg)")
+#         plt.xlabel("tth of peak (deg)")
+#         plt.savefig(f"/host-home/projects/outputs/peak_error_module_{module}.png")
+#         plt.show()
+
+#         # mythen3.plot_diffraction_by_mod()
+#     # print(mythen3.counts_times)
+
+
 if __name__ == "__main__":
-    PARENT_PATH = Path(__file__).parent.parent
-
-    print(PARENT_PATH)
-
-    CONFIG_FILE = "/workspaces/XRPD-Toolbox/config/i11/mythen3_reduction_config.toml"
-
-    DATA_FILE = "//host-home/projects/outputs/step_scan/1410289.nxs"
-
-    ANG_CAL = "/host-home/projects/outputs/mythen_calibration/processed/ang_cal_020426_cen_639.5_leastsq_[11, 17, 27]_new.json"  # noqa
-
-    settings = MythenSettings.load_from_toml(CONFIG_FILE)
-    # settings.bad_modules = list(range(27))
-    print("Loaded settings:", settings)
-
-    # print(DATA_FILE)
-
-    # MythenDataLoader(DATA_FILE)
-
-    BAD_CHAN_FILE = "/workspaces/XRPD-Toolbox/config/i11/badchannels.txt"
-
-    angular_calibration = AngularCalibration.load_from_json(ANG_CAL)
-    # angular_calibration.beamline_offset = -0.4979739
-
-    settings.bad_channels_filepath = BAD_CHAN_FILE
-
-    # DATA_FILE = "/workspaces/XRPD-Toolbox/examples/i11/step_scan/1414223.nxs"
-    DATA_FILE = "/host-home/projects/outputs/angular_calibration/1410289.nxs"
-
-    mythen3 = MythenDetector(
-        filepath=DATA_FILE,
-        settings=settings,
-        angular_calibration=angular_calibration,
+    bad = BadChannels(
+        filepath="/workspaces/XRPD-Toolbox/config/i11/badchannels.txt",
+        n_edge_bad_channels=15,
     )
 
-    tth, counts, error = mythen3.plot_diffraction(
-        filepath="/host-home/projects/outputs/diff.png", calibrant="Si"
-    )
-
-    # mythen3.plot_diffraction_by_mod()
-
-    quit()
-
-    active_modules = list(range(28))
-
-    for module in range(28):
-        module_name = f"module_{module}"
-        bad_modules = [f for f in active_modules if f != module]
-        settings.bad_modules = bad_modules
-
-        mythen3 = MythenDetector(
-            filepath=DATA_FILE,
-            settings=settings,
-            angular_calibration=angular_calibration,
-        )
-
-        tth, counts, error = mythen3.plot_diffraction(
-            filepath="/host-home/projects/outputs/peak_fits.png", calibrant="Si"
-        )
-
-        si_tth = get_calibrant_peaks("Si", wavelength_in_ang=0.828783)
-        peaks = fit_peaks(tth, counts, si_tth)
-
-        centres, amps, fwhms = map(
-            list, zip(*[(p.centre, p.amplitude, p.fwhm) for p in peaks], strict=True)
-        )
-
-        plt.plot(si_tth, centres - si_tth)
-        plt.ylabel("Fit Peak - Calc Peak (deg)")
-        plt.xlabel("tth of peak (deg)")
-        plt.savefig(f"/host-home/projects/outputs/peak_error_module_{module}.png")
-        plt.show()
-
-        # mythen3.plot_diffraction_by_mod()
-    # print(mythen3.counts_times)
+    print(bad.edge_bad_channels)
