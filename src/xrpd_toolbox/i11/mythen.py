@@ -726,6 +726,7 @@ class MythenDetector:
             masked=self.settings.bad_channel_masking,
             rebin_step=self.settings.rebin_step,
             error_calc=self.settings.error_calc,
+            normalise=self.settings.normalise,
         )
 
         if calibrant is not None:
