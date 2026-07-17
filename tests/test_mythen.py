@@ -114,10 +114,11 @@ def test_data_reduction_mode_validation():
         error_calc="internal",
         data_reduction_mode=0,
         bad_channels_filepath="bad_channels.txt",
-        angcal_filepath="angcal.txt",
+        angcal_filepath="angcal.off",
     )
 
     assert mythen_settings.data_reduction_mode == "step_scan"
+    assert str(mythen_settings.angcal_filepath).endswith(".json")
 
 
 # def test_mythen_step_scan_process():
