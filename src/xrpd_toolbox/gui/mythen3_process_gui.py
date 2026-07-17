@@ -2,7 +2,7 @@ import datetime
 import sys
 from pathlib import Path
 from types import UnionType
-from typing import Any, Literal, cast, get_args, get_origin
+from typing import Any, Literal, Union, cast, get_args, get_origin
 
 from matplotlib.backends.backend_qt import (
     NavigationToolbar2QT,
@@ -55,6 +55,22 @@ ROOT: str = str(Path.root)
 # UserRole + 1 stores the .xye output Path once processing finishes
 # (or None until then).
 OUTPUT_PATH_ROLE: int = int(Qt.ItemDataRole.UserRole) + 1
+
+
+def _unwrap_optional(annotation: Any) -> Any:
+    """If annotation is a Union containing a Literal[...] member (covers
+    Optional[Literal[...]], Literal[...] | int, or any other Literal
+    combined with something else — a Union involving Literal always
+    normalizes to typing.Union rather than types.UnionType, unlike every
+    other X | Y combination), return that Literal[...] member so the GUI
+    can render/collect it as a dropdown. Otherwise return annotation
+    unchanged."""
+    origin = get_origin(annotation)
+    if origin is UnionType or origin is Union:
+        for arg in get_args(annotation):
+            if get_origin(arg) is Literal:
+                return arg
+    return annotation
 
 
 # =========================
@@ -428,6 +444,9 @@ class MainWindow(QWidget):
     def make_setting(
         self, setting_name: str, setting_val: Any, annotation: Any
     ) -> QWidget:
+
+        annotation = _unwrap_optional(annotation)
+
         if (get_origin(annotation) is list) and (get_args(annotation) == (int,)):
             w = QLineEdit()
             w.setText(str(setting_val))
@@ -455,7 +474,12 @@ class MainWindow(QWidget):
             return w
         elif annotation is int:
             w = QSpinBox()
-            w.setRange(1, 1_000_000)
+            # NOTE: floor was previously 1, which silently clamped any
+            # field whose real default/value is 0 (or negative) up to 1
+            # the moment the widget was built - a real data-corruption bug,
+            # not just a display quirk. Use QSpinBox's native int range so
+            # legitimate values (including 0 and negatives) survive.
+            w.setRange(-2_147_483_648, 2_147_483_647)
             w.setValue(setting_val)
             self.widgets[setting_name] = w
             return w
@@ -677,6 +701,8 @@ class MainWindow(QWidget):
                 continue
 
             annotation = field.annotation
+
+            annotation = _unwrap_optional(annotation)
 
             if (get_origin(annotation) is list) and (get_args(annotation) == (int,)):
                 kwargs[setting_name] = self._parse_int_list(
