@@ -170,6 +170,8 @@ class MythenSettings(XRPDBaseModel):
 
         if isinstance(value, int):
             return data_reduction_mode_mapping[value]
+        else:
+            return value
 
 
 class BadChannels:
