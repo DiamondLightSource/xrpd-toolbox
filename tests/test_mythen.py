@@ -99,8 +99,25 @@ def test_mythen_data_reduction():
     os.remove(detector.xye_filepath_out)
 
 
-# def test_mythen_data_loader():
-#     pass
+def test_data_reduction_mode_validation():
+    mythen_settings = MythenSettings(
+        active_modules=[1, 2, 3],
+        bad_modules=[4, 5],
+        bad_channel_masking=True,
+        flatfield_filepath="flatfield.h5",
+        apply_flatfield=False,
+        modules_in_flatfield=[1, 2],
+        send_to_ispyb=False,
+        rebin_step=0.004,
+        default_counter=0,
+        edge_bad_channels=10,
+        error_calc="internal",
+        data_reduction_mode=0,
+        bad_channels_filepath="bad_channels.txt",
+        angcal_filepath="angcal.txt",
+    )
+
+    assert mythen_settings.data_reduction_mode == "step_scan"
 
 
 # def test_mythen_step_scan_process():
