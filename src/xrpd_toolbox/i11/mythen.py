@@ -590,7 +590,7 @@ class MythenDetector:
         masked: bool = True,
         rebin_step: float = 0.004,
         error_calc: str = "poisson",
-        normalise: bool = True,
+        normalise: bool = False,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns the final dataset that you would use to generate a xye file,
