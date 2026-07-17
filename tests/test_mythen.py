@@ -11,6 +11,8 @@ CONFIG_FILE = (
     Path(__file__).parent.parent / "config" / "i11" / "mythen3_reduction_config.toml"
 )
 
+LEGANCY_CONIG = Path(__file__).parent.parent / "config" / "i11" / "legacy_config.toml"
+
 
 SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "1410696.nxs"
 
@@ -112,7 +114,7 @@ def test_data_reduction_mode_validation():
         default_counter=0,
         edge_bad_channels=10,
         error_calc="internal",
-        data_reduction_mode=0,
+        data_reduction_mode=0,  # type: ignore
         bad_channels_filepath="bad_channels.txt",
         angcal_filepath="angcal.off",
     )
@@ -121,17 +123,6 @@ def test_data_reduction_mode_validation():
     assert str(mythen_settings.angcal_filepath).endswith(".json")
 
 
-# def test_mythen_step_scan_process():
-#     raise Exception("Not done")
-
-
-# def test_mythen_flatefield_process():
-#     raise Exception("Not done")
-
-
-# def test_mythen_pump_probe_process():
-#     raise Exception("Not done")
-
-
-# def test_mythen_time_resolved_process():
-#     raise Exception("Not done")
+def test_legacy_toml():
+    legacy_setting = MythenSettings.load(LEGANCY_CONIG)
+    assert legacy_setting
