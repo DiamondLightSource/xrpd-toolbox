@@ -37,7 +37,11 @@ from PyQt6.QtWidgets import (
 
 from xrpd_toolbox.core import XYEData
 from xrpd_toolbox.gui.fast_icons import FastIconProvider
-from xrpd_toolbox.i11.mythen import MythenDetector, MythenSettings
+from xrpd_toolbox.i11.mythen import (
+    DEFAULT_LIVE_CONFIG_FILE,
+    MythenDetector,
+    MythenSettings,
+)
 
 # from xrpd_toolbox.i11.mythen3_reduction_legacy import I11Reduction
 
@@ -45,6 +49,7 @@ CURRENT_YEAR: int = datetime.datetime.now().year
 DEFAULT_DATA_FOLDER: str = "/dls/i11/data"
 ROOT: str = str(Path.root)
 # ROOT = "/workspaces/outputs"
+
 
 # Qt.ItemDataRole.UserRole is used to store the input Path on a list item;
 # UserRole + 1 stores the .xye output Path once processing finishes
@@ -199,9 +204,7 @@ class MainWindow(QWidget):
             self.settings_model: MythenSettings = settings
         elif settings_path is not None:
             self.settings_path: Path = Path(settings_path)
-            self.settings_model: MythenSettings = MythenSettings.load_from_toml(
-                settings_path
-            )
+            self.settings_model: MythenSettings = MythenSettings.load(settings_path)
         else:
             raise ValueError("Either settings or settings_path must be provided.")
 
@@ -811,7 +814,18 @@ class MainWindow(QWidget):
 
 def run_mythen_process():
     app = QApplication(sys.argv)
-    settings = MythenSettings()
+
+    if Path(DEFAULT_LIVE_CONFIG_FILE).exists():
+        try:
+            settings = MythenSettings.load(DEFAULT_LIVE_CONFIG_FILE)
+        except Exception as e:
+            print(f"Unable to load {DEFAULT_LIVE_CONFIG_FILE}: {e}. Using defaults")
+            settings = MythenSettings()
+    else:
+        settings = MythenSettings()
+
+    settings.send_to_ispyb = False
+
     window = MainWindow(settings=settings, settings_columns=2)
     window.show()
     sys.exit(app.exec())

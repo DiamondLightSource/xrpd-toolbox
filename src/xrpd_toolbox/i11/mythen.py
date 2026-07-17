@@ -35,6 +35,10 @@ from xrpd_toolbox.utils.utils import (
 MYTHEN_CONFIG_DIR = BASE_PATH.parent.parent / "config" / "i11"
 DEFAULT_BAD_CHANS = MYTHEN_CONFIG_DIR / "badchannels.txt"
 DEFAULT_ANG_CAL = MYTHEN_CONFIG_DIR / "default_angcal.json"
+DEFAULT_LIVE_CONFIG_FILE = (
+    "/dls_sw/i11/software/mythen3/diamond/mythen3_reduction_config.toml"
+)
+
 
 # np.set_printoptions(threshold=sys.maxsize)
 
@@ -107,9 +111,16 @@ class AngularCalibration(XRPDBaseModel):
     module_27: ModuleConversion
 
 
+# TODO: "internal", "external", "best" in error calc have been added
+# for backward compatibility but should remove
+# also data_reduction_mode can be an int for backward compatibility but should remove
+
+data_reduction_mode_mapping = {0: "step_scan", 1: "time_resolved", 2: "pump_probe"}
+
+
 class MythenSettings(XRPDBaseModel):
     active_modules: list[int] = list(range(MODULES_IN_DETECTOR))
-    bad_modules: list[int] = [11, 17, 24]
+    bad_modules: list[int] = [4, 11, 17, 24]
     bad_channel_masking: bool = True
     zero_channel_masking: bool = True
     flatfield_filepath: str | Path = ""
@@ -119,10 +130,13 @@ class MythenSettings(XRPDBaseModel):
     rebin_step: float = 0.004
     default_counter: int = Field(default=0, ge=0, le=3)
     edge_bad_channels: int = 15
-    error_calc: Literal["poisson", "std_dev", "max"] = "poisson"
-    data_reduction_mode: Literal[
-        "step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"
-    ] = "step_scan"
+    error_calc: Literal["poisson", "std_dev", "max", "internal", "external", "best"] = (
+        "poisson"
+    )
+    data_reduction_mode: (
+        Literal["step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"]
+        | int
+    ) = "step_scan"
     bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
     angcal_filepath: str | Path = (
         "/dls_sw/i11/software/mythen3/diamond/ang_cal_020426_cen_639.5_least_squares.json"
@@ -136,16 +150,26 @@ class MythenSettings(XRPDBaseModel):
         if not Path(value).exists():
             return str(DEFAULT_BAD_CHANS)
         else:
-            return value
+            return str(value)
 
     @field_validator("angcal_filepath")
     @classmethod
     def validate_angcal_filepath(cls, value):
 
+        if str(value).endswith(".off"):
+            value = str(value).replace(".off", ".json")
+
         if not Path(value).exists():
             return str(DEFAULT_ANG_CAL)
         else:
-            return value
+            return str(value)
+
+    @field_validator("data_reduction_mode")
+    @classmethod
+    def validate_data_reduction_mode(cls, value):
+
+        if isinstance(value, int):
+            return data_reduction_mode_mapping[value]
 
 
 class BadChannels:
@@ -928,12 +952,3 @@ def convert_angcal_to_new_pydantic_json(
 
 #         # mythen3.plot_diffraction_by_mod()
 #     # print(mythen3.counts_times)
-
-
-if __name__ == "__main__":
-    bad = BadChannels(
-        filepath="/workspaces/XRPD-Toolbox/config/i11/badchannels.txt",
-        n_edge_bad_channels=15,
-    )
-
-    print(bad.edge_bad_channels)
