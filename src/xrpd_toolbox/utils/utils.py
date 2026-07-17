@@ -318,13 +318,13 @@ def bin_and_propagate_errors(
         variance = (y2_sums - bin_counts * intensity**2) / (bin_counts - 1)
         std_errors = np.sqrt(variance)
 
-        if error_calc == "poisson":
+        if error_calc == "poisson" or "internal":
             errors = prop_errors
-        elif error_calc == "std_dev":
+        elif error_calc == "std_dev" or "external":
             # Invalidate bins with <2 points for external error
             std_errors[bin_counts < 2] = np.nan
             errors = std_errors
-        elif error_calc == "max":
+        elif error_calc == "max" or "best":
             std_errors[bin_counts < 2] = 0
             errors = np.maximum(prop_errors, std_errors)
         else:
