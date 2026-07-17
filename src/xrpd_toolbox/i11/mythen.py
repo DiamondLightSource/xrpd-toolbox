@@ -133,10 +133,9 @@ class MythenSettings(XRPDBaseModel):
     error_calc: Literal["poisson", "std_dev", "max", "internal", "external", "best"] = (
         "poisson"
     )
-    data_reduction_mode: (
-        Literal["step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"]
-        | int
-    ) = "step_scan"
+    data_reduction_mode: Literal[
+        "step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"
+    ] = "step_scan"
     bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
     angcal_filepath: str | Path = (
         "/dls_sw/i11/software/mythen3/diamond/ang_cal_020426_cen_639.5_least_squares.json"
@@ -164,7 +163,7 @@ class MythenSettings(XRPDBaseModel):
         else:
             return str(value)
 
-    @field_validator("data_reduction_mode")
+    @field_validator("data_reduction_mode", mode="before")
     @classmethod
     def validate_data_reduction_mode(cls, value):
 
