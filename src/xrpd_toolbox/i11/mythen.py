@@ -562,15 +562,13 @@ class MythenDetector:
         """MythenModule requires quite a lot of info,
         so it's easier to make a contructor of it's kwargs"""
 
-        these_frames = slice(None, None, 2)
-
         return {
-            "data": self.mythen_data.module_data[n_module][these_frames],
+            "data": self.mythen_data.module_data[n_module],
             "conversion": self.calibration[f"module_{nth_active_module}"],
             "beamline_offset": self.calibration.beamline_offset,
             "module_id": nth_active_module,
-            "positions": self.mythen_data.positions[these_frames],
-            "durations": self.mythen_data.durations[these_frames],
+            "positions": self.mythen_data.positions,
+            "durations": self.mythen_data.durations,
             "bad_channel_mask": self.bad_channels.masks[nth_active_module],
         }
 
