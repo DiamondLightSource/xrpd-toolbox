@@ -214,7 +214,7 @@ class AngularCalibration(XRPDBaseModel):
 
 class AngularCalibration2D(XRPDBaseModel):
     beamline_offset: float = 0.0
-    rotation_centre_x: float = 0.0
+    rotation_centre_x: float = 0.0  # TODO: As a function of delta
     rotation_centre_y: float = 0.0
     module_0: ModuleConversion2D
     module_1: ModuleConversion2D
