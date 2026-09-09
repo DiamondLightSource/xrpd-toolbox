@@ -32,6 +32,8 @@ dependencies = [
     "numba",
     "ipywidgets",
     "click",
+    "python-workflow-submitter",
+    # "swmr_tools",
 
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
