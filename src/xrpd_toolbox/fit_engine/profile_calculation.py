@@ -9,6 +9,9 @@ import numpy as np
 # from numba import njit
 from pydantic import Field, computed_field, model_validator
 
+from xrpd_toolbox.constants.constants import (
+    ELEMENT_ATOMIC_NUMBER,
+)
 from xrpd_toolbox.core import (
     DataType,
     Parameter,
@@ -19,9 +22,6 @@ from xrpd_toolbox.fit_engine.atom import Atoms
 from xrpd_toolbox.fit_engine.background import (
     Background,
     BackgroundType,
-)
-from xrpd_toolbox.fit_engine.constants import (
-    ELEMENT_ATOMIC_NUMBER,
 )
 from xrpd_toolbox.fit_engine.fit_statistics import calculate_chi_squared
 from xrpd_toolbox.fit_engine.fitting_core import (
@@ -1076,7 +1076,7 @@ if __name__ == "__main__":
         wavelength = beam_energy_to_wavelength(beam_energy)
 
         data = ScatteringData.from_xye(
-            "/workspaces/outputs/step_scan/1410696.nxs_summed_mythen3.xye",
+            "/workspaces/XRPD-Toolbox/tests/data/1410696_summed_mythen3.xye",
             #  "/workspaces/outputs/1429744_summed_mythen3.xye",
             x_unit="tth",
             data_type="xray",
@@ -1088,7 +1088,7 @@ if __name__ == "__main__":
             LinearInterpolationBackground,
         )
 
-        background = LinearInterpolationBackground.estimate(data.x, data.y)
+        background = LinearInterpolationBackground.estimate(data.x, data.y, points=10)
 
         model = ReitveldRefinement(
             data=data, background=background, structure=si_structure
