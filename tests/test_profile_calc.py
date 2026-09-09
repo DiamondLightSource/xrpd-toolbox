@@ -40,7 +40,7 @@ def test_refine_silicon():
         wavelength=Parameter(value=wavelength, refine=False),
     )
 
-    background = LinearInterpolationBackground.estimate(data.x, data.y)
+    background = LinearInterpolationBackground.estimate(data.x, data.y, points=5)
 
     model = ReitveldRefinement(data=data, background=background, structure=si_structure)
 
