@@ -184,7 +184,7 @@ def build_and_save_goniometer(
     *,
     images_dataset: str = "/entry/instrument/detector/data",
     angles_dataset: str = "/entry/instrument/goniometer/two_theta",
-    wavelength_m: float,
+    wavelength: float,
     output_dir: Path | str = ".",
     calibrant_name: str = "LaB6",
     initial_dist_m: float = 0.2,
@@ -212,8 +212,8 @@ def build_and_save_goniometer(
         HDF5 path to the image stack.
     angles_dataset:
         HDF5 path to the two_theta array (degrees).
-    wavelength_m:
-        X-ray wavelength in metres.
+    wavelength:
+        X-ray wavelength in anstrom.
     output_dir:
         Destination directory for saved files.
     calibrant_name:
@@ -245,6 +245,7 @@ def build_and_save_goniometer(
     logger.info("Loaded %d calibration frames from %s", len(angles), nexus_path)
 
     calibrant = get_calibrant(calibrant_name)
+    wavelength_m = wavelength / 1e10
     calibrant.wavelength = wavelength_m
 
     # --- Step 1: calibrate each frame independently ---
@@ -423,3 +424,6 @@ def integrate_with_goniometer(
     )
     logger.info("Written %s", output_xy)
     return output_xy
+
+
+# if __name__ == "__main__":

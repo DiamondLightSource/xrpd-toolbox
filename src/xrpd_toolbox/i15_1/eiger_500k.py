@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyFAI
 from h5py import Dataset, File
-from matplotlib.colors import LogNorm
 from pyFAI import units
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import Detector
@@ -21,6 +20,7 @@ from xrpd_toolbox.core import XRPDBaseModel
 from xrpd_toolbox.utils.utils import (
     get_entry,
     h5_to_array,
+    h5_to_string,
 )
 
 PIXEL_SIZE = 7.5e-5  # in m
@@ -59,23 +59,24 @@ class EigerDataLoader:
     def __init__(
         self,
         filepath: str | Path,
-        eiger_data_path: str = "data",
-        tth_path: str = "tth",
+        eiger_data_path: str = "fastcs_eiger",
     ):
         self.filepath = filepath
         self.eiger_data_path = eiger_data_path
-        self.tth_path = tth_path
 
-        self.entry = get_entry(self.filepath)
+        self.entry = get_entry(self.filepath)  # /entry
         self.dataset_path = f"/{self.entry}/{self.eiger_data_path}/data"
 
     @cached_property
     def positions(self) -> np.ndarray:
+
+        position_path = f"{self.entry}/{self.eiger_data_path}/tth"
+
         try:
-            deltas = h5_to_array(self.filepath, self.tth_path)
+            deltas = h5_to_array(self.filepath, position_path)
             return deltas
         except ValueError as e:
-            print(f"{e} - {self.tth_path} in data - returning 0")
+            print(f"{e} - {position_path} in data - returning 0")
             deltas = np.array([0])
             return deltas
 
@@ -109,6 +110,24 @@ class EigerDataLoader:
                 return np.asarray(module_frame_data)
             else:
                 raise ValueError(f"Data at {dataset_path} in {self.filepath}is None.")
+
+    def get_pixel_mask_path(self) -> str:
+
+        pixel_mask_path = f"{self.entry}/instrument/{self.eiger_data_path}/pixel_mask"
+
+        return h5_to_string(self.filepath, pixel_mask_path)
+
+    def is_background(self) -> bool:
+
+        background = f"{self.entry}/plan_metadata/background"
+
+        return bool(h5_to_array(self.filepath, background))
+
+    def get_plan_name(self) -> str:
+
+        plan_name_path = f"{self.entry}/plan_metadata/plan_name"
+
+        return h5_to_string(self.filepath, plan_name_path)
 
 
 class Eiger500K(Detector):
@@ -306,9 +325,12 @@ class Eiger500K(Detector):
 
 
 if __name__ == "__main__":
-    #     SETTINGS = EigerSettings()
-    #     FILEPATH = "/workspaces/XRPD-Toolbox/examples/i15-1/eiger_500k/1414223.nxs"
-    #     eiger = Eiger500K(filepath=FILEPATH, settings=SETTINGS)
+    from matplotlib.colors import LogNorm
+
+    SETTINGS = EigerSettings()
+    FILEPATH = "/workspaces/XRPD-Toolbox/examples/i15-1/eiger_500k/1414223.nxs"
+    eiger = Eiger500K(filepath=FILEPATH, settings=SETTINGS)
+
     calibrant = get_calibrant(calibrant_name="Si")
     calibrant.wavelength = 0.161699 / 1e10
 

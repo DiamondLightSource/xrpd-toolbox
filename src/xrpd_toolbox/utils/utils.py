@@ -112,6 +112,21 @@ def h5_to_array(filepath: str | Path, data_path: str) -> np.ndarray:
             raise ValueError(f"Data is None at {data_path} in {filepath}")
 
 
+def h5_to_string(filepath: str | Path, data_path: str) -> str:
+    with h5py.File(filepath, "r", libver="latest", swmr=True) as file:
+        data = file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            value = data[()]
+
+            if isinstance(value, bytes):
+                value = value.decode()
+
+            return value
+
+        else:
+            raise ValueError(f"Data is None at {data_path} in {filepath}")
+
+
 def get_entry(filepath: str | Path) -> str:
     with h5py.File(filepath, "r") as file:
         return list(file.keys())[0]
