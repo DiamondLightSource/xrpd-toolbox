@@ -1,5 +1,5 @@
 [![CI](https://github.com/DiamondLightSource/xrpd-toolbox/actions/workflows/ci.yml/badge.svg)](https://github.com/DiamondLightSource/xrpd-toolbox/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/DiamondLightSource/xrpd-toolbox/branch/main/graph/badge.svg)](https://codecov.io/gh/DiamondLightSource/XRPD-Toolbox)
+[![Coverage](https://codecov.io/gh/DiamondLightSource/xrpd-toolbox/branch/main/graph/badge.svg)](https://codecov.io/gh/DiamondLightSource/xrpd-toolbox)
 [![PyPI](https://img.shields.io/pypi/v/xrpd-toolbox.svg)](https://pypi.org/project/xrpd-toolbox)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
@@ -13,8 +13,8 @@ how it does it, and why people should use it.
 What            | Where
 :---:           | :---:
 Source          | <https://github.com/DiamondLightSource/xrpd-toolbox>
-PyPI            | `pip install XRPD-Toolbox`
-Docker          | `docker run ghcr.io/diamondlightsource/XRPD-Toolbox:latest`
+PyPI            | `pip install xrpd-toolbox`
+Docker          | `docker run ghcr.io/diamondlightsource/xrpd-toolbox:latest`
 Releases        | <https://github.com/DiamondLightSource/xrpd-toolbox/releases>
 
 This is where you should put some images or code snippets that illustrate
