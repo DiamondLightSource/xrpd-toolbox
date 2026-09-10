@@ -122,33 +122,12 @@ def _calibrate_single_frame(
 ) -> SingleGeometry:
     """Calibrate one frame independently and return the refined SingleGeometry.
 
-    A :class:`~pyFAI.goniometer.SingleGeometry` is initialised with an
+    A SingleGeometry is initialised with an
     approximate sample-to-detector distance and beam centre at the detector
     centre.  Control points are then extracted and the per-frame geometry is
-    refined before being handed to the global :class:`GoniometerRefinement`.
+    refined before being handed to the GoniometerRefinement
 
-    Parameters
-    ----------
-    label:
-        Unique string identifier for this frame.
-    image:
-        2-D detector image containing calibrant rings.
-    two_theta_deg:
-        Motor position recorded with this frame (degrees).
-    calibrant:
-        pyFAI calibrant with wavelength already set.
-    initial_dist_m:
-        Approximate sample-to-detector distance (metres) used to seed
-        ring finding.  Does not need to be precise.
-    max_rings:
-        Maximum number of calibrant rings to extract (``None`` = all visible).
-    pts_per_deg:
-        Control-point density along each ring.
-
-    Returns
-    -------
-    SingleGeometry
-        With control points extracted and geometry refined.
+    Returns SingleGeometry with control points extracted and geometry refined.
     """
     from pyFAI.detectors import Eiger500k
 
@@ -203,17 +182,15 @@ def build_and_save_goniometer(
     radial_range: tuple[float, float] | None = None,
     npt: int = 2000,
 ) -> Path:
-    """Calibrate a :class:`~pyFAI.goniometer.Goniometer` from calibrant images
-    and save it.
+    """Calibrate a Goniometer from calibrant images and save it.
 
-    Each calibration frame is first calibrated independently via
-    :class:`~pyFAI.goniometer.SingleGeometry` to extract ring control points
-    and refine a per-frame geometry.  Those per-frame geometries seed a global
-    :class:`~pyFAI.goniometer.GoniometerRefinement` that fits
-    :data:`GEOMETRY_TRANSFORMATION` across all frames simultaneously, producing
-    a self-consistent model of how the detector geometry varies with two_theta.
+    Each calibration frame is first calibrated independently via SingleGeometry
+    to extract rings and refine a per-frame geometry.  Those per-frame geometries
+    create a .GoniometerRefinement  that fits GEOMETRY_TRANSFORMATION
+    across all frames simultaneously, producing a model of how the detector g
+    eometry varies with two_theta.
 
-    returns a tuple of the paths to the goniometer refinement and the metadata
+    returns a Path to goniometer refinement
     """
     nexus_path = Path(nexus_path)
     output_dir = Path(output_dir)

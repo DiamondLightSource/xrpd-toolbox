@@ -22,11 +22,18 @@ def unique_slices(arr: np.ndarray):
     return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
 
 
-def do_eiger_calibration():
+def do_eiger_calibration(nexus_filepath: str | Path):
+
     pass
+
+    # do_eiger_data_reduction(nexus_filepath) #then reduce the data we just collected
 
 
 def do_eiger_data_reduction(nexus_filepath: str | Path):
+    """This does the eiger data reduction at the end of scan.
+
+    Assumes that the nexus file is a data_collection with N positions"""
+
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
