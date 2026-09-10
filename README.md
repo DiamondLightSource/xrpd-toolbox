@@ -12,7 +12,7 @@ how it does it, and why people should use it.
 
 What            | Where
 :---:           | :---:
-Source          | <https://github.com/DiamondLightSource/xrpd-xoolbox>
+Source          | <https://github.com/DiamondLightSource/xrpd-toolbox>
 PyPI            | `pip install XRPD-Toolbox`
 Docker          | `docker run ghcr.io/diamondlightsource/XRPD-Toolbox:latest`
 Releases        | <https://github.com/DiamondLightSource/xrpd-toolbox/releases>
