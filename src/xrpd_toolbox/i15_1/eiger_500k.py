@@ -11,7 +11,7 @@ from h5py import Dataset, File
 from pyFAI import units
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import Detector
-from pyFAI.goniometer import MultiGeometry, SingleGeometry
+from pyFAI.goniometer import MultiGeometry
 from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
@@ -26,21 +26,6 @@ from xrpd_toolbox.utils.utils import (
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 700  # mm
 DEFAULT_MAX_SHAPE = (1024, 512)
-
-
-def calibrate_single_geometry_from_rings(
-    geometry: SingleGeometry,
-    rings: Collection[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],
-    fix: list | None = None,
-):
-    if fix is None:
-        fix = []
-
-    for n_rings in rings:
-        geometry.extract_cp(max_rings=n_rings)
-        geometry.geometry_refinement.refine2(fix=fix)
-
-    return geometry
 
 
 class EigerSettings(XRPDBaseModel):
@@ -81,41 +66,62 @@ class EigerDataLoader:
             return deltas
 
     @cached_property
-    def count_time_path(self) -> str:
-        return f"/{self.entry}/instrument/{self.eiger_data_path}/count_time"
-
-    @cached_property
     def durations(self) -> np.ndarray:
-        return h5_to_array(self.filepath, self.count_time_path)
 
-    @property
-    def data(self):
-        return self.get_data(self.dataset_path)
+        count_time_path = f"/{self.entry}/instrument/{self.eiger_data_path}/count_time"
 
-    def get_frame(self, frame: int | Collection[int] | slice):
-        return self.get_data(self.dataset_path)
+        return h5_to_array(self.filepath, count_time_path)
 
-    def get_data(self, dataset_path) -> np.ndarray:
+    def load_all_data(self) -> np.ndarray:
+        return self.get_data(frames=slice(None))
+
+    def get_data(
+        self,
+        frames: int | Collection[int] | slice,
+    ):
+
         with File(self.filepath, "r") as file:
             if self.dataset_path not in file:
-                raise ValueError(f"Dataset path {dataset_path} not found in HDF5 file.")
+                raise ValueError(
+                    f"Dataset path {self.dataset_path} not found in HDF5 file."
+                )
 
-            data = file.get(dataset_path)
+            data = file.get(self.dataset_path)
 
             if (data is not None) and isinstance(data, Dataset):
                 if data.ndim < 1:
                     raise ValueError("Data has insufficient dimensions.")
-                module_frame_data = data[...]
+                module_frame_data = data[frames, ...]
 
                 return np.asarray(module_frame_data)
             else:
-                raise ValueError(f"Data at {dataset_path} in {self.filepath}is None.")
+                raise ValueError(
+                    f"Data at {self.dataset_path} in {self.filepath}is None."
+                )
 
-    def get_pixel_mask_path(self) -> str:
+    def get_pixel_mask_filepath_and_datapath(self) -> tuple[str, str]:
 
         pixel_mask_path = f"{self.entry}/instrument/{self.eiger_data_path}/pixel_mask"
 
-        return h5_to_string(self.filepath, pixel_mask_path)
+        mask_filepath = h5_to_string(self.filepath, pixel_mask_path)
+
+        mask_filepath, mask_datapath = str(mask_filepath).split("//")
+
+        if not Path(mask_filepath).exists():
+            mask_filepath = Path(self.filepath).parent / Path(mask_filepath).stem
+            mask_filepath = (
+                str(mask_filepath) + ".h5"
+            )  # when odin/ophyd async fixes this remove the .h5
+
+        return mask_filepath, mask_datapath
+
+    def get_mask(self):
+
+        mask_filepath, mask_datapath = self.get_pixel_mask_filepath_and_datapath()
+
+        print(mask_filepath, mask_datapath)
+
+        return h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
 
     def is_background(self) -> bool:
 
@@ -147,11 +153,10 @@ class Eiger500K(Detector):
         self.calibrant = None
         self.wavelength = wavelength
 
+        self.max_shape = DEFAULT_MAX_SHAPE  # Default shape if no data
+
         if self.filepath is not None:
             self.data_loader = EigerDataLoader(self.filepath)
-            self.max_shape = self.data_loader.data.shape
-        else:
-            self.max_shape = DEFAULT_MAX_SHAPE  # Default shape if no data
 
         super().__init__(pixel1=PIXEL_SIZE, pixel2=PIXEL_SIZE, max_shape=self.max_shape)
 
@@ -295,33 +300,33 @@ class Eiger500K(Detector):
 
         return simulated_x_data, simulated_y_data
 
-    def calibrate_single_geometry(
-        self,
-        calibrant_name: str,
-        wavelength: float,
-        poni_output_filepath: str | Path,
-        wavelength_unit: Literal["Ang", "A", "Angstrom", "kev", "keV", "ev"],
-    ):
-        """Using pyfai and the current data file,
-        this will attempt to calibrate the detector
-        using a known calibrant and then output a poni file to disk"""
+    # def calibrate_single_geometry(
+    #     self,
+    #     calibrant_name: str,
+    #     wavelength: float,
+    #     poni_output_filepath: str | Path,
+    #     wavelength_unit: Literal["Ang", "A", "Angstrom", "kev", "keV", "ev"],
+    # ):
+    #     """Using pyfai and the current data file,
+    #     this will attempt to calibrate the detector
+    #     using a known calibrant and then output a poni file to disk"""
 
-        if wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
-            wavelength_in_ang = wavelength
-        elif wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
-            wavelength_in_ang = wavelength
-        else:
-            raise ValueError("wavelength_unit must be valid!")
+    #     if wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
+    #         wavelength_in_ang = wavelength
+    #     elif wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
+    #         wavelength_in_ang = wavelength
+    #     else:
+    #         raise ValueError("wavelength_unit must be valid!")
 
-        calibrant = get_calibrant(calibrant_name)
-        calibrant.wavelength = wavelength_in_ang / 1e10
+    #     calibrant = get_calibrant(calibrant_name)
+    #     calibrant.wavelength = wavelength_in_ang / 1e10
 
-        single_geometry = SingleGeometry(
-            self.name, self.data_loader.data, calibrant=calibrant, detector=self
-        )
+    #     single_geometry = SingleGeometry(
+    #         self.name, self.data_loader.data, calibrant=calibrant, detector=self
+    #     )
 
-        single_geometry = calibrate_single_geometry_from_rings(geometry=single_geometry)
-        single_geometry.geometry_refinement.save(str(poni_output_filepath))
+    #     single_geometry = calibrate_single_geometry_from_rings(geometry=single_geometry) #noqa
+    #     single_geometry.geometry_refinement.save(str(poni_output_filepath))
 
 
 if __name__ == "__main__":

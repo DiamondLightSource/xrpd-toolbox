@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Collection
 from pathlib import Path
 
 import h5py
@@ -24,9 +25,9 @@ from pyFAI.goniometer import (
     GeometryTransformation,
     Goniometer,
     GoniometerRefinement,
+    MultiGeometry,
     SingleGeometry,
 )
-from pyFAI.multi_geometry import MultiGeometry
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +44,29 @@ GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni1_expr="poni1",
     poni2_expr="poni2",
     rot1_expr="rot1",
-    rot2_expr="rot2_scale * np.deg2rad(two_theta) + rot2_offset",
+    # numexpr can't call numpy functions (no dotted names like `np.deg2rad`,
+    # hence "forbidden control characters"), and it has no built-in deg2rad,
+    # so inline the conversion factor pi/180 as a literal.
+    rot2_expr="rot2_scale * (two_theta * 0.017453292519943295) + rot2_offset",
     rot3_expr="rot3",
 )
 
 _DETECTOR = "Eiger500k"
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+def calibrate_single_geometry_from_rings(
+    geometry: SingleGeometry,
+    rings: Collection[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],
+    fix: list | None = None,
+):
+    if fix is None:
+        fix = []
+
+    for n_rings in rings:
+        geometry.extract_cp(max_rings=n_rings)
+        geometry.geometry_refinement.refine2(fix=fix)
+
+    return geometry
 
 
 def _load_nexus(
@@ -174,11 +188,6 @@ def _calibrate_single_frame(
     return sg
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 def build_and_save_goniometer(
     nexus_path: Path | str,
     *,
@@ -204,38 +213,7 @@ def build_and_save_goniometer(
     :data:`GEOMETRY_TRANSFORMATION` across all frames simultaneously, producing
     a self-consistent model of how the detector geometry varies with two_theta.
 
-    Parameters
-    ----------
-    nexus_path:
-        NeXus file containing calibration frames.
-    images_dataset:
-        HDF5 path to the image stack.
-    angles_dataset:
-        HDF5 path to the two_theta array (degrees).
-    wavelength:
-        X-ray wavelength in anstrom.
-    output_dir:
-        Destination directory for saved files.
-    calibrant_name:
-        pyFAI calibrant identifier (e.g. ``"LaB6"``, ``"CeO2"``).
-    initial_dist_m:
-        Approximate sample-to-detector distance in metres, used only to
-        seed ring finding on each frame.
-    max_rings:
-        Maximum calibrant rings to extract per frame (``None`` = all visible).
-    pts_per_deg:
-        Control-point density along each ring (passed to ``extract_cp``).
-    unit:
-        Integration unit for later use (``"2th_deg"``, ``"q_A^-1"``, …).
-    radial_range:
-        Optional ``(min, max)`` in *unit* units.
-    npt:
-        Number of radial bins (stored for later use).
-
-    Returns
-    -------
-    Path
-        The *output_dir* containing the saved files.
+    returns a tuple of the paths to the goniometer refinement and the metadata
     """
     nexus_path = Path(nexus_path)
     output_dir = Path(output_dir)
@@ -286,12 +264,13 @@ def build_and_save_goniometer(
         wavelength=wavelength_m,
     )
 
-    # --- Step 3: register each SingleGeometry (with its control points) ---
+    # register each SingleGeometry with its control points
     for sg in single_geometries:
         gonioref.single_geometries[sg.label] = sg
 
     # --- Step 4: global refinement ---
     logger.info("Refining goniometer model across %d frames …", len(angles))
+
     gonioref.refine2()
     logger.info("Refinement done. χ² = %.6g", gonioref.chi2())
 
@@ -312,12 +291,10 @@ def build_and_save_goniometer(
 
 
 def integrate_with_goniometer(
-    nexus_path: Path | str,
-    *,
-    images_dataset: str = "/entry/instrument/detector/data",
-    angles_dataset: str = "/entry/instrument/goniometer/two_theta",
+    images: np.ndarray,
+    positions: np.ndarray,
     goniometer_dir: Path | str,
-    output_xy: Path | str,
+    output_xy_filepath: Path | str,
     npt: int | None = None,
     polarization_factor: float = 0.99,
     correct_solid_angle: bool = True,
@@ -325,50 +302,16 @@ def integrate_with_goniometer(
 ) -> Path:
     """Integrate detector images using a saved Goniometer model.
 
-    Evaluates the fitted :data:`GEOMETRY_TRANSFORMATION` at each frame's exact
-    two_theta angle to obtain a per-frame
-    :class:`~pyFAI.AzimuthalIntegrator`, then merges all frames via
-    :class:`~pyFAI.multi_geometry.MultiGeometry`.  Frames may be at any
-    two_theta angle; they need not match the calibration steps.
-
-    Parameters
-    ----------
-    nexus_path:
-        NeXus file containing frames to integrate.
-    images_dataset:
-        HDF5 path to the image stack.
-    angles_dataset:
-        HDF5 path to the two_theta array (degrees).
-    goniometer_dir:
-        Directory written by :func:`build_and_save_goniometer`.
-    output_xy:
-        Path for the output ``.xy`` file.
-    npt:
-        Number of radial bins (overrides the saved value).
-    polarization_factor:
-        Synchrotron polarisation factor (1 = fully polarised).
-    correct_solid_angle:
-        Apply solid-angle correction.
-    mask:
-        Bad-pixel mask (1 = masked), shape matching the detector.
-
-    Returns
-    -------
-    Path
-        Path to the written ``.xy`` file.
+    Return a Path to the written ``.xy`` file.
     """
-    nexus_path = Path(nexus_path)
     goniometer_dir = Path(goniometer_dir)
-    output_xy = Path(output_xy)
-    output_xy.parent.mkdir(parents=True, exist_ok=True)
+    output_xy_filepath = Path(output_xy_filepath)
+    output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
 
     gonio, meta = _load_goniometer_dir(goniometer_dir)
-    images, data_angles = _load_nexus(nexus_path, images_dataset, angles_dataset)
 
     calib_angles = np.asarray(meta["calib_two_theta_deg"])
-    out_of_range = (data_angles < calib_angles.min()) | (
-        data_angles > calib_angles.max()
-    )
+    out_of_range = (positions < calib_angles.min()) | (positions > calib_angles.max())
     if out_of_range.any():
         logger.warning(
             "%d frame(s) outside calibrated range [%.4f°, %.4f°] — extrapolating.",
@@ -382,7 +325,7 @@ def integrate_with_goniometer(
         tuple(meta["radial_range"]) if meta.get("radial_range") else None  # type: ignore[assignment]
     )
 
-    frame_ais = [gonio.get_ai(float(two_theta)) for two_theta in data_angles]
+    frame_ais = [gonio.get_ai(float(two_theta)) for two_theta in positions]
 
     mg = MultiGeometry(
         frame_ais,
@@ -404,7 +347,6 @@ def integrate_with_goniometer(
 
     header = "\n".join(
         [
-            f"# nexus: {nexus_path}",
             f"# goniometer_dir: {goniometer_dir}",
             f"# frames: {n_frames}",
             f"# npt: {effective_npt}",
@@ -416,14 +358,14 @@ def integrate_with_goniometer(
         ]
     )
     np.savetxt(
-        str(output_xy),
+        str(output_xy_filepath),
         np.column_stack([result.radial, result.intensity]),
         header=header,
         comments="",
         fmt="%.8g",
     )
-    logger.info("Written %s", output_xy)
-    return output_xy
+    logger.info("Written %s", output_xy_filepath)
+    return output_xy_filepath
 
 
 # if __name__ == "__main__":
