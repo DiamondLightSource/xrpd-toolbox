@@ -12,10 +12,10 @@ how it does it, and why people should use it.
 
 What            | Where
 :---:           | :---:
-Source          | <https://github.com/DiamondLightSource/XRPD-Toolbox>
+Source          | <https://github.com/DiamondLightSource/xrpd-xoolbox>
 PyPI            | `pip install XRPD-Toolbox`
 Docker          | `docker run ghcr.io/diamondlightsource/XRPD-Toolbox:latest`
-Releases        | <https://github.com/DiamondLightSource/XRPD-Toolbox/releases>
+Releases        | <https://github.com/DiamondLightSource/xrpd-toolbox/releases>
 
 This is where you should put some images or code snippets that illustrate
 some relevant examples. If it is a library then you might put some
