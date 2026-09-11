@@ -66,7 +66,7 @@ class BaseDataLoader:
         summed_images = []
 
         for frame in range(n_frames):
-            frame_image = data[..., frame, :, :]
+            frame_image = data[frame, :, :]
             image_sum = np.sum(frame_image)
 
             summed_images.append(image_sum)

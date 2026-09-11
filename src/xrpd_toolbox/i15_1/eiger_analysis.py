@@ -13,7 +13,7 @@ from xrpd_toolbox.utils.utils import wait_for_finished_file
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_NPT = 2000
+DEFAULT_NPT = 3000
 
 
 def unique_slices(arr: np.ndarray):

@@ -6,6 +6,7 @@ pyFAI geometry-loading branches of Eiger500K.__init__.
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -137,10 +138,10 @@ def test_data_loader_durations(nexus_file):
     assert np.array_equal(loader.durations, [0.1, 0.1, 0.1])
 
 
-def test_data_loader_beam_energy_and_wavelength(nexus_file):
+def test_data_loader_energy_kev_and_wavelength(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
-    assert loader.beam_energy == pytest.approx(12.4)
+    assert loader.energy_kev == pytest.approx(12.4)
     assert loader.wavelength == pytest.approx(0.99987, abs=1e-4)
 
 
@@ -419,14 +420,13 @@ def test_simulate_1d_pattern(eiger):
     assert len(y_data) == len(x_data)
 
 
-def test_eiger500k_test_method_runs_without_display(monkeypatch, eiger):
+def test_eiger500k_test_method_runs_without_display(eiger):
     import matplotlib.pyplot as plt
 
     # `test()` calls plt.show() directly, which raises a UserWarning under
     # the non-interactive Agg backend used in CI; filterwarnings="error"
     # turns that into a hard failure, so patch it out.
-    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
-
-    eiger.test()
+    with patch.object(plt, "show", lambda *args, **kwargs: None):
+        eiger.test()
 
     plt.close("all")

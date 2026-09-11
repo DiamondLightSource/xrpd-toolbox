@@ -17,6 +17,7 @@ import json
 import logging
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 from pyFAI.calibrant import Calibrant, get_calibrant
@@ -48,7 +49,6 @@ GEOMETRY_TRANSFORMATION = GeometryTransformation(
     rot3_expr="rot3",
 )
 
-DETECTOR = "Eiger500k"
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
 METADATA_SAVE_NAME = "calibration_metadata.json"
 
@@ -58,18 +58,20 @@ def calibrate_single_geometry_from_rings(
     rings: list[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa
     fix: list | None = None,
 ):
+    """Extract control points for geometry and refine it."""
     if fix is None:
         fix = []
 
-    for n_rings in rings:
-        geometry.extract_cp(max_rings=n_rings)
+    for max_rings in rings:
+        geometry.extract_cp(max_rings=max_rings)
         geometry.geometry_refinement.refine2(fix=fix)
 
     return geometry
 
 
 def _load_goniometer_dir(output_dir: Path) -> tuple[Goniometer, dict]:
-    """Load a Goniometer and its metadata sidecar from *output_dir*."""
+    """Load a Goniometer and its metadata which have previously
+    been saved in output_dir."""
     gonio_path = output_dir / GONIOMETER_SAVE_NAME
     meta_path = output_dir / METADATA_SAVE_NAME
     for p in (gonio_path, meta_path):
@@ -100,11 +102,19 @@ def _calibrate_single_frame(
 
     Returns SingleGeometry with control points extracted and geometry refined.
     """
-    from pyFAI.detectors import Eiger500k
+    from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, Eiger500K
 
-    from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
-
-    detector = Eiger500k()
+    # NOTE: must be an actual Eiger500K() instance, not the "Eiger500k" name
+    # string - SingleGeometry.__init__ resolves a `detector=` string via
+    # pyFAI's own detector registry, which (case-insensitively) maps
+    # "eiger500k" to pyFAI's *own* built-in Eiger500k detector
+    # (max_shape (514, 1030)), silently overriding whatever detector object
+    # was set on `initial_geometry["detector"]" below - and that shape
+    # doesn't match images produced by Eiger500K.simulate_data() (max_shape
+    # DEFAULT_MAX_SHAPE = (1028, 512)), which crashes extract_cp(). Passing
+    # an instance bypasses that string lookup entirely (detector_factory
+    # returns a Detector instance unchanged).
+    detector = Eiger500K()
     rows, cols = DEFAULT_MAX_SHAPE
 
     # Approximate geometry: beam hits the detector centre, arm at two_theta.
@@ -123,8 +133,12 @@ def _calibrate_single_frame(
         label=label,
         image=image,
         metadata=two_theta_deg,
+        # GoniometerRefinement.refine2()/chi2() call single.get_position(), which
+        # calls pos_function(metadata) - without this, that's None and every
+        # refinement crashes with "'NoneType' object is not callable".
+        pos_function=lambda two_theta: (two_theta,),
         calibrant=calibrant,
-        detector=DETECTOR,
+        detector=detector,
         geometry=initial_geometry,
     )
 
@@ -215,11 +229,16 @@ def build_and_save_goniometer(
         "rot3": first.rot3,
     }
 
+    from xrpd_toolbox.i15_1.eiger_500k import Eiger500K
+
     gonioref = GoniometerRefinement(
         initial_params,
         pos_function=lambda two_theta: (two_theta,),
         trans_function=GEOMETRY_TRANSFORMATION,
-        detector=DETECTOR,
+        # see the NOTE in _calibrate_single_frame - must be an instance, not
+        # the "Eiger500k" name string, or this silently resolves to pyFAI's
+        # own (wrongly-shaped) built-in Eiger500k detector.
+        detector=Eiger500K(),  # type: ignore[arg-type]
         wavelength=wavelength_m,
     )
 
@@ -265,7 +284,9 @@ def integrate_with_goniometer(
     polarization_factor: float = 0.99,
     correct_solid_angle: bool = True,
     mask: np.ndarray | None = None,
+    error_model: Literal["poisson", "azimuthal"] = "azimuthal",
     save_xy_with_header: bool = False,
+    save_xye: bool = False,
 ) -> Path:
     """Integrate detector images using a saved Goniometer model.
 
@@ -310,7 +331,14 @@ def integrate_with_goniometer(
         correctSolidAngle=correct_solid_angle,
         polarization_factor=polarization_factor,
         lst_mask=lst_mask,
+        error_model=error_model,
     )
+
+    tth = np.array(result.radial)
+    intensity = np.array(result.intensity)
+    error = np.array(result.sigma)
+
+    assert len(tth) == len(intensity) == len(error)
 
     if save_xy_with_header:
         header = "\n".join(
@@ -330,11 +358,21 @@ def integrate_with_goniometer(
 
     np.savetxt(
         str(output_xy_filepath),
-        np.column_stack([result.radial, result.intensity]),
+        np.column_stack([tth, intensity]),
         header=header,
         comments="",
         fmt="%.8g",
     )
+
+    if save_xye:
+        np.savetxt(
+            str(output_xy_filepath).replace(".xy", ".xye"),
+            np.column_stack([tth, intensity, error]),
+            header=header,
+            comments="",
+            fmt="%.8g",
+        )
+
     logger.info("Written %s", output_xy_filepath)
     return output_xy_filepath
 

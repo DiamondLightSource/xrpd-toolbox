@@ -12,6 +12,9 @@ __pycache__/
 *.xye
 **/processed/
 
+# output written by the eiger_pyfai system tests, for local inspection only
+tests/system_test_output/
+
 #binary files used for ang cal
 *.obj
 

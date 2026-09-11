@@ -20,7 +20,7 @@ verified independently of those issues.
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -149,7 +149,7 @@ def test_do_eiger_calibration_raises_without_calibrant(tmp_path):
         ea.do_eiger_calibration(nxs)
 
 
-def test_do_eiger_calibration_orchestrates_helpers(tmp_path, monkeypatch):
+def test_do_eiger_calibration_orchestrates_helpers(tmp_path):
     nxs = build_eiger_nexus(
         tmp_path / "scan.nxs",
         tth=np.array([1.0]),
@@ -160,19 +160,18 @@ def test_do_eiger_calibration_orchestrates_helpers(tmp_path, monkeypatch):
     dummy_mask = np.ones((4, 5), dtype=bool)
     dummy_masked = np.zeros((1, 4, 5))
 
-    monkeypatch.setattr(EigerDataLoader, "get_calibrant", lambda self: "Si")
-    monkeypatch.setattr(EigerDataLoader, "get_mask", lambda self: dummy_mask)
-
     mock_sum = MagicMock(return_value=dummy_summed)
-    monkeypatch.setattr(ea, "sum_unique_two_theta_positions_and_normalise", mock_sum)
-
     mock_apply_mask = MagicMock(return_value=dummy_masked)
-    monkeypatch.setattr(ea, "apply_mask", mock_apply_mask)
-
     mock_build = MagicMock(return_value=("gonio.json", "meta.json"))
-    monkeypatch.setattr(ea, "build_and_save_goniometer", mock_build)
 
-    result = ea.do_eiger_calibration(nxs)
+    with (
+        patch.object(EigerDataLoader, "get_calibrant", lambda self: "Si"),
+        patch.object(EigerDataLoader, "get_mask", lambda self: dummy_mask),
+        patch.object(ea, "sum_unique_two_theta_positions_and_normalise", mock_sum),
+        patch.object(ea, "apply_mask", mock_apply_mask),
+        patch.object(ea, "build_and_save_goniometer", mock_build),
+    ):
+        result = ea.do_eiger_calibration(nxs)
 
     assert result == ("gonio.json", "meta.json")
 
@@ -196,7 +195,7 @@ def test_do_eiger_calibration_orchestrates_helpers(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_do_eiger_data_reduction_orchestrates_helpers(tmp_path, monkeypatch):
+def test_do_eiger_data_reduction_orchestrates_helpers(tmp_path):
     nxs = build_eiger_nexus(
         tmp_path / "scan.nxs", tth=np.array([1.0]), plan_name="data_collection"
     )
@@ -204,16 +203,16 @@ def test_do_eiger_data_reduction_orchestrates_helpers(tmp_path, monkeypatch):
     dummy_summed = np.zeros((1, 4, 5))
     dummy_mask = np.ones((4, 5), dtype=bool)
 
-    monkeypatch.setattr(EigerDataLoader, "get_mask", lambda self: dummy_mask)
-
     mock_sum = MagicMock(return_value=dummy_summed)
-    monkeypatch.setattr(ea, "sum_unique_two_theta_positions_and_normalise", mock_sum)
-
     expected_out = Path(nxs).parent / (Path(nxs).stem + "_eiger.xy")
     mock_integrate = MagicMock(return_value=expected_out)
-    monkeypatch.setattr(ea, "integrate_with_goniometer", mock_integrate)
 
-    result = ea.do_eiger_data_reduction(nxs)
+    with (
+        patch.object(EigerDataLoader, "get_mask", lambda self: dummy_mask),
+        patch.object(ea, "sum_unique_two_theta_positions_and_normalise", mock_sum),
+        patch.object(ea, "integrate_with_goniometer", mock_integrate),
+    ):
+        result = ea.do_eiger_data_reduction(nxs)
 
     assert result == expected_out
 
@@ -238,40 +237,43 @@ def test_collection_analysis_dict_maps_known_plans():
     )
 
 
-def test_run_eiger_analysis_waits_then_dispatches(tmp_path, monkeypatch):
+def test_run_eiger_analysis_waits_then_dispatches(tmp_path):
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", plan_name="data_collection")
 
     mock_wait = MagicMock()
-    monkeypatch.setattr(ea, "wait_for_finished_file", mock_wait)
-
     mock_fn = MagicMock()
     mock_fn.__name__ = "do_eiger_data_reduction"
-    monkeypatch.setattr(ea, "collection_analysis_dict", {"data_collection": mock_fn})
 
-    ea.run_eiger_analysis(nxs)
+    with (
+        patch.object(ea, "wait_for_finished_file", mock_wait),
+        patch.object(ea, "collection_analysis_dict", {"data_collection": mock_fn}),
+    ):
+        ea.run_eiger_analysis(nxs)
 
     mock_wait.assert_called_once_with(nxs)
     mock_fn.assert_called_once_with(nxs)
 
 
-def test_run_eiger_analysis_unknown_plan_raises_keyerror(tmp_path, monkeypatch):
+def test_run_eiger_analysis_unknown_plan_raises_keyerror(tmp_path):
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", plan_name="some_unregistered_plan")
-    monkeypatch.setattr(ea, "wait_for_finished_file", MagicMock())
 
-    with pytest.raises(KeyError):
-        ea.run_eiger_analysis(nxs)
+    with patch.object(ea, "wait_for_finished_file", MagicMock()):
+        with pytest.raises(KeyError):
+            ea.run_eiger_analysis(nxs)
 
 
 def test_run_eiger_analysis_none_entry_raises_attributeerror_before_guard(
-    tmp_path, monkeypatch, caplog
+    tmp_path, caplog
 ):
     # documents the current (buggy) behaviour: the `analysis_to_run is None`
     # guard is unreachable because `analysis_to_run.__name__` is accessed
     # first, in the logger.info call above it.
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", plan_name="data_collection")
-    monkeypatch.setattr(ea, "wait_for_finished_file", MagicMock())
-    monkeypatch.setattr(ea, "collection_analysis_dict", {"data_collection": None})
 
-    with caplog.at_level(logging.INFO, logger="xrpd_toolbox.i15_1.eiger_analysis"):
+    with (
+        patch.object(ea, "wait_for_finished_file", MagicMock()),
+        patch.object(ea, "collection_analysis_dict", {"data_collection": None}),
+        caplog.at_level(logging.INFO, logger="xrpd_toolbox.i15_1.eiger_analysis"),
+    ):
         with pytest.raises(AttributeError):
             ea.run_eiger_analysis(nxs)

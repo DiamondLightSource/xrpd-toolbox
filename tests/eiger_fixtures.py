@@ -38,8 +38,8 @@ def build_eiger_nexus(
     include_tth: bool = True,
     count_time: np.ndarray | None = None,
     include_count_time: bool = True,
-    beam_energy: float = 12.4,
-    include_beam_energy: bool = True,
+    energy_kev: float = 12.4,
+    include_energy_kev: bool = True,
     mask_ref: str | None = None,
     include_mask: bool = True,
     calibrant: str | None = "Si",
@@ -96,14 +96,11 @@ def build_eiger_nexus(
                 "pixel_mask", data=mask_ref if mask_ref is not None else "//mask"
             )
 
-        plan_metadata_grp = entry_grp.create_group("plan_metadata")
+        if include_energy_kev:
+            xtal_grp = instrument_grp.create_group("xtal")
+            xtal_grp.create_dataset("energy_kev", data=energy_kev)
 
-        if include_beam_energy:
-            experiment_definition_grp = plan_metadata_grp.create_group(
-                "experiment_definition"
-            )
-            data_grp = experiment_definition_grp.create_group("data")
-            data_grp.create_dataset("beam_energy", data=beam_energy)
+        plan_metadata_grp = entry_grp.create_group("plan_metadata")
 
         if include_calibrant and calibrant is not None:
             plan_metadata_grp.create_dataset("calibrant", data=calibrant)

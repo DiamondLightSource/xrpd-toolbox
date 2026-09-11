@@ -75,21 +75,19 @@ class EigerDataLoader:
         return h5_to_array(self.filepath, count_time_path)
 
     @cached_property
-    def beam_energy(self) -> float:
+    def energy_kev(self) -> float:
 
-        beam_energy_data_path = (
-            f"/{self.entry}/plan_metadata/experiment_definition/data/beam_energy"
-        )
+        energy_kev_data_path = f"/{self.entry}/instrument/xtal/energy_kev"
 
-        beam_energy = h5_to_float(self.filepath, beam_energy_data_path)
+        energy_kev = h5_to_float(self.filepath, energy_kev_data_path)
 
-        return beam_energy
+        return energy_kev
 
     @cached_property
     def wavelength(self) -> float:
         """Returns the wavelength in angstrom"""
 
-        wavelength = beam_energy_to_wavelength(beam_energy=self.beam_energy, unit="kev")
+        wavelength = beam_energy_to_wavelength(beam_energy=self.energy_kev, unit="kev")
 
         return wavelength
 
