@@ -27,7 +27,7 @@ import pytest
 
 from eiger_fixtures import build_eiger_nexus
 from xrpd_toolbox.i15_1 import eiger_analysis as ea
-from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
+from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader, apply_mask, unique_slices
 
 # ---------------------------------------------------------------------------
 # unique_slices
@@ -37,7 +37,7 @@ from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 def test_unique_slices_groups_runs_of_equal_values():
     arr = np.array([1, 1, 2, 2, 2, 3])
 
-    slices = ea.unique_slices(arr)
+    slices = unique_slices(arr)
 
     assert [arr[s].tolist() for s in slices] == [[1, 1], [2, 2, 2], [3]]
 
@@ -45,7 +45,7 @@ def test_unique_slices_groups_runs_of_equal_values():
 def test_unique_slices_all_values_unique():
     arr = np.array([1.0, 2.0, 3.0])
 
-    slices = ea.unique_slices(arr)
+    slices = unique_slices(arr)
 
     assert slices == [slice(0, 1), slice(1, 2), slice(2, 3)]
 
@@ -53,7 +53,7 @@ def test_unique_slices_all_values_unique():
 def test_unique_slices_single_value_repeated():
     arr = np.array([5.0, 5.0, 5.0])
 
-    slices = ea.unique_slices(arr)
+    slices = unique_slices(arr)
 
     assert len(slices) == 1
     assert arr[slices[0]].tolist() == [5.0, 5.0, 5.0]
@@ -61,7 +61,7 @@ def test_unique_slices_single_value_repeated():
 
 def test_unique_slices_accepts_plain_list():
     # unique_slices does np.asarray(arr) internally, so list input works too
-    slices = ea.unique_slices([1, 1, 2])  # type: ignore[arg-type]
+    slices = unique_slices([1, 1, 2])  # type: ignore[arg-type]
 
     assert slices == [slice(0, 2), slice(2, 3)]
 
@@ -121,7 +121,7 @@ def test_apply_mask_multiplies_each_frame():
     frames = np.ones((2, 3, 3))
     mask = np.array([[1, 0, 1], [0, 1, 0], [1, 1, 1]])
 
-    masked = ea.apply_mask(frames, mask)
+    masked = apply_mask(frames, mask)
 
     assert masked.shape == (2, 3, 3)
     assert np.array_equal(masked[0], mask)
@@ -132,7 +132,7 @@ def test_apply_mask_with_boolean_mask():
     frames = np.array([[[1.0, 2.0], [3.0, 4.0]]])
     mask = np.array([[True, False], [False, True]])
 
-    masked = ea.apply_mask(frames, mask)
+    masked = apply_mask(frames, mask)
 
     assert np.array_equal(masked[0], [[1.0, 0.0], [0.0, 4.0]])
 

@@ -17,59 +17,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_NPT = 3000
 
 
-def unique_slices(arr: np.ndarray):
-    """Retturns slices at which the all the values for the input array are the same
-    assumes that the input array is sorted and only increases/decreases
-
-    if it's not will have to use np.argwhere - but that isn't this functons
-
-    """
-    arr = np.asarray(arr)
-    _, start_idx = np.unique(arr, return_index=True)
-    start_idx = np.sort(start_idx)
-    end_idx = np.append(start_idx[1:], len(arr))
-    return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
-
-
-def sum_unique_two_theta_positions_and_normalise(eiger_data: EigerDataLoader):
-
-    slices_of_data = unique_slices(eiger_data.positions)
-
-    assert len(slices_of_data) == np.unique(eiger_data.positions)
-
-    summed_and_normalised_frames = []
-
-    for slice in slices_of_data:
-        frames_with_position = eiger_data.get_data(slice)
-        durations_for_frames = eiger_data.durations[slice]
-
-        summed_frames_at_tth_position = np.sum(frames_with_position, axis=-1)
-
-        assert summed_frames_at_tth_position.ndim > 1
-
-        summed_and_normalised_frames_at_tth_position = (
-            summed_frames_at_tth_position * durations_for_frames
-        )
-
-        summed_and_normalised_frames.append(
-            summed_and_normalised_frames_at_tth_position
-        )
-
-    summed_and_normalised_frames = np.array(summed_and_normalised_frames)
-
-    return summed_and_normalised_frames
-
-
-def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """applys a mask to all frames in the image"""
-
-    masked_image_frames = [image * mask for image in image_frames]
-
-    masked_image_frames = np.array(masked_image_frames)
-
-    return masked_image_frames
-
-
 def do_eiger_calibration(nexus_filepath: str | Path):
 
     distance_in_meters = 0.25  # 250 mm
@@ -81,16 +28,11 @@ def do_eiger_calibration(nexus_filepath: str | Path):
     if calibrant is None:
         raise Exception("Calibraation is not in Nexus file")
 
-    summed_and_normalised_frames = sum_unique_two_theta_positions_and_normalise(
-        eiger_data=eiger_data
-    )
     unique_positions = np.unique(eiger_data.positions)
-    mask = eiger_data.get_mask()
 
-    summed_normalised_and_masked_frames = apply_mask(
-        image_frames=summed_and_normalised_frames, mask=mask
+    summed_normalised_and_masked_frames = (
+        eiger_data.get_summed_normalised_and_masked_frames()
     )
-
     nexus_filepath = Path(nexus_filepath)
 
     goniometer_model_json, metadata_json = build_and_save_goniometer(
@@ -124,9 +66,7 @@ def do_eiger_data_reduction(nexus_filepath: str | Path) -> Path:
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
-    summed_and_normalised_frames = sum_unique_two_theta_positions_and_normalise(
-        eiger_data
-    )
+    summed_and_normalised_frames = eiger_data.get_summed_and_normalised_frames()
 
     unique_positions = np.unique(eiger_data.positions)
     mask = eiger_data.get_mask()
