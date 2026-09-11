@@ -17,9 +17,11 @@ from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
 from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 from xrpd_toolbox.utils.utils import (
     get_entry,
     h5_to_array,
+    h5_to_float,
     h5_to_string,
 )
 
@@ -46,7 +48,7 @@ class EigerDataLoader:
         filepath: str | Path,
         eiger_data_path: str = "fastcs_eiger",
     ):
-        self.filepath = filepath
+        self.filepath = str(filepath)
         self.eiger_data_path = eiger_data_path
 
         self.entry = get_entry(self.filepath)  # /entry
@@ -71,6 +73,25 @@ class EigerDataLoader:
         count_time_path = f"/{self.entry}/instrument/{self.eiger_data_path}/count_time"
 
         return h5_to_array(self.filepath, count_time_path)
+
+    @cached_property
+    def beam_energy(self) -> float:
+
+        beam_energy_data_path = (
+            f"/{self.entry}/plan_metadata/experiment_definition/data/beam_energy"
+        )
+
+        beam_energy = h5_to_float(self.filepath, beam_energy_data_path)
+
+        return beam_energy
+
+    @cached_property
+    def wavelength(self) -> float:
+        """Returns the wavelength in angstrom"""
+
+        wavelength = beam_energy_to_wavelength(beam_energy=self.beam_energy, unit="kev")
+
+        return wavelength
 
     def load_all_data(self) -> np.ndarray:
         return self.get_data(frames=slice(None))
@@ -115,19 +136,33 @@ class EigerDataLoader:
 
         return mask_filepath, mask_datapath
 
+    def get_calibrant(self) -> str | None:
+
+        calibrant_path = f"{self.entry}/plan_metadata/calibrant"
+        try:
+            h5_to_string(self.filepath, calibrant_path)
+        except Exception as e:
+            print(e)
+            return None
+
     def get_mask(self):
 
         mask_filepath, mask_datapath = self.get_pixel_mask_filepath_and_datapath()
 
-        print(mask_filepath, mask_datapath)
+        mask = h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
 
-        return h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
+        return mask.astype(bool)
 
     def is_background(self) -> bool:
 
         background = f"{self.entry}/plan_metadata/background"
 
         return bool(h5_to_array(self.filepath, background))
+
+    @cached_property
+    def plan_name(self) -> str:
+
+        return self.get_plan_name()
 
     def get_plan_name(self) -> str:
 

@@ -15,10 +15,9 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Collection
+from collections.abc import Iterable
 from pathlib import Path
 
-import h5py
 import numpy as np
 from pyFAI.calibrant import Calibrant, get_calibrant
 from pyFAI.goniometer import (
@@ -31,11 +30,9 @@ from pyFAI.goniometer import (
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Geometry model
-# ---------------------------------------------------------------------------
-# Models a rotating detector arm: dist/poni1/poni2/rot1/rot3 are constant;
-# rot2 is linear in two_theta.  Extend expressions here for non-ideal arms.
+# a rotating detector arm around tth: dist/poni1/poni2/rot1/rot3 should be constant;
+# rot2 is linear in two_theta.  Maybe extend expressions here for non-ideal arms?
 
 GEOMETRY_TRANSFORMATION = GeometryTransformation(
     param_names=["dist", "poni1", "poni2", "rot1", "rot2_scale", "rot2_offset", "rot3"],
@@ -44,19 +41,21 @@ GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni1_expr="poni1",
     poni2_expr="poni2",
     rot1_expr="rot1",
-    # numexpr can't call numpy functions (no dotted names like `np.deg2rad`,
-    # hence "forbidden control characters"), and it has no built-in deg2rad,
-    # so inline the conversion factor pi/180 as a literal.
+    # numexpr can't call numpy functions (eg.. np.deg2rad,
+    # and it has no built-in deg2rad,
+    # so conversion factor pi/180 = 0.0174532...
     rot2_expr="rot2_scale * (two_theta * 0.017453292519943295) + rot2_offset",
     rot3_expr="rot3",
 )
 
-_DETECTOR = "Eiger500k"
+DETECTOR = "Eiger500k"
+GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
+METADATA_SAVE_NAME = "calibration_metadata.json"
 
 
 def calibrate_single_geometry_from_rings(
     geometry: SingleGeometry,
-    rings: Collection[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],
+    rings: list[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa
     fix: list | None = None,
 ):
     if fix is None:
@@ -69,38 +68,10 @@ def calibrate_single_geometry_from_rings(
     return geometry
 
 
-def _load_nexus(
-    nexus_path: Path,
-    images_dataset: str,
-    angles_dataset: str,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return ``(images, angles)`` from a NeXus file.
-
-    Returns
-    -------
-    images : np.ndarray, shape (N, rows, cols), float32
-    angles : np.ndarray, shape (N,), float64  [degrees]
-    """
-    with h5py.File(nexus_path, "r") as f:
-        images = np.asarray(f[images_dataset], dtype=np.float32)
-        angles = np.asarray(f[angles_dataset], dtype=np.float64)
-
-    if images.ndim == 2:
-        images = images[np.newaxis]
-    if angles.ndim == 0:
-        angles = angles[np.newaxis]
-    if images.shape[0] != angles.shape[0]:
-        raise ValueError(
-            f"Image count ({images.shape[0]}) does not match "
-            f"angle count ({angles.shape[0]})."
-        )
-    return images, angles
-
-
 def _load_goniometer_dir(output_dir: Path) -> tuple[Goniometer, dict]:
     """Load a Goniometer and its metadata sidecar from *output_dir*."""
-    gonio_path = output_dir / "goniometer.json"
-    meta_path = output_dir / "meta.json"
+    gonio_path = output_dir / GONIOMETER_SAVE_NAME
+    meta_path = output_dir / METADATA_SAVE_NAME
     for p in (gonio_path, meta_path):
         if not p.exists():
             raise FileNotFoundError(f"{p.name} not found in {output_dir}")
@@ -117,7 +88,7 @@ def _calibrate_single_frame(
     two_theta_deg: float,
     calibrant: Calibrant,
     initial_dist_m: float,
-    max_rings: int | None,
+    max_rings: int | None | Iterable[int],
     pts_per_deg: float,
 ) -> SingleGeometry:
     """Calibrate one frame independently and return the refined SingleGeometry.
@@ -131,8 +102,10 @@ def _calibrate_single_frame(
     """
     from pyFAI.detectors import Eiger500k
 
+    from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
+
     detector = Eiger500k()
-    rows, cols = image.shape
+    rows, cols = DEFAULT_MAX_SHAPE
 
     # Approximate geometry: beam hits the detector centre, arm at two_theta.
     initial_geometry = {
@@ -151,12 +124,19 @@ def _calibrate_single_frame(
         image=image,
         metadata=two_theta_deg,
         calibrant=calibrant,
-        detector=_DETECTOR,
+        detector=DETECTOR,
         geometry=initial_geometry,
     )
+
+    if isinstance(max_rings, Iterable):
+        sg = calibrate_single_geometry_from_rings(geometry=sg, rings=list(max_rings))
+
+    else:
+        sg.extract_cp(max_rings=max_rings, pts_per_deg=pts_per_deg)
+        sg.geometry_refinement.refine2()
+
     assert sg.geometry_refinement.data is not None
-    sg.extract_cp(max_rings=max_rings, pts_per_deg=pts_per_deg)
-    sg.geometry_refinement.refine2()
+
     logger.debug(
         "  %s: dist=%.4f m  rot2=%.4f rad  npts=%d",
         label,
@@ -168,20 +148,19 @@ def _calibrate_single_frame(
 
 
 def build_and_save_goniometer(
-    nexus_path: Path | str,
-    *,
-    images_dataset: str = "/entry/instrument/detector/data",
-    angles_dataset: str = "/entry/instrument/goniometer/two_theta",
-    wavelength: float,
-    output_dir: Path | str = ".",
-    calibrant_name: str = "LaB6",
-    initial_dist_m: float = 0.2,
-    max_rings: int | None = None,
+    nexus_filepath: Path | str,
+    images: np.ndarray,
+    angles: np.ndarray,
+    wavelength_in_angstrom: float,
+    calibrant_name: str = "Si",
+    initial_dist_m: float = 0.25,
+    output_dir: Path | str | None = None,
+    max_rings: list[int] | int | None = None,
     pts_per_deg: float = 1.0,
     unit: str = "2th_deg",
     radial_range: tuple[float, float] | None = None,
     npt: int = 2000,
-) -> Path:
+) -> tuple[str, str]:
     """Calibrate a Goniometer from calibrant images and save it.
 
     Each calibration frame is first calibrated independently via SingleGeometry
@@ -190,17 +169,20 @@ def build_and_save_goniometer(
     across all frames simultaneously, producing a model of how the detector g
     eometry varies with two_theta.
 
-    returns a Path to goniometer refinement
+    returns a tuple of strings to goniometer calibration, and calibration metadata
     """
-    nexus_path = Path(nexus_path)
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    nexus_path = Path(nexus_filepath)
 
-    images, angles = _load_nexus(nexus_path, images_dataset, angles_dataset)
+    if output_dir is None:
+        output_dir = Path(nexus_path.parent)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = Path(output_dir)
+
     logger.info("Loaded %d calibration frames from %s", len(angles), nexus_path)
 
     calibrant = get_calibrant(calibrant_name)
-    wavelength_m = wavelength / 1e10
+    wavelength_m = wavelength_in_angstrom / 1e10
     calibrant.wavelength = wavelength_m
 
     # --- Step 1: calibrate each frame independently ---
@@ -237,7 +219,7 @@ def build_and_save_goniometer(
         initial_params,
         pos_function=lambda two_theta: (two_theta,),
         trans_function=GEOMETRY_TRANSFORMATION,
-        detector=_DETECTOR,
+        detector=DETECTOR,
         wavelength=wavelength_m,
     )
 
@@ -251,7 +233,10 @@ def build_and_save_goniometer(
     gonioref.refine2()
     logger.info("Refinement done. χ² = %.6g", gonioref.chi2())
 
-    gonioref.save(str(output_dir / "goniometer.json"))
+    calibration_save_filepath = str(output_dir / GONIOMETER_SAVE_NAME)
+    metadata_output_filepath = output_dir / METADATA_SAVE_NAME
+
+    gonioref.save(calibration_save_filepath)
 
     meta = {
         "unit": unit,
@@ -261,10 +246,14 @@ def build_and_save_goniometer(
         "calibrant": calibrant_name,
         "calib_two_theta_deg": angles.tolist(),
     }
-    (output_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+    metadata_output_filepath.write_text(json.dumps(meta, indent=2))
 
-    logger.info("Saved goniometer to %s", output_dir)
-    return output_dir
+    metadata_output_filepath = str(metadata_output_filepath)
+
+    logger.info("Saved goniometer to %s", calibration_save_filepath)
+    logger.info("Saved goniometer calibration metadata to %s", metadata_output_filepath)
+
+    return calibration_save_filepath, metadata_output_filepath
 
 
 def integrate_with_goniometer(
@@ -276,6 +265,7 @@ def integrate_with_goniometer(
     polarization_factor: float = 0.99,
     correct_solid_angle: bool = True,
     mask: np.ndarray | None = None,
+    save_xy_with_header: bool = False,
 ) -> Path:
     """Integrate detector images using a saved Goniometer model.
 
@@ -316,24 +306,28 @@ def integrate_with_goniometer(
 
     result = mg.integrate1d(
         list(images),
-        effective_npt,
+        npt=effective_npt,
         correctSolidAngle=correct_solid_angle,
         polarization_factor=polarization_factor,
         lst_mask=lst_mask,
     )
 
-    header = "\n".join(
-        [
-            f"# goniometer_dir: {goniometer_dir}",
-            f"# frames: {n_frames}",
-            f"# npt: {effective_npt}",
-            f"# unit: {meta['unit']}",
-            f"# wavelength_m: {meta['wavelength']}",
-            f"# polarization_factor: {polarization_factor}",
-            f"# correct_solid_angle: {correct_solid_angle}",
-            f"# {meta['unit']}    Intensity",
-        ]
-    )
+    if save_xy_with_header:
+        header = "\n".join(
+            [
+                f"# goniometer_dir: {goniometer_dir}",
+                f"# frames: {n_frames}",
+                f"# npt: {effective_npt}",
+                f"# unit: {meta['unit']}",
+                f"# wavelength_m: {meta['wavelength']}",
+                f"# polarization_factor: {polarization_factor}",
+                f"# correct_solid_angle: {correct_solid_angle}",
+                f"# {meta['unit']}    Intensity",
+            ]
+        )
+    else:
+        header = ""
+
     np.savetxt(
         str(output_xy_filepath),
         np.column_stack([result.radial, result.intensity]),
