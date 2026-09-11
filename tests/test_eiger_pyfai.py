@@ -2,21 +2,11 @@
 
 Two kinds of tests live here:
 
-- Unit tests (the bulk of this file) mock out the heavy pyFAI
-  calibration/refinement classes (SingleGeometry, GoniometerRefinement,
-  Goniometer, MultiGeometry) using unittest.mock, so they exercise
-  xrpd_toolbox's own orchestration logic (what gets called, with what
-  arguments, what gets written to disk) quickly and deterministically,
-  rather than relying on a real peak-fitting refinement converging.
-
-- Two "system" tests (test_system_calibrate / test_system_integrate) at the
-  bottom run the real, unmocked calibrate/integrate pipeline against
-  synthetic Si calibration frames and write their output to
-  tests/system_test_output/ so it can be inspected by hand. Run them with::
+- Unit tests and Two "system" tests
 
       pytest tests/test_eiger_pyfai.py -k system -s -v
 
-  or run this file directly with ``python tests/test_eiger_pyfai.py``.
+  or run this file directly with python tests/test_eiger_pyfai.py
 """
 
 import json
@@ -35,11 +25,6 @@ from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, PIXEL_SIZE, Eiger50
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
-
-
-# ---------------------------------------------------------------------------
-# calibrate_single_geometry_from_rings
-# ---------------------------------------------------------------------------
 
 
 def test_calibrate_single_geometry_from_rings_extracts_once_at_largest_ring_count():
