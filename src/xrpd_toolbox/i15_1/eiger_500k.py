@@ -27,7 +27,7 @@ from xrpd_toolbox.utils.utils import (
 
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 700  # mm
-DEFAULT_MAX_SHAPE = (1024, 512)
+DEFAULT_MAX_SHAPE = (1028, 512)
 
 
 class EigerSettings(XRPDBaseModel):
@@ -335,34 +335,6 @@ class Eiger500K(Detector):
 
         return simulated_x_data, simulated_y_data
 
-    # def calibrate_single_geometry(
-    #     self,
-    #     calibrant_name: str,
-    #     wavelength: float,
-    #     poni_output_filepath: str | Path,
-    #     wavelength_unit: Literal["Ang", "A", "Angstrom", "kev", "keV", "ev"],
-    # ):
-    #     """Using pyfai and the current data file,
-    #     this will attempt to calibrate the detector
-    #     using a known calibrant and then output a poni file to disk"""
-
-    #     if wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
-    #         wavelength_in_ang = wavelength
-    #     elif wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
-    #         wavelength_in_ang = wavelength
-    #     else:
-    #         raise ValueError("wavelength_unit must be valid!")
-
-    #     calibrant = get_calibrant(calibrant_name)
-    #     calibrant.wavelength = wavelength_in_ang / 1e10
-
-    #     single_geometry = SingleGeometry(
-    #         self.name, self.data_loader.data, calibrant=calibrant, detector=self
-    #     )
-
-    #     single_geometry = calibrate_single_geometry_from_rings(geometry=single_geometry) #noqa
-    #     single_geometry.geometry_refinement.save(str(poni_output_filepath))
-
 
 if __name__ == "__main__":
     from matplotlib.colors import LogNorm
@@ -377,7 +349,7 @@ if __name__ == "__main__":
     pixel1 = PIXEL_SIZE
     pixel2 = PIXEL_SIZE
 
-    shape = (1024, 512)
+    shape = DEFAULT_MAX_SHAPE
 
     poni1 = pixel1 * shape[0] / 2
     poni2 = pixel2 * shape[1] / 2
@@ -389,7 +361,7 @@ if __name__ == "__main__":
             pixel1=pixel1, pixel2=pixel2, max_shape=shape
         ),
         wavelength=calibrant.wavelength,
-        dist=0.7,
+        dist=0.25,
         poni1=poni1,
         poni2=poni2,
         rot1=0,
