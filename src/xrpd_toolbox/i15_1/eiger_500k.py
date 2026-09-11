@@ -91,6 +91,10 @@ class EigerDataLoader:
 
         return wavelength
 
+    def get_wavelength(self) -> float:
+        """Returns the wavelength in angstrom"""
+        return self.wavelength
+
     def load_all_data(self) -> np.ndarray:
         return self.get_data(frames=slice(None))
 
@@ -159,19 +163,30 @@ class EigerDataLoader:
 
     @cached_property
     def plan_name(self) -> str:
+        """returns the plan name as a string, eg static_collection or data_collection"""
 
         return self.get_plan_name()
 
     def get_plan_name(self) -> str:
+        """returns the plan name as a string, eg static_collection or data_collection"""
 
         plan_name_path = f"{self.entry}/plan_metadata/plan_name"
 
         return h5_to_string(self.filepath, plan_name_path)
 
+    def get_composition(self) -> str:
+        """returns the composition of the sample eg. SiO2 or Tb(HCO2)3. etc"""
+
+        composition_path = f"{self.entry}/plan_metadata/sample_info/data/composition"
+
+        return h5_to_string(self.filepath, composition_path)
+
 
 class Eiger500K(Detector):
     IS_FLAT = False  # this detector is flat
     IS_CONTIGUOUS = True
+
+    """This is simple a test platform for data simution - not used for real data"""
 
     def __init__(
         self,

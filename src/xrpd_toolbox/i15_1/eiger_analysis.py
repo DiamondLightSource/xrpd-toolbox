@@ -9,6 +9,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
+from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import wait_for_finished_file
 
 logger = logging.getLogger(__name__)
@@ -112,10 +113,13 @@ def do_eiger_calibration(nexus_filepath: str | Path):
     # - do this in workflow?
 
 
-def do_eiger_data_reduction(nexus_filepath: str | Path):
+def do_eiger_data_reduction(nexus_filepath: str | Path) -> Path:
     """This does the eiger data reduction at the end of scan.
 
-    Assumes that the nexus file is a data_collection with N positions"""
+    Assumes that the nexus file is a data_collection with N positions
+
+    returns path to xy file
+    """
 
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
@@ -138,6 +142,27 @@ def do_eiger_data_reduction(nexus_filepath: str | Path):
         output_xy_filepath=output_xy_filepath,
         npt=DEFAULT_NPT,
     )
+
+    return output_xy_filepath
+
+
+def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+    nexus_filepath: str | Path,
+) -> Path:
+
+    eiger_data = EigerDataLoader(nexus_filepath)
+    composition = eiger_data.get_composition()
+    wavelength = eiger_data.get_wavelength()
+
+    output_xy_filepath = do_eiger_data_reduction(nexus_filepath)
+
+    response_from_pdfcurl = send_xy_to_pdfcurl(
+        xy_filepath=str(output_xy_filepath),
+        composition=composition,
+        wavelength=wavelength,
+    )
+
+    logger.info(response_from_pdfcurl)
 
     return output_xy_filepath
 
