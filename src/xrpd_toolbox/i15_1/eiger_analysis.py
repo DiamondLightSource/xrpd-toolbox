@@ -166,6 +166,6 @@ def run_eiger_analysis(nexus_filepath: str | Path):
     analysis_to_run(nexus_filepath)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98478.nxs"
     run_eiger_analysis(nexus_filepath)

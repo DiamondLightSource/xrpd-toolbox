@@ -336,7 +336,7 @@ class Eiger500K(Detector):
         return simulated_x_data, simulated_y_data
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
     from matplotlib.colors import LogNorm
 
     SETTINGS = EigerSettings()
