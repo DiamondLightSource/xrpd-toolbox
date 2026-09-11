@@ -48,20 +48,20 @@ def sum_unique_two_theta_positions_and_normalise(eiger_data: "EigerDataLoader"):
 
     slices_of_data = unique_slices(eiger_data.positions)
 
-    assert len(slices_of_data) == np.unique(eiger_data.positions)
+    assert len(slices_of_data) == len(np.unique(eiger_data.positions))
 
     summed_and_normalised_frames = []
 
     for slice in slices_of_data:
         frames_with_position = eiger_data.get_data(slice)
-        durations_for_frames = eiger_data.durations[slice]
+        i0_for_frames = eiger_data.get_i0()[slice]
 
-        summed_frames_at_tth_position = np.sum(frames_with_position, axis=-1)
+        summed_frames_at_tth_position = np.sum(frames_with_position, axis=0)
 
         assert summed_frames_at_tth_position.ndim > 1
 
         summed_and_normalised_frames_at_tth_position = (
-            summed_frames_at_tth_position * durations_for_frames
+            summed_frames_at_tth_position / np.sum(i0_for_frames)
         )
 
         summed_and_normalised_frames.append(
@@ -251,6 +251,12 @@ class EigerDataLoader:
         )
 
         return summed_normalised_and_masked_frames
+
+    def get_i0(self):
+
+        i0_data_path = f"{self.entry}/i0/data"
+
+        return h5_to_array(self.filepath, i0_data_path)
 
 
 class Eiger500K(Detector):

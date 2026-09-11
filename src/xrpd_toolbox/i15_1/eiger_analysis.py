@@ -133,4 +133,15 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98478.nxs"
-    run_eiger_analysis(nexus_filepath)
+
+    import matplotlib.pyplot as plt
+
+    eiger_data = EigerDataLoader(nexus_filepath)
+
+    frames = eiger_data.get_summed_and_normalised_frames()
+
+    for frame in frames:
+        plt.imshow(frame)
+        plt.show()
+
+    # run_eiger_analysis(nexus_filepath)
