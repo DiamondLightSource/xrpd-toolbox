@@ -8,39 +8,79 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyFAI
 from h5py import Dataset, File
-from matplotlib.colors import LogNorm
 from pyFAI import units
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import Detector
-from pyFAI.goniometer import MultiGeometry, SingleGeometry
+from pyFAI.goniometer import MultiGeometry
 from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
 from xrpd_toolbox.core import XRPDBaseModel
+from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 from xrpd_toolbox.utils.utils import (
     get_entry,
     h5_to_array,
+    h5_to_float,
+    h5_to_string,
 )
 
 PIXEL_SIZE = 7.5e-5  # in m
-INITIAL_DISTNACE = 700  # mm
-DEFAULT_MAX_SHAPE = (1024, 512)
+INITIAL_DISTNACE = 250  # mm
+DEFAULT_MAX_SHAPE = (1028, 512)
 
 
-def calibrate_single_geometry_from_rings(
-    geometry: SingleGeometry,
-    rings: Collection[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],
-    fix: list | None = None,
-):
-    if fix is None:
-        fix = []
+def unique_slices(arr: np.ndarray):
+    """Retturns slices at which the all the values for the input array are the same
+    assumes that the input array is sorted and only increases/decreases
 
-    for n_rings in rings:
-        geometry.extract_cp(max_rings=n_rings)
-        geometry.geometry_refinement.refine2(fix=fix)
+    if it's not will have to use np.argwhere - but that isn't this functons
 
-    return geometry
+    """
+    arr = np.asarray(arr)
+    _, start_idx = np.unique(arr, return_index=True)
+    start_idx = np.sort(start_idx)
+    end_idx = np.append(start_idx[1:], len(arr))
+    return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
+
+
+def sum_unique_two_theta_positions_and_normalise(eiger_data: "EigerDataLoader"):
+
+    slices_of_data = unique_slices(eiger_data.positions)
+
+    assert len(slices_of_data) == len(np.unique(eiger_data.positions))
+
+    summed_and_normalised_frames = []
+
+    for slice in slices_of_data:
+        frames_with_position = eiger_data.get_data(slice)
+        i0_for_frames = eiger_data.get_i0()[slice]
+
+        summed_frames_at_tth_position = np.sum(frames_with_position, axis=0)
+
+        assert summed_frames_at_tth_position.ndim > 1
+
+        summed_and_normalised_frames_at_tth_position = (
+            summed_frames_at_tth_position / np.sum(i0_for_frames)
+        )
+
+        summed_and_normalised_frames.append(
+            summed_and_normalised_frames_at_tth_position
+        )
+
+    summed_and_normalised_frames = np.array(summed_and_normalised_frames)
+
+    return summed_and_normalised_frames
+
+
+def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """applys a mask to all frames in the image"""
+
+    masked_image_frames = [image * mask for image in image_frames]
+
+    masked_image_frames = np.array(masked_image_frames)
+
+    return masked_image_frames
 
 
 class EigerSettings(XRPDBaseModel):
@@ -59,61 +99,171 @@ class EigerDataLoader:
     def __init__(
         self,
         filepath: str | Path,
-        eiger_data_path: str = "data",
-        tth_path: str = "tth",
+        eiger_data_path: str = "fastcs_eiger",
     ):
-        self.filepath = filepath
+        self.filepath = str(filepath)
         self.eiger_data_path = eiger_data_path
-        self.tth_path = tth_path
 
-        self.entry = get_entry(self.filepath)
+        self.entry = get_entry(self.filepath)  # /entry
         self.dataset_path = f"/{self.entry}/{self.eiger_data_path}/data"
 
     @cached_property
     def positions(self) -> np.ndarray:
+
+        position_path = f"{self.entry}/{self.eiger_data_path}/tth"
+
         try:
-            deltas = h5_to_array(self.filepath, self.tth_path)
+            deltas = h5_to_array(self.filepath, position_path)
             return deltas
         except ValueError as e:
-            print(f"{e} - {self.tth_path} in data - returning 0")
+            print(f"{e} - {position_path} in data - returning 0")
             deltas = np.array([0])
             return deltas
 
     @cached_property
-    def count_time_path(self) -> str:
-        return f"/{self.entry}/instrument/{self.eiger_data_path}/count_time"
+    def durations(self) -> np.ndarray:
+
+        count_time_path = f"/{self.entry}/instrument/{self.eiger_data_path}/count_time"
+
+        return h5_to_array(self.filepath, count_time_path)
 
     @cached_property
-    def durations(self) -> np.ndarray:
-        return h5_to_array(self.filepath, self.count_time_path)
+    def energy_kev(self) -> float:
 
-    @property
-    def data(self):
-        return self.get_data(self.dataset_path)
+        energy_kev_data_path = f"/{self.entry}/instrument/xtal/energy_kev"
 
-    def get_frame(self, frame: int | Collection[int] | slice):
-        return self.get_data(self.dataset_path)
+        energy_kev = h5_to_float(self.filepath, energy_kev_data_path)
 
-    def get_data(self, dataset_path) -> np.ndarray:
+        return energy_kev
+
+    @cached_property
+    def wavelength(self) -> float:
+        """Returns the wavelength in angstrom"""
+
+        wavelength = beam_energy_to_wavelength(beam_energy=self.energy_kev, unit="kev")
+
+        return wavelength
+
+    def get_wavelength(self) -> float:
+        """Returns the wavelength in angstrom"""
+        return self.wavelength
+
+    def load_all_data(self) -> np.ndarray:
+        return self.get_data(frames=slice(None))
+
+    def get_data(
+        self,
+        frames: int | Collection[int] | slice,
+    ):
+
         with File(self.filepath, "r") as file:
             if self.dataset_path not in file:
-                raise ValueError(f"Dataset path {dataset_path} not found in HDF5 file.")
+                raise ValueError(
+                    f"Dataset path {self.dataset_path} not found in HDF5 file."
+                )
 
-            data = file.get(dataset_path)
+            data = file.get(self.dataset_path)
 
             if (data is not None) and isinstance(data, Dataset):
                 if data.ndim < 1:
                     raise ValueError("Data has insufficient dimensions.")
-                module_frame_data = data[...]
+                module_frame_data = data[frames, ...]
 
                 return np.asarray(module_frame_data)
             else:
-                raise ValueError(f"Data at {dataset_path} in {self.filepath}is None.")
+                raise ValueError(
+                    f"Data at {self.dataset_path} in {self.filepath}is None."
+                )
+
+    def get_pixel_mask_filepath_and_datapath(self) -> tuple[str, str]:
+
+        pixel_mask_path = f"{self.entry}/instrument/{self.eiger_data_path}/pixel_mask"
+
+        mask_filepath = h5_to_string(self.filepath, pixel_mask_path)
+
+        mask_filepath, mask_datapath = str(mask_filepath).split("//")
+
+        if not Path(mask_filepath).exists():
+            mask_filepath = Path(self.filepath).parent / Path(mask_filepath).stem
+            mask_filepath = (
+                str(mask_filepath) + ".h5"
+            )  # when odin/ophyd async fixes this remove the .h5
+
+        return mask_filepath, mask_datapath
+
+    def get_calibrant(self) -> str | None:
+
+        calibrant_path = f"{self.entry}/plan_metadata/calibrant"
+        try:
+            h5_to_string(self.filepath, calibrant_path)
+        except Exception as e:
+            print(e)
+            return None
+
+    def get_mask(self):
+
+        mask_filepath, mask_datapath = self.get_pixel_mask_filepath_and_datapath()
+
+        mask = h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
+
+        return mask.astype(bool)
+
+    def is_background(self) -> bool:
+
+        background = f"{self.entry}/plan_metadata/background"
+
+        return bool(h5_to_array(self.filepath, background))
+
+    @cached_property
+    def plan_name(self) -> str:
+        """returns the plan name as a string, eg static_collection or data_collection"""
+
+        return self.get_plan_name()
+
+    def get_plan_name(self) -> str:
+        """returns the plan name as a string, eg static_collection or data_collection"""
+
+        plan_name_path = f"{self.entry}/plan_metadata/plan_name"
+
+        return h5_to_string(self.filepath, plan_name_path)
+
+    def get_composition(self) -> str:
+        """returns the composition of the sample eg. SiO2 or Tb(HCO2)3. etc"""
+
+        composition_path = f"{self.entry}/plan_metadata/sample_info/data/composition"
+
+        return h5_to_string(self.filepath, composition_path)
+
+    def get_summed_and_normalised_frames(self) -> np.ndarray:
+        summed_and_normalised_frames = sum_unique_two_theta_positions_and_normalise(
+            eiger_data=self
+        )
+
+        return summed_and_normalised_frames
+
+    def get_summed_normalised_and_masked_frames(self) -> np.ndarray:
+
+        summed_and_normalised_frames = self.get_summed_and_normalised_frames()
+        mask = self.get_mask()
+
+        summed_normalised_and_masked_frames = apply_mask(
+            image_frames=summed_and_normalised_frames, mask=mask
+        )
+
+        return summed_normalised_and_masked_frames
+
+    def get_i0(self):
+
+        i0_data_path = f"{self.entry}/i0/data"
+
+        return h5_to_array(self.filepath, i0_data_path)
 
 
 class Eiger500K(Detector):
     IS_FLAT = False  # this detector is flat
     IS_CONTIGUOUS = True
+
+    """This is simple a test platform for data simution - not used for real data"""
 
     def __init__(
         self,
@@ -128,11 +278,10 @@ class Eiger500K(Detector):
         self.calibrant = None
         self.wavelength = wavelength
 
+        self.max_shape = DEFAULT_MAX_SHAPE  # Default shape if no data
+
         if self.filepath is not None:
             self.data_loader = EigerDataLoader(self.filepath)
-            self.max_shape = self.data_loader.data.shape
-        else:
-            self.max_shape = DEFAULT_MAX_SHAPE  # Default shape if no data
 
         super().__init__(pixel1=PIXEL_SIZE, pixel2=PIXEL_SIZE, max_shape=self.max_shape)
 
@@ -276,46 +425,21 @@ class Eiger500K(Detector):
 
         return simulated_x_data, simulated_y_data
 
-    def calibrate_single_geometry(
-        self,
-        calibrant_name: str,
-        wavelength: float,
-        poni_output_filepath: str | Path,
-        wavelength_unit: Literal["Ang", "A", "Angstrom", "kev", "keV", "ev"],
-    ):
-        """Using pyfai and the current data file,
-        this will attempt to calibrate the detector
-        using a known calibrant and then output a poni file to disk"""
 
-        if wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
-            wavelength_in_ang = wavelength
-        elif wavelength_unit.lower() in ["ang", "ansgtrom", "a"]:
-            wavelength_in_ang = wavelength
-        else:
-            raise ValueError("wavelength_unit must be valid!")
+if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
+    from matplotlib.colors import LogNorm
 
-        calibrant = get_calibrant(calibrant_name)
-        calibrant.wavelength = wavelength_in_ang / 1e10
+    SETTINGS = EigerSettings()
+    FILEPATH = "/workspaces/XRPD-Toolbox/examples/i15-1/eiger_500k/1414223.nxs"
+    eiger = Eiger500K(filepath=FILEPATH, settings=SETTINGS)
 
-        single_geometry = SingleGeometry(
-            self.name, self.data_loader.data, calibrant=calibrant, detector=self
-        )
-
-        single_geometry = calibrate_single_geometry_from_rings(geometry=single_geometry)
-        single_geometry.geometry_refinement.save(str(poni_output_filepath))
-
-
-if __name__ == "__main__":
-    #     SETTINGS = EigerSettings()
-    #     FILEPATH = "/workspaces/XRPD-Toolbox/examples/i15-1/eiger_500k/1414223.nxs"
-    #     eiger = Eiger500K(filepath=FILEPATH, settings=SETTINGS)
     calibrant = get_calibrant(calibrant_name="Si")
     calibrant.wavelength = 0.161699 / 1e10
 
     pixel1 = PIXEL_SIZE
     pixel2 = PIXEL_SIZE
 
-    shape = (1024, 512)
+    shape = DEFAULT_MAX_SHAPE
 
     poni1 = pixel1 * shape[0] / 2
     poni2 = pixel2 * shape[1] / 2
@@ -327,7 +451,7 @@ if __name__ == "__main__":
             pixel1=pixel1, pixel2=pixel2, max_shape=shape
         ),
         wavelength=calibrant.wavelength,
-        dist=0.7,
+        dist=0.25,
         poni1=poni1,
         poni2=poni2,
         rot1=0,
