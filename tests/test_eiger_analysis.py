@@ -144,7 +144,7 @@ def test_apply_mask_with_boolean_mask():
 def test_do_eiger_calibration_raises_without_calibrant(tmp_path):
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", include_calibrant=False)
 
-    with pytest.raises(Exception, match="Calibraation is not in Nexus file"):
+    with pytest.raises(Exception, match="Calibration is not in Nexus file"):
         ea.do_eiger_calibration(nxs)
 
 
