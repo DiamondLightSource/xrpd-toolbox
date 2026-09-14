@@ -44,8 +44,11 @@ class ScanListener(stomp.ConnectionListener):
         print(f"received an error: {message}")
 
     def on_message(self, message):  # type: ignore
-        message_body: dict = json.loads(message.body)
-        self.messages.append(message_body)
+        try:
+            message_body: dict = json.loads(message.body)
+            self.messages.append(message_body)
+        except json.JSONDecodeError as e:
+            print(f"Could not decode message body: {e}")
 
 
 class Messenger:
@@ -177,8 +180,8 @@ class Messenger:
         try:
             self.conn.send(destination=destination, body=message, ack="auto")
             print(f"Message sent to: {destination}")
-        except Exception:
-            print("Could not send message!")
+        except Exception as e:
+            print(f"Could not send message! {e}")
 
     def stop(self):
         """Stop listening to destinations"""
@@ -226,10 +229,20 @@ class Messenger:
 
 
 # if __name__ == "__main__":
+#     import json
+#     import time
+
 #     client = Messenger("i15-1", broker="rabbitmq", username="guest", password="guest")
 
-#     print("djsdnsj")
+#     start_message = '{"name":"start","doc":{"uid":"4d82e99d-0e54-417c-bf5e-9885753b9b3c","time":1789392624.3888714,"versions":{"ophyd":"1.11.2","ophyd_async":"0.21.2.dev2+g72b5543ab","bluesky":"1.15.1","event_model":"1.23.1"},"instrument":"i15-1","user":"akz63626","instrument_session":"cm44163-3","tiled_access_tags":[{"proposal": 44163, "visit": 3, "beamline": "i15-1"}],"data_session_directory":"/dls/i15-1/data/2026/cm44163-3","detector_file_template":"{instrument}-{scan_id}-{device_name}","scan_file":"i15-1-98491","scan_id":98491,"plan_type":"generator","plan_name":"static_collection","detectors":["fastcs_eiger","i0"]},"task_id":"9d89f5a2-d6f7-4ac7-b94e-6c68e4fa2fd9"}' # noqa
+#     client.send_message("/topic/public.worker.event", start_message)
 
-#     print(client.host)
+#     print("start message sent!")
 
-#     client._send_message("/topic/public.worker.event", "fff")
+#     time.sleep(2)
+
+#     stop_message = """{"name":"stop","doc":{"uid":"ac6e2f76-dd00-44a5-961c-12e8e3e0e3ef","time":1789392634.928326,"run_start":"4d82e99d-0e54-417c-bf5e-9885753b9b3c","exit_status":"success","reason":"","num_events":{"baseline":2,"primary":1}},"task_id":"9d89f5a2-d6f7-4ac7-b94e-6c68e4fa2fd9"}""" # noqa
+
+#     client.send_message("/topic/public.worker.event", stop_message)
+
+#     print("stop message sent!")
