@@ -1,21 +1,8 @@
 """Tests for xrpd_toolbox.i15_1.eiger_analysis.
 
-Two of the functions here (sum_unique_two_theta_positions_and_normalise and
-run_eiger_analysis) currently contain what look like bugs:
-
-- ``sum_unique_two_theta_positions_and_normalise`` does
-  ``assert len(slices) == np.unique(positions)``, comparing an int to an
-  array rather than to ``len(np.unique(positions))``. For any input with
-  more than one unique tth position this raises ValueError ("truth value of
-  an array... is ambiguous") before any real work is done.
-- ``run_eiger_analysis`` logs ``analysis_to_run.__name__`` *before* checking
-  whether ``analysis_to_run is None``, so the "no analysis plan exists"
-  branch can never actually be reached - it raises AttributeError instead.
-
-The tests below document this real, current behaviour rather than papering
-over it; do_eiger_calibration/do_eiger_data_reduction are tested with the
-lower-level helpers mocked out so their own orchestration logic can be
-verified independently of those issues.
+do_eiger_calibration/do_eiger_data_reduction are tested with the
+lower-level EigerDataLoader helpers mocked out so their own orchestration
+logic can be verified independently.
 """
 
 import logging
@@ -27,7 +14,12 @@ import pytest
 
 from eiger_fixtures import build_eiger_nexus
 from xrpd_toolbox.i15_1 import eiger_analysis as ea
-from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader, apply_mask, unique_slices
+from xrpd_toolbox.i15_1.eiger_500k import (
+    EigerDataLoader,
+    apply_mask,
+    sum_unique_two_theta_positions_and_normalise,
+    unique_slices,
+)
 
 # ---------------------------------------------------------------------------
 # unique_slices
@@ -75,41 +67,48 @@ class FakeEigerData:
     """Minimal stand-in for EigerDataLoader exposing just what
     sum_unique_two_theta_positions_and_normalise needs."""
 
-    def __init__(self, positions, data, durations):
+    def __init__(self, positions, data, i0):
         self.positions = positions
         self._data = data
-        self.durations = durations
+        self._i0 = i0
 
     def get_data(self, frames):
         return self._data[frames]
 
+    def get_i0(self):
+        return self._i0
 
-def test_sum_unique_two_theta_positions_raises_for_multiple_positions():
+
+def test_sum_unique_two_theta_positions_groups_and_normalises_multiple_positions():
     fake = FakeEigerData(
         positions=np.array([1.0, 2.0, 3.0]),
-        data=np.zeros((3, 4, 5)),
-        durations=np.array([0.1, 0.1, 0.1]),
+        data=np.stack([np.full((4, 5), value) for value in (10.0, 20.0, 30.0)]),
+        i0=np.array([2.0, 4.0, 5.0]),
     )
 
-    with pytest.raises(ValueError, match="ambiguous"):
-        ea.sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
+    result = sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
+
+    # one frame per unique position, so summing over axis=0 is a no-op and
+    # each frame is normalised by dividing by its own i0
+    assert result.shape == (3, 4, 5)
+    assert np.allclose(result[0], 10.0 / 2.0)
+    assert np.allclose(result[1], 20.0 / 4.0)
+    assert np.allclose(result[2], 30.0 / 5.0)
 
 
 def test_sum_unique_two_theta_positions_single_frame_at_position_one():
-    # The buggy `assert len(slices) == np.unique(positions)` only survives
-    # when there is exactly one unique position and it equals 1.0 - see
-    # module docstring above.
     fake = FakeEigerData(
         positions=np.array([1.0]),
         data=np.full((1, 4, 5), 2.0),
-        durations=np.array([3.0]),
+        i0=np.array([3.0]),
     )
 
-    result = ea.sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
+    result = sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
 
-    # sum over the last axis (cols=5) then scaled by duration
-    assert result.shape == (1, 1, 4)
-    assert np.allclose(result, 2.0 * 5 * 3.0)
+    # sum over the frames axis (a no-op for a single frame) then normalised
+    # by dividing by the summed i0
+    assert result.shape == (1, 4, 5)
+    assert np.allclose(result, 2.0 / 3.0)
 
 
 # ---------------------------------------------------------------------------
@@ -156,28 +155,22 @@ def test_do_eiger_calibration_orchestrates_helpers(tmp_path):
         plan_name="calibration_collection",
     )
 
-    dummy_summed = np.zeros((1, 4, 5))
-    dummy_mask = np.ones((4, 5), dtype=bool)
     dummy_masked = np.zeros((1, 4, 5))
 
-    mock_sum = MagicMock(return_value=dummy_summed)
-    mock_apply_mask = MagicMock(return_value=dummy_masked)
     mock_build = MagicMock(return_value=("gonio.json", "meta.json"))
 
     with (
         patch.object(EigerDataLoader, "get_calibrant", lambda self: "Si"),
-        patch.object(EigerDataLoader, "get_mask", lambda self: dummy_mask),
-        patch.object(ea, "sum_unique_two_theta_positions_and_normalise", mock_sum),
-        patch.object(ea, "apply_mask", mock_apply_mask),
+        patch.object(
+            EigerDataLoader,
+            "get_summed_normalised_and_masked_frames",
+            lambda self: dummy_masked,
+        ),
         patch.object(ea, "build_and_save_goniometer", mock_build),
     ):
         result = ea.do_eiger_calibration(nxs)
 
     assert result == ("gonio.json", "meta.json")
-
-    mock_apply_mask.assert_called_once()
-    assert mock_apply_mask.call_args.kwargs["image_frames"] is dummy_summed
-    assert mock_apply_mask.call_args.kwargs["mask"] is dummy_mask
 
     _, build_kwargs = mock_build.call_args
     assert build_kwargs["nexus_filepath"] == Path(nxs)
@@ -203,13 +196,16 @@ def test_do_eiger_data_reduction_orchestrates_helpers(tmp_path):
     dummy_summed = np.zeros((1, 4, 5))
     dummy_mask = np.ones((4, 5), dtype=bool)
 
-    mock_sum = MagicMock(return_value=dummy_summed)
     expected_out = Path(nxs).parent / (Path(nxs).stem + "_eiger.xy")
     mock_integrate = MagicMock(return_value=expected_out)
 
     with (
+        patch.object(
+            EigerDataLoader,
+            "get_summed_and_normalised_frames",
+            lambda self: dummy_summed,
+        ),
         patch.object(EigerDataLoader, "get_mask", lambda self: dummy_mask),
-        patch.object(ea, "sum_unique_two_theta_positions_and_normalise", mock_sum),
         patch.object(ea, "integrate_with_goniometer", mock_integrate),
     ):
         result = ea.do_eiger_data_reduction(nxs)
@@ -262,12 +258,7 @@ def test_run_eiger_analysis_unknown_plan_raises_keyerror(tmp_path):
             ea.run_eiger_analysis(nxs)
 
 
-def test_run_eiger_analysis_none_entry_raises_attributeerror_before_guard(
-    tmp_path, caplog
-):
-    # documents the current (buggy) behaviour: the `analysis_to_run is None`
-    # guard is unreachable because `analysis_to_run.__name__` is accessed
-    # first, in the logger.info call above it.
+def test_run_eiger_analysis_none_entry_raises_runtimeerror(tmp_path, caplog):
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", plan_name="data_collection")
 
     with (
@@ -275,5 +266,7 @@ def test_run_eiger_analysis_none_entry_raises_attributeerror_before_guard(
         patch.object(ea, "collection_analysis_dict", {"data_collection": None}),
         caplog.at_level(logging.INFO, logger="xrpd_toolbox.i15_1.eiger_analysis"),
     ):
-        with pytest.raises(AttributeError):
+        with pytest.raises(
+            RuntimeError, match="No analysis plan exists for bluesky plan"
+        ):
             ea.run_eiger_analysis(nxs)

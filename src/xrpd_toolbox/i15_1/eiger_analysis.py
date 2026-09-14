@@ -122,11 +122,11 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
     analysis_to_run = collection_analysis_dict[plan_name]
 
-    logger.info(f"{plan_name=}, {analysis_to_run.__name__=}")
-
     if analysis_to_run is None:
         logger.error(f"No analysis plan exists for bluesky plan: {plan_name}")
         raise RuntimeError(f"No analysis plan exists for bluesky plan: {plan_name}")
+
+    logger.info(f"{plan_name=}, {analysis_to_run.__name__=}")
 
     analysis_to_run(nexus_filepath)
 
