@@ -15,13 +15,14 @@ c_speed_of_light = 299792458.0  # m/s
 def beam_energy_to_wavelength(
     beam_energy: float | int,
     unit: Literal["keV", "eV", "kev", "ev"] = "kev",
+    return_unit: Literal["meters", "angstrom"] = "angstrom",
 ) -> float:
     """
 
     Calculates wavelength (Angstrom) from beam energy in kev.
 
     To allow convertion of tth to Q space, using the energy of the beam. beam energy is
-    converted to wavlength because it's better
+    converted to wavelength
 
     """
     if unit.lower() == "kev":
@@ -31,6 +32,10 @@ def beam_energy_to_wavelength(
 
     beam_energy_j = beam_energy_ev * ev_to_j
     wavelength_m = (h_planck * c_speed_of_light) / (beam_energy_j)
+
+    if return_unit == "meters":
+        return wavelength_m
+
     wavelength = wavelength_m * 1e10
 
     return wavelength

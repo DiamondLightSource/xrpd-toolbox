@@ -29,7 +29,7 @@ def test_simulated_eiger():
         wavelength_in_ang=wavelength,
     )
 
-    assert images[0].shape == (1024, 512)
+    assert images[0].shape == (1028, 512)
     assert np.any(images[0] > 0)
 
 

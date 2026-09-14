@@ -104,10 +104,43 @@ class NexusDatasetMapper:
 
 
 def h5_to_array(filepath: str | Path, data_path: str) -> np.ndarray:
+    """Read a dataset from an HDF5 file and return it as a numpy array."""
     with h5py.File(filepath, "r", libver="latest", swmr=True) as file:
         data = file.get(data_path)
         if (data is not None) and isinstance(data, Dataset):
             return np.asarray(data)
+        else:
+            raise ValueError(f"Data is None at {data_path} in {filepath}")
+
+
+def h5_to_string(filepath: str | Path, data_path: str) -> str:
+    """Read a scalar dataset from an HDF5 file and return it as a string.
+
+    Decodes bytes to str if needed.
+    """
+    with h5py.File(filepath, "r", libver="latest", swmr=True) as file:
+        data = file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            value = data[()]
+
+            if isinstance(value, bytes):
+                value = value.decode()
+
+            return value
+
+        else:
+            raise ValueError(f"Data is None at {data_path} in {filepath}")
+
+
+def h5_to_float(filepath: str | Path, data_path: str) -> float:
+    """Read a scalar dataset from an HDF5 file and return it as a float."""
+    with h5py.File(filepath, "r", libver="latest", swmr=True) as file:
+        data = file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            value = data[()]
+
+            return float(value)
+
         else:
             raise ValueError(f"Data is None at {data_path} in {filepath}")
 
