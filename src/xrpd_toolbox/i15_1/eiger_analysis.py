@@ -26,7 +26,7 @@ def do_eiger_calibration(nexus_filepath: str | Path):
     calibrant = eiger_data.get_calibrant()
 
     if calibrant is None:
-        raise Exception("Calibraation is not in Nexus file")
+        raise Exception("Calibration is not in Nexus file")
 
     unique_positions = np.unique(eiger_data.positions)
 
