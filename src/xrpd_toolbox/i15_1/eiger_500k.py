@@ -112,13 +112,13 @@ class EigerDataLoader:
 
         position_path = f"{self.entry}/{self.eiger_data_path}/tth"
 
-        try:
-            deltas = h5_to_array(self.filepath, position_path)
-            return deltas
-        except ValueError as e:
-            print(f"{e} - {position_path} in data - returning 0")
-            deltas = np.array([0])
-            return deltas
+        deltas = h5_to_array(self.filepath, position_path)
+        return deltas
+
+    def get_unique_tth_positions(self):
+        """returns uniuqe positions as defined by tth"""
+
+        return np.unique(self.positions)
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -149,6 +149,12 @@ class EigerDataLoader:
         return self.wavelength
 
     def load_all_data(self) -> np.ndarray:
+        """Dangerous as it might contains a lot of data,
+        which will then be loaded into memory - you have been warned
+
+        ideally use get_data with specific frames as slice
+
+        """
         return self.get_data(frames=slice(None))
 
     def get_data(

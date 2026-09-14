@@ -124,14 +124,6 @@ def test_data_loader_positions(nexus_file):
     assert loader.positions is loader.positions
 
 
-def test_data_loader_positions_missing_falls_back_to_zero(tmp_path, capsys):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", include_tth=False)
-    loader = EigerDataLoader(nxs)
-
-    assert np.array_equal(loader.positions, [0])
-    assert "tth" in capsys.readouterr().out
-
-
 def test_data_loader_durations(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
