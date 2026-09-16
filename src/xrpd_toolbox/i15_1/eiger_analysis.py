@@ -64,10 +64,10 @@ def do_eiger_calibration(nexus_filepath: str | Path):
         npt=DEFAULT_NPT,
     )
 
-    return goniometer_model_json, metadata_json
-
     # do_eiger_data_reduction(nexus_filepath) then reduce the data we just collect
     # - do this in workflow?
+
+    return goniometer_model_json, metadata_json
 
 
 def do_eiger_data_reduction(

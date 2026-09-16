@@ -194,12 +194,11 @@ def build_and_save_goniometer(
         output_dir = Path(output_dir)
 
     logger.info("Loaded %d calibration frames from %s", len(angles), nexus_path)
-
-    calibrant = get_calibrant(calibrant_name)
     wavelength_m = wavelength_in_angstrom / 1e10
-    calibrant.wavelength = wavelength_m
 
-    # --- Step 1: calibrate each frame independently ---
+    calibrant = get_calibrant(calibrant_name=calibrant_name, wavelength=wavelength_m)
+
+    # calibrate each frame independently
     single_geometries: list[SingleGeometry] = []
     for i, (image, two_theta_deg) in enumerate(zip(images, angles, strict=True)):
         label = f"frame_{i:04d}_{two_theta_deg:.4f}deg"
