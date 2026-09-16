@@ -27,12 +27,13 @@ dependencies = [
     "pyyaml",
     "toml",
     "PyQt6",
-    "scikit-learn",
+    # "scikit-learn",
     "stomp.py",
     "numba",
     "ipywidgets",
     "click",
     "python-workflow-submitter",
+    "httpx",
     # "swmr_tools",
 
 ] # Add project dependencies here, e.g. ["click", "numpy"]

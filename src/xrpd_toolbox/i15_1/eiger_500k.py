@@ -123,7 +123,7 @@ class EigerDataLoader:
     @cached_property
     def durations(self) -> np.ndarray:
 
-        count_time_path = f"/{self.entry}/instrument/{self.eiger_data_path}/count_time"
+        count_time_path = f"/{self.entry}/plan_metadata/exposure_time_per_frame"
 
         return h5_to_array(self.filepath, count_time_path)
 
@@ -181,13 +181,18 @@ class EigerDataLoader:
                     f"Data at {self.dataset_path} in {self.filepath}is None."
                 )
 
-    def get_pixel_mask_filepath_and_datapath(self) -> tuple[str, str]:
+    @cached_property
+    def mask_filepath(self):
 
         pixel_mask_path = f"{self.entry}/instrument/{self.eiger_data_path}/pixel_mask"
 
         mask_filepath = h5_to_string(self.filepath, pixel_mask_path)
 
-        mask_filepath, mask_datapath = str(mask_filepath).split("//")
+        return mask_filepath
+
+    def get_pixel_mask_filepath_and_datapath(self) -> tuple[str, str]:
+
+        mask_filepath, mask_datapath = str(self.mask_filepath).split("//")
 
         if not Path(mask_filepath).exists():
             mask_filepath = Path(self.filepath).parent / Path(mask_filepath).stem
@@ -199,12 +204,36 @@ class EigerDataLoader:
 
     def get_calibrant(self) -> str | None:
 
-        calibrant_path = f"{self.entry}/plan_metadata/calibrant"
-        try:
-            h5_to_string(self.filepath, calibrant_path)
-        except Exception as e:
-            print(e)
-            return None
+        calibrant_path = (
+            f"/{self.entry}/plan_metadata/auxiliary_scans/Standard Sample/pin/contents"
+        )
+        return h5_to_string(self.filepath, calibrant_path)
+
+    def get_air_scan_filepath(self):
+
+        air_scan_filename_dataset_path = (
+            f"/{self.entry}/plan_metadata/auxiliary_scans/Air/filename"  # noqa
+        )
+
+        air_scan_filename = h5_to_string(self.filepath, air_scan_filename_dataset_path)
+
+        air_scan_filepath = Path(self.filepath).parent / air_scan_filename
+
+        return air_scan_filepath
+
+    def get_sample_environment_scan_filepath(self) -> str:
+
+        sample_environment_filename_dataset_path = (
+            f"/{self.entry}/plan_metadata/auxillary_scans/Empty_Capillary/filename"  # noqa
+        )
+
+        air_scan_filename = h5_to_string(
+            self.filepath, sample_environment_filename_dataset_path
+        )
+
+        sample_environment_filepath = Path(self.filepath).parent / air_scan_filename
+
+        return str(sample_environment_filepath)
 
     def get_mask(self):
 
@@ -214,11 +243,11 @@ class EigerDataLoader:
 
         return mask.astype(bool)
 
-    def is_background(self) -> bool:
+    def get_scan_type(self) -> str:
 
-        background = f"{self.entry}/plan_metadata/background"
+        scan_type_path = f"/{self.entry}/plan_metadata/scan_type"
 
-        return bool(h5_to_array(self.filepath, background))
+        return h5_to_string(self.filepath, scan_type_path)
 
     @cached_property
     def plan_name(self) -> str:

@@ -12,7 +12,12 @@ def send_post_request(url: str, data: dict) -> httpx.Response:
     return response
 
 
-def send_xy_to_pdfcurl(xy_filepath: str, composition: str, wavelength: float) -> dict:
+def send_xy_to_pdfcurl(
+    xy_filepath: str,
+    composition: str,
+    wavelength: float,
+    background_file: str | None = None,
+) -> dict:
     """Uses the default arguments for pdfcurl"""
 
     name = Path(xy_filepath).stem
@@ -22,6 +27,8 @@ def send_xy_to_pdfcurl(xy_filepath: str, composition: str, wavelength: float) ->
         "wavelength": wavelength,
         "name": name,
         "input_filepath": xy_filepath,
+        "publish": True,
+        "backgroundfile": background_file,
     }
 
     response = send_post_request(url=I15_1_PDFCURL_ENDPOINT, data=pdfcurl_args)
