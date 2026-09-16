@@ -50,7 +50,7 @@ def do_eiger_calibration(nexus_filepath: str | Path):
     )
     nexus_filepath = Path(nexus_filepath)
 
-    output_dir = str(nexus_filepath.parent / "processed")
+    output_dir = str(nexus_filepath.parent)
 
     goniometer_model_json, metadata_json = build_and_save_goniometer(
         nexus_filepath=nexus_filepath,
@@ -91,13 +91,11 @@ def do_eiger_data_reduction(
     mask = eiger_data.get_mask()
 
     if output_xy_filepath is None:
-        output_xy_filepath = (
-            nexus_filepath.parent
-            / "processed"
-            / (nexus_filepath.stem + "_fastcs_eiger.xy")
+        output_xy_filepath = nexus_filepath.parent / (
+            nexus_filepath.stem + "_fastcs_eiger.xy"
         )
 
-    goniometer_dir = str(nexus_filepath.parent / "processed")
+    goniometer_dir = str(nexus_filepath.parent)
 
     output_xy_filepath = integrate_with_goniometer(
         images=summed_and_normalised_frames,
