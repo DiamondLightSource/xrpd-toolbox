@@ -139,6 +139,8 @@ def h5_to_float(filepath: str | Path, data_path: str) -> float:
         if (data is not None) and isinstance(data, Dataset):
             value = data[()]
 
+            print(value)
+
             return float(value)
 
         else:

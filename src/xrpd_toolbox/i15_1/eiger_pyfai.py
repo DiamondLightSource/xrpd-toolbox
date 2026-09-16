@@ -188,7 +188,7 @@ def build_and_save_goniometer(
     nexus_path = Path(nexus_filepath)
 
     if output_dir is None:
-        output_dir = Path(nexus_path.parent)
+        output_dir = Path(nexus_path.parent) / "processed"
         output_dir.mkdir(parents=True, exist_ok=True)
     else:
         output_dir = Path(output_dir)

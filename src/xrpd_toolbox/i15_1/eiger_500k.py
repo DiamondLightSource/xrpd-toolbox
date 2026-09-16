@@ -21,7 +21,6 @@ from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 from xrpd_toolbox.utils.utils import (
     get_entry,
     h5_to_array,
-    h5_to_float,
     h5_to_string,
 )
 
@@ -132,7 +131,9 @@ class EigerDataLoader:
 
         energy_kev_data_path = f"/{self.entry}/instrument/xtal/energy_kev"
 
-        energy_kev = h5_to_float(self.filepath, energy_kev_data_path)
+        energy_kev_arr = h5_to_array(self.filepath, energy_kev_data_path)
+
+        energy_kev = float(np.mean(energy_kev_arr))
 
         return energy_kev
 
@@ -224,7 +225,7 @@ class EigerDataLoader:
     def get_sample_environment_scan_filepath(self) -> str:
 
         sample_environment_filename_dataset_path = (
-            f"/{self.entry}/plan_metadata/auxillary_scans/Empty_Capillary/filename"  # noqa
+            f"/{self.entry}/plan_metadata/auxiliary_scans/Empty Capillary/filename"  # noqa
         )
 
         air_scan_filename = h5_to_string(

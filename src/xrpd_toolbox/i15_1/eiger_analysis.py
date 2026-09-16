@@ -50,6 +50,8 @@ def do_eiger_calibration(nexus_filepath: str | Path):
     )
     nexus_filepath = Path(nexus_filepath)
 
+    output_dir = str(nexus_filepath.parent / "processed")
+
     goniometer_model_json, metadata_json = build_and_save_goniometer(
         nexus_filepath=nexus_filepath,
         images=summed_normalised_and_masked_frames,
@@ -57,7 +59,7 @@ def do_eiger_calibration(nexus_filepath: str | Path):
         wavelength_in_angstrom=eiger_data.wavelength,
         calibrant_name=calibrant,
         initial_dist_m=DEFAULT_DETECTOR_DISTANCE_M,
-        output_dir=str(nexus_filepath.parent),
+        output_dir=output_dir,
         max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
         pts_per_deg=1.0,
         unit="2th_deg",
@@ -95,7 +97,7 @@ def do_eiger_data_reduction(
             / (nexus_filepath.stem + "_fastcs_eiger.xy")
         )
 
-    goniometer_dir = str(nexus_filepath.parent)
+    goniometer_dir = str(nexus_filepath.parent / "processed")
 
     output_xy_filepath = integrate_with_goniometer(
         images=summed_and_normalised_frames,
@@ -195,4 +197,4 @@ if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
         plt.imshow(frame)
         plt.show()
 
-    # run_eiger_analysis(nexus_filepath)
+    run_eiger_analysis(nexus_filepath)
