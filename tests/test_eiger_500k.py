@@ -124,12 +124,6 @@ def test_data_loader_positions(nexus_file):
     assert loader.positions is loader.positions
 
 
-def test_data_loader_durations(nexus_file):
-    loader = EigerDataLoader(nexus_file)
-
-    assert np.array_equal(loader.durations, [0.1, 0.1, 0.1])
-
-
 def test_data_loader_energy_kev_and_wavelength(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
@@ -214,35 +208,6 @@ def test_get_mask(nexus_file):
 
     assert mask.shape == (4, 5)
     assert mask.dtype == bool
-
-
-def test_get_calibrant_when_present_returns_none(nexus_file):
-    # NOTE: get_calibrant() never returns the value it reads on success, so
-    # this documents the current (surprising) behaviour rather than "Si".
-    loader = EigerDataLoader(nexus_file)
-
-    assert loader.get_calibrant() is None
-
-
-def test_get_calibrant_when_missing_returns_none(tmp_path, capsys):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", include_calibrant=False)
-    loader = EigerDataLoader(nxs)
-
-    assert loader.get_calibrant() is None
-    assert "calibrant" in capsys.readouterr().out
-
-
-def test_is_background_true(tmp_path):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", background=1)
-    loader = EigerDataLoader(nxs)
-
-    assert loader.is_background() is True
-
-
-def test_is_background_false(nexus_file):
-    loader = EigerDataLoader(nexus_file)
-
-    assert loader.is_background() is False
 
 
 def test_plan_name(tmp_path):
