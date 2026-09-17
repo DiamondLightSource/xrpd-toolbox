@@ -26,7 +26,6 @@ from xrpd_toolbox.fit_engine.peaks import (
     peak_factory,
 )
 from xrpd_toolbox.plotting import FittedDataPlot
-from xrpd_toolbox.utils.messenger import DEFAULT_DII_PROCESSED_DESTINATION, Messenger
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
     h5_to_array,
@@ -369,7 +368,7 @@ def sample_alignment(
 
 def fake_sample_alignment_i15_1(
     filepath: str | Path,
-    dataset_path: str = "/entry/instrument/fastcs_eiger/fastcs_eiger",
+    dataset_path: str = "/entry/instrument/fastcs_eiger/data",
     position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
@@ -380,6 +379,8 @@ def fake_sample_alignment_i15_1(
     sample_positions = h5_to_array(filepath, position_path)
 
     fake_centre = sample_positions[int(len(sample_positions) / 2)]
+    fake_centre = float(fake_centre)
+
     fake_peak = GaussianPeak(amplitude=1, centre=fake_centre, fwhm=0.5)
 
     fake_sample_centre_result = SampleCenteringResult(
@@ -387,17 +388,31 @@ def fake_sample_alignment_i15_1(
     )
 
     if beamline is not None:
-        messenger = Messenger("i15-1", destinations=["/topic/public.data.plot"])
-        messenger.send_message(
-            DEFAULT_DII_PROCESSED_DESTINATION,
-            fake_sample_centre_result.model_dump_json(),
+        calc = fake_peak.calculate(sample_positions)
+        noise = np.random.normal(loc=0, scale=0.5, size=sample_positions.shape)
+
+        plot_data = FittedDataPlot(
+            title="fake_sample_alignment",
+            x=sample_positions,
+            y=fake_peak.calculate(sample_positions),
+            calc=calc + noise,
+            background=np.zeros_like(sample_positions),
+            markers=[fake_centre],
         )
+
+        plot_data.publish(beamline=beamline)
 
     return fake_sample_centre_result.model_dump_json()
 
 
 if __name__ == "__main__":
     BEAMLINE = "i15-1"
+
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
+
+    fake_sample_alignment_i15_1(
+        nexus_filepath, position_path="/entry/instrument/tth/data", beamline=BEAMLINE
+    )
 
     folder = "/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
 
@@ -411,4 +426,4 @@ if __name__ == "__main__":
 
         sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
 
-        print(sample_centre_result)
+        # print(sample_centre_result)
