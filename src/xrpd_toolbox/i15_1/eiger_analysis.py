@@ -13,6 +13,7 @@ from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import wait_for_finished_file
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 DEFAULT_NPT = 3000
 DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm
@@ -167,7 +168,7 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         logger.info(f"Running {do_eiger_calibration.__name__} for {scan_type}")
         do_eiger_calibration(nexus_filepath)
 
-    if scan_type == CollectionType.data_collection:
+    elif scan_type == CollectionType.data_collection:
         # If it's actually a datacollections also send it to pdfcurl too
         logger.info(
             f"Running {do_eiger_data_reduction_and_send_xy_to_pdfcurl.__name__} for {scan_type}"  # noqa
