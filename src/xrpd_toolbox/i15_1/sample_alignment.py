@@ -176,17 +176,19 @@ class SampleAligner(Model[XYEData]):
         if self.data.source is not None:
             title = os.path.basename(self.data.source)
         else:
-            title = None
+            title = ""
 
         profile = calculate_profile(self.data.x, self.sample_and_capillary)
         profile = profile + self.background.calculate(self.data.x)
 
         plot_data = FittedDataPlot(
-            data=self.data,
+            title=title,
+            x=self.data.x,
+            y=self.data.y,
             calc=profile,
             diff=self.data.y - profile,
             background=self.background.calculate(self.data.x),
-            title=title,
+            data_type="Sample_Alignment",
             markers=np.array([self.centre]),
         )
 
@@ -345,7 +347,7 @@ def sample_alignment(
         data = BaseDataLoader(filepath=filepath, dataset_path=dataset_path)
         summed_frames = data.sum_frames()
         index = np.linspace(0, len(summed_frames), len(summed_frames))
-        xyedata = XYEData(x=index, y=summed_frames)
+        xyedata = XYEData(title="sample_alignment", x=index, y=summed_frames)
 
     best_model = run_sample_alignment(data=xyedata)
 
@@ -354,17 +356,13 @@ def sample_alignment(
 
     plot_data = best_model.get_plot_data()
 
+    if beamline is not None:
+        plot_data.publish(beamline=beamline)
+
     if save:
         processed_dir, file_name = processed_directory_and_filename(filepath)
         save_file = os.path.join(processed_dir, file_name + "_alignment_fit.png")
         plot_data.plot(save_to=save_file)
-
-    if beamline is not None:
-        messenger = Messenger("i15-1", destinations=["/topic/public.data.plot"])
-        messenger.send_message(
-            DEFAULT_DII_PROCESSED_DESTINATION, sample_centre_result.model_dump_json()
-        )
-        messenger.send_plot_data(plot_data)
 
     return sample_centre_result.model_dump_json()
 
