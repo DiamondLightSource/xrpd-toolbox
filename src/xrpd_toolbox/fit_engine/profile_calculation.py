@@ -1057,7 +1057,7 @@ class ReitveldRefinement(Model[ScatteringData]):
             background = float(self.background)
 
         plot_data = FittedDataPlot(
-            data=self.data,
+            **self.data.model_dump(),
             calc=self.calculated_intensity,
             diff=self.data.y - self.calculated_intensity,
             background=background,
