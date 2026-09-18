@@ -142,5 +142,5 @@ def test_find_and_fit_peaks_with_n_peaks():
     assert np.allclose([float(p.centre) for p in peaks], [20, 40, 60, 80], atol=0.5)
 
 
-if __name__ == "__main__":
-    test_find_and_fit_peaks_with_n_peaks()
+# if __name__ == "__main__":
+#     test_find_and_fit_peaks_with_n_peaks()

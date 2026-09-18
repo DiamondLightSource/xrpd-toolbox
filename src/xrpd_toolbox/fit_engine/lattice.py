@@ -260,26 +260,26 @@ def crystal_lattice_factory(crystal_class: str):
         raise ValueError(f"{crystal_class} unknown")
 
 
-if __name__ == "__main__":
-    cl = CubicLattice(a=5)
-    # cl.parameterise()
+# if __name__ == "__main__":
+#     cl = CubicLattice(a=5)
+#     # cl.parameterise()
 
-    print(cl)
+#     print(cl)
 
-    params = cl.get_refinement_parameters()
+#     params = cl.get_refinement_parameters()
 
-    print(params)
+#     print(params)
 
-    params["a"] = 5.5
+#     params["a"] = 5.5
 
-    cl.set_refinement_parameters(params)
+#     cl.set_refinement_parameters(params)
 
-    print(cl)
+#     print(cl)
 
-    model_dict = cl.model_dump()
+#     model_dict = cl.model_dump()
 
-    # print(cl.get_refinable_parameters())
+#     # print(cl.get_refinable_parameters())
 
-    cl2 = Lattice.model_validate(model_dict)
+#     cl2 = Lattice.model_validate(model_dict)
 
-    print(cl2)
+#     print(cl2)

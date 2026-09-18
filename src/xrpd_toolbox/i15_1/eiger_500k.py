@@ -462,43 +462,43 @@ class Eiger500K(Detector):
         return simulated_x_data, simulated_y_data
 
 
-if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
-    from matplotlib.colors import LogNorm
+# if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
+#     from matplotlib.colors import LogNorm
 
-    SETTINGS = EigerSettings()
-    FILEPATH = "/workspaces/XRPD-Toolbox/examples/i15-1/eiger_500k/1414223.nxs"
-    eiger = Eiger500K(filepath=FILEPATH, settings=SETTINGS)
+#     SETTINGS = EigerSettings()
+#     FILEPATH = "/workspaces/XRPD-Toolbox/examples/i15-1/eiger_500k/1414223.nxs"
+#     eiger = Eiger500K(filepath=FILEPATH, settings=SETTINGS)
 
-    calibrant = get_calibrant(calibrant_name="Si")
-    calibrant.wavelength = 0.161699 / 1e10
+#     calibrant = get_calibrant(calibrant_name="Si")
+#     calibrant.wavelength = 0.161699 / 1e10
 
-    pixel1 = PIXEL_SIZE
-    pixel2 = PIXEL_SIZE
+#     pixel1 = PIXEL_SIZE
+#     pixel2 = PIXEL_SIZE
 
-    shape = DEFAULT_MAX_SHAPE
+#     shape = DEFAULT_MAX_SHAPE
 
-    poni1 = pixel1 * shape[0] / 2
-    poni2 = pixel2 * shape[1] / 2
+#     poni1 = pixel1 * shape[0] / 2
+#     poni2 = pixel2 * shape[1] / 2
 
-    import pyFAI.detectors
+#     import pyFAI.detectors
 
-    ai = AzimuthalIntegrator(
-        detector=pyFAI.detectors.Detector(
-            pixel1=pixel1, pixel2=pixel2, max_shape=shape
-        ),
-        wavelength=calibrant.wavelength,
-        dist=0.25,
-        poni1=poni1,
-        poni2=poni2,
-        rot1=0,
-        rot2=0.1,
-        rot3=0,
-    )
+#     ai = AzimuthalIntegrator(
+#         detector=pyFAI.detectors.Detector(
+#             pixel1=pixel1, pixel2=pixel2, max_shape=shape
+#         ),
+#         wavelength=calibrant.wavelength,
+#         dist=0.25,
+#         poni1=poni1,
+#         poni2=poni2,
+#         rot1=0,
+#         rot2=0.1,
+#         rot3=0,
+#     )
 
-    calibration_image = calibrant.fake_calibration_image(
-        ai, shape=shape, resolution=0.01
-    )
+#     calibration_image = calibrant.fake_calibration_image(
+#         ai, shape=shape, resolution=0.01
+#     )
 
-    plt.imshow(calibration_image, norm=LogNorm())
-    plt.colorbar()
-    plt.show()
+#     plt.imshow(calibration_image, norm=LogNorm())
+#     plt.colorbar()
+#     plt.show()

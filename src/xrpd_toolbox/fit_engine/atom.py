@@ -57,18 +57,18 @@ class Atoms(XRPDBaseModel):
         )
 
 
-if __name__ == "__main__":
-    # Example usage
-    atom = Atom(
-        label="Si1",
-        element="Si",
-        xyz=np.array([0.0, 0.0, 0.0]),
-        b_iso=1.0,
-        occupancy=1.0,
-    )
+# if __name__ == "__main__":
+#     # Example usage
+#     atom = Atom(
+#         label="Si1",
+#         element="Si",
+#         xyz=np.array([0.0, 0.0, 0.0]),
+#         b_iso=1.0,
+#         occupancy=1.0,
+#     )
 
-    atoms = [atom, atom]
+#     atoms = [atom, atom]
 
-    positions = np.stack([a.xyz for a in atoms])
+#     positions = np.stack([a.xyz for a in atoms])
 
-    print(positions)
+#     print(positions)

@@ -314,23 +314,23 @@ def get_symmetry_tables():
     return itc
 
 
-if __name__ == "__main__":
-    _convert_symmetry_operations_yaml()
+# if __name__ == "__main__":
+#     _convert_symmetry_operations_yaml()
 
-    itc = get_symmetry_tables()
+#     itc = get_symmetry_tables()
 
-    print(itc.keys())
+#     print(itc.keys())
 
-    for i in range(1, 231):
-        print(i, itc[i].spacegroup, itc[i].crystal_class)
+#     for i in range(1, 231):
+#         print(i, itc[i].spacegroup, itc[i].crystal_class)
 
-    # spacegroup = itc["P212121"]
-    # spacegroup = itc["P21"]
+#     # spacegroup = itc["P212121"]
+#     # spacegroup = itc["P21"]
 
-    # print(spacegroup)
+#     # print(spacegroup)
 
-    # positions = np.array([[0, 0, 0]])
+#     # positions = np.array([[0, 0, 0]])
 
-    # spacegroup.apply_symmetry(positions)
+#     # spacegroup.apply_symmetry(positions)
 
-    # print(itc["P42/mnm"])
+#     # print(itc["P42/mnm"])

@@ -1160,77 +1160,77 @@ def plot_convs(conv: pd.DataFrame, steps):
     plt.close()
 
 
-if __name__ == "__main__":
-    method = "leastsq"
+# if __name__ == "__main__":
+#     method = "leastsq"
 
-    for i in range(27):
-        print(i, module_distance(i))
+#     for i in range(27):
+#         print(i, module_distance(i))
 
-    # quit()
+# quit()
 
-    # step_size = 18
-    # steps = np.arange(0, 90, step_size)
+# step_size = 18
+# steps = np.arange(0, 90, step_size)
 
-    # distance_file = "./outputs/cal_step_vs_distance.csv"
+# distance_file = "./outputs/cal_step_vs_distance.csv"
 
-    # conv = pd.read_csv(distance_file)
+# conv = pd.read_csv(distance_file)
 
-    # plot_convs(conv, steps)
+# plot_convs(conv, steps)
 
-    # quit()
+# quit()
 
-    # leastsq: Levenberg-Marquardt (default)
-    # ’least_squares’: Least-Squares minimization, using Trust Region Reflective method
-    # ’differential_evolution’: differential evolution
-    # ’brute’: brute force method
-    # ’basinhopping’: basinhopping
-    # ’ampgo’: Adaptive Memory Programming for Global Optimization
-    # ’nelder’: Nelder-Mead
-    # ’lbfgsb’: L-BFGS-B
-    # ’powell’: Powell
-    # ’cg’: Conjugate-Gradient
-    # ’newton’: Newton-CG
-    # ’cobyla’: Cobyla
-    # ’bfgs’: BFGS
-    # ’tnc’: Truncated Newton
-    # ’trust-ncg’: Newton-CG trust-region
-    # ’trust-krylov’: Newton GLTR trust-region
-    # ’trust-constr’: trust-region for constrained optimization
-    # ’slsqp’: Sequential Linear Squares Programming
-    # ’emcee’: Maximum likelihood via Monte-Carlo Markov Chain
-    # ’shgo’: Simplicial Homology Global Optimization
-    # ’dual_annealing’: Dual Annealing optimization
+# leastsq: Levenberg-Marquardt (default)
+# ’least_squares’: Least-Squares minimization, using Trust Region Reflective method
+# ’differential_evolution’: differential evolution
+# ’brute’: brute force method
+# ’basinhopping’: basinhopping
+# ’ampgo’: Adaptive Memory Programming for Global Optimization
+# ’nelder’: Nelder-Mead
+# ’lbfgsb’: L-BFGS-B
+# ’powell’: Powell
+# ’cg’: Conjugate-Gradient
+# ’newton’: Newton-CG
+# ’cobyla’: Cobyla
+# ’bfgs’: BFGS
+# ’tnc’: Truncated Newton
+# ’trust-ncg’: Newton-CG trust-region
+# ’trust-krylov’: Newton GLTR trust-region
+# ’trust-constr’: trust-region for constrained optimization
+# ’slsqp’: Sequential Linear Squares Programming
+# ’emcee’: Maximum likelihood via Monte-Carlo Markov Chain
+# ’shgo’: Simplicial Homology Global Optimization
+# ’dual_annealing’: Dual Annealing optimization
 
-    # methods = ["leastsq", "least_squares", "differential_evolution", "brute",
-    # "basinhopping", "ampgo", "nelder", "lbfgsb", "powell", "cg", "newton", "cobyla",
-    # "bfgs", "tnc", "trust-ncg", "trust-exact", "trust-krylov","trust-constr",
-    # "slsqp", "shgo", "dual_annealing"]
+# methods = ["leastsq", "least_squares", "differential_evolution", "brute",
+# "basinhopping", "ampgo", "nelder", "lbfgsb", "powell", "cg", "newton", "cobyla",
+# "bfgs", "tnc", "trust-ncg", "trust-exact", "trust-krylov","trust-constr",
+# "slsqp", "shgo", "dual_annealing"]
 
-    wavelength_in_ang = (
-        0.828783  # 0.828773  # Angstrom - as refined by Eamonn on the MAC
-    )
+# wavelength_in_ang = (
+#     0.828783  # 0.828773  # Angstrom - as refined by Eamonn on the MAC
+# )
 
-    # convs = []
+# # convs = []
 
-    # for step in steps:
-    lower_delta = 0
-    upper_delta = 35
+# # for step in steps:
+# lower_delta = 0
+# upper_delta = 35
 
-    cal = AngularCalibrateMythen(
-        wavelength_in_ang=wavelength_in_ang,
-        method=method,
-        module_centre=639.5,
-        lower_delta=lower_delta,
-        upper_delta=upper_delta,
-    )
+# cal = AngularCalibrateMythen(
+#     wavelength_in_ang=wavelength_in_ang,
+#     method=method,
+#     module_centre=639.5,
+#     lower_delta=lower_delta,
+#     upper_delta=upper_delta,
+# )
 
-    #     module_convs = [
-    #         abs(0.05 / cal.results_dict[f"conv_{module}"]) for module in range(28)
-    #     ]
-    #     convs.append(module_convs)
+#     module_convs = [
+#         abs(0.05 / cal.results_dict[f"conv_{module}"]) for module in range(28)
+#     ]
+#     convs.append(module_convs)
 
-    # convs = pd.DataFrame(convs)
+# convs = pd.DataFrame(convs)
 
-    # convs.to_csv(distance_file)
+# convs.to_csv(distance_file)
 
-    # print(convs)
+# print(convs)

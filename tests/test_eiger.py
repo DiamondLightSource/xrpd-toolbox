@@ -45,5 +45,5 @@ def test_simulated_eiger_1d_scan():
     assert len(y) == len(x)
 
 
-if __name__ == "__main__":
-    eiger.test()
+# if __name__ == "__main__":
+#     eiger.test()

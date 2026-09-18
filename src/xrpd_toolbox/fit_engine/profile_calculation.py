@@ -27,7 +27,6 @@ from xrpd_toolbox.fit_engine.fit_statistics import calculate_chi_squared
 from xrpd_toolbox.fit_engine.fitting_core import (
     Model,
     RefinementBaseModel,
-    refine_model,
 )
 from xrpd_toolbox.fit_engine.form_factors import X_RAY_FORM_FACTORS
 from xrpd_toolbox.fit_engine.lattice import (
@@ -1065,62 +1064,62 @@ class ReitveldRefinement(Model[ScatteringData]):
         plot_data.plot()
 
 
-if __name__ == "__main__":
-    output_name = "/workspaces/outputs/test.toml"
+# if __name__ == "__main__":
+#     output_name = "/workspaces/outputs/test.toml"
 
-    def test_refine_silicon():
-        cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
-        si_structure = Structure.load_from_cif(cif_filepath)
+#     def test_refine_silicon():
+#         cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
+#         si_structure = Structure.load_from_cif(cif_filepath)
 
-        beam_energy = 15
-        wavelength = beam_energy_to_wavelength(beam_energy)
+#         beam_energy = 15
+#         wavelength = beam_energy_to_wavelength(beam_energy)
 
-        data = ScatteringData.from_xye(
-            "/workspaces/XRPD-Toolbox/tests/data/1410696_summed_mythen3.xye",
-            #  "/workspaces/outputs/1429744_summed_mythen3.xye",
-            x_unit="tth",
-            data_type="xray",
-            wavelength=Parameter(value=wavelength, refine=False),
-        )
+#         data = ScatteringData.from_xye(
+#             "/workspaces/XRPD-Toolbox/tests/data/1410696_summed_mythen3.xye",
+#             #  "/workspaces/outputs/1429744_summed_mythen3.xye",
+#             x_unit="tth",
+#             data_type="xray",
+#             wavelength=Parameter(value=wavelength, refine=False),
+#         )
 
-        from xrpd_toolbox.fit_engine.background import (
-            # ChebyshevBackground,
-            LinearInterpolationBackground,
-        )
+#         from xrpd_toolbox.fit_engine.background import (
+#             # ChebyshevBackground,
+#             LinearInterpolationBackground,
+#         )
 
-        background = LinearInterpolationBackground.estimate(data.x, data.y, points=10)
+#         background = LinearInterpolationBackground.estimate(data.x, data.y, points=10)
 
-        model = ReitveldRefinement(
-            data=data, background=background, structure=si_structure
-        )
+#         model = ReitveldRefinement(
+#             data=data, background=background, structure=si_structure
+#         )
 
-        assert isinstance(model.background, Background)
-        model.background.refine_none()
+#         assert isinstance(model.background, Background)
+#         model.background.refine_none()
 
-        print(model.get_refinement_parameters())
+#         print(model.get_refinement_parameters())
 
-        model.irf.refine_none()
+#         model.irf.refine_none()
 
-        updated, model, result = refine_model(model, plot=True)
+#         updated, model, result = refine_model(model, plot=True)
 
-        model.save(output_name)
+#         model.save(output_name)
 
-        return model
+#         return model
 
-    def test_load_refinement_and_refine():
-        loaded_refinement = ReitveldRefinement.load(output_name)
+#     def test_load_refinement_and_refine():
+#         loaded_refinement = ReitveldRefinement.load(output_name)
 
-        loaded_refinement.calculate_profile()
-        loaded_refinement.plot()
+#         loaded_refinement.calculate_profile()
+#         loaded_refinement.plot()
 
-        # refine_model(loaded_refinement)
+#         # refine_model(loaded_refinement)
 
-    model = test_refine_silicon()
-    # test_load_refinement_and_refine()
+#     model = test_refine_silicon()
+#     # test_load_refinement_and_refine()
 
-    two_theta = np.linspace(1, 70, 1000)
+#     two_theta = np.linspace(1, 70, 1000)
 
-    width = FCJPseudoVoigt().calculate_peak_widths(two_theta)[0]
+#     width = FCJPseudoVoigt().calculate_peak_widths(two_theta)[0]
 
-    plt.plot(two_theta, width)
-    plt.show()
+#     plt.plot(two_theta, width)
+#     plt.show()

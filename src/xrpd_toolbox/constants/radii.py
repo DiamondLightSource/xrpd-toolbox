@@ -63,12 +63,12 @@ class ElementRadii(XRPDBaseModel):
             return None
 
 
-if __name__ == "__main__":
-    radii = ElementRadii()
-    print(radii.get_atomic_radius("Si"))
-    print(radii.get_interatomic_distance("Si", "Si"))
+# if __name__ == "__main__":
+#     radii = ElementRadii()
+#     print(radii.get_atomic_radius("Si"))
+#     print(radii.get_interatomic_distance("Si", "Si"))
 
-    mask = (radii.elements == "Fe") & (radii.charges == 2) & (radii.coordinations == 6)
-    print("Fe2+ CN=6 crystal radii:", radii.crystal_radii[mask])
-    print("Fe2+ CN=6 ionic radii:  ", radii.ionic_radii[mask])
-    print("Si atomic radius:", radii.atomic_radii["Si"])
+#     mask = (radii.elements == "Fe") & (radii.charges == 2) & (radii.coordinations==6)
+#     print("Fe2+ CN=6 crystal radii:", radii.crystal_radii[mask])
+#     print("Fe2+ CN=6 ionic radii:  ", radii.ionic_radii[mask])
+#     print("Si atomic radius:", radii.atomic_radii["Si"])

@@ -69,43 +69,43 @@ class PE2AD(BaseDataLoader):
         plt.show()
 
 
-if __name__ == "__main__":
-    import os
+# if __name__ == "__main__":
+#     import os
 
-    folder = "/dls/i15-1/data/2026/cm44163-1/"
-    file = "i15-1-95016.nxs"
+#     folder = "/dls/i15-1/data/2026/cm44163-1/"
+#     file = "i15-1-95016.nxs"
 
-    prefix = "i15-1-"
+#     prefix = "i15-1-"
 
-    sample_alignment_scans = {
-        "carbon_black": 94519,
-        "water": 94520,
-        "GaIn": 94521,
-        "NIST_Si": 95016,
-        "NaCl": 95017,
-        "HKUST1": 95018,
-    }
+#     sample_alignment_scans = {
+#         "carbon_black": 94519,
+#         "water": 94520,
+#         "GaIn": 94521,
+#         "NIST_Si": 95016,
+#         "NaCl": 95017,
+#         "HKUST1": 95018,
+#     }
 
-    for sample, number in sample_alignment_scans.items():
-        filepath = folder + prefix + str(number) + ".nxs"
+#     for sample, number in sample_alignment_scans.items():
+#         filepath = folder + prefix + str(number) + ".nxs"
 
-        output_file = f"/workspaces/outputs/i15-1/{sample}-{number}.csv"
+#         output_file = f"/workspaces/outputs/i15-1/{sample}-{number}.csv"
 
-        print(filepath)
+#         print(filepath)
 
-        if not os.path.exists(filepath):
-            print("it doesn't exist")
+#         if not os.path.exists(filepath):
+#             print("it doesn't exist")
 
-        pe2ad = PE2AD(filepath)
-        summed_images = pe2ad.sum_frames()
+#         pe2ad = PE2AD(filepath)
+#         summed_images = pe2ad.sum_frames()
 
-        index = np.linspace(0, len(summed_images), len(summed_images))
+#         index = np.linspace(0, len(summed_images), len(summed_images))
 
-        csv_data = np.stack((index, summed_images), axis=-1)
+#         csv_data = np.stack((index, summed_images), axis=-1)
 
-        np.savetxt(output_file, csv_data)
+#         np.savetxt(output_file, csv_data)
 
-        x, y = np.genfromtxt(output_file, unpack=True)
+#         x, y = np.genfromtxt(output_file, unpack=True)
 
-        plt.plot(x, y)
-        plt.show()
+#         plt.plot(x, y)
+#         plt.show()
