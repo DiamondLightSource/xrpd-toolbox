@@ -405,25 +405,25 @@ def fake_sample_alignment_i15_1(
     return fake_sample_centre_result.model_dump_json()
 
 
-if __name__ == "__main__":
-    BEAMLINE = "i15-1"
+# if __name__ == "__main__":
+#     BEAMLINE = "i15-1"
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
 
-    fake_sample_alignment_i15_1(
-        nexus_filepath, position_path="/entry/instrument/tth/data", beamline=BEAMLINE
-    )
+#     fake_sample_alignment_i15_1(
+#         nexus_filepath, position_path="/entry/instrument/tth/data", beamline=BEAMLINE
+#     )
 
-    folder = "/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
+#     folder = "/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
 
-    sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
+#     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
 
-    print(sample_alignment_files)
+#     print(sample_alignment_files)
 
-    for filepath in sample_alignment_files:
-        if ".csv" not in filepath:
-            continue
+#     for filepath in sample_alignment_files:
+#         if ".csv" not in filepath:
+#             continue
 
-        sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
+#         sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
 
-        # print(sample_centre_result)
+#         # print(sample_centre_result)
