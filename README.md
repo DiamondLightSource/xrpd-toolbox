@@ -40,13 +40,13 @@ DEFAULT_DESTINATIONS = [
     "/topic/gda.messages.scan",
 ]
 
-my_destinations = ["/topuc/my_dest"]
+my_destinations = ["/topic/my_dest"]
 
 #if you want to listen on other you can use:
 
 client = Messenger("i15-1", broker="rabbitmq", username="guest", password="guest", destinations=my_destinations)
 
-if you want to connect to a specific message bus too:
+#if you want to connect to a specific message bus too:
 
 client = Messenger(host=MY_HOST, port=MY_PORT, username="guest", password="guest", destinations=my_destinations)
 
