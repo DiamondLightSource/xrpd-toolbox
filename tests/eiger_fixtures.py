@@ -80,16 +80,12 @@ def build_eiger_nexus(
             else:
                 eiger_grp.create_dataset("data", data=data)
 
-        if include_tth:
-            eiger_grp.create_dataset("tth", data=np.asarray(tth))
-
         instrument_grp = entry_grp.create_group("instrument")
         instrument_eiger_grp = instrument_grp.create_group(eiger_data_path)
 
-        if include_count_time:
-            instrument_eiger_grp.create_dataset(
-                "count_time", data=np.asarray(count_time)
-            )
+        if include_tth:
+            tth_grp = instrument_grp.create_group("tth")
+            tth_grp.create_dataset("data", data=np.asarray(tth))
 
         if include_mask:
             instrument_eiger_grp.create_dataset(
@@ -101,6 +97,11 @@ def build_eiger_nexus(
             xtal_grp.create_dataset("energy_kev", data=energy_kev)
 
         plan_metadata_grp = entry_grp.create_group("plan_metadata")
+
+        if include_count_time:
+            plan_metadata_grp.create_dataset(
+                "exposure_time_per_frame", data=np.asarray(count_time)
+            )
 
         if include_calibrant and calibrant is not None:
             plan_metadata_grp.create_dataset("calibrant", data=calibrant)
