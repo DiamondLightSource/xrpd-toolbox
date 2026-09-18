@@ -26,7 +26,6 @@ from xrpd_toolbox.fit_engine.peaks import (
     peak_factory,
 )
 from xrpd_toolbox.plotting import FittedDataPlot
-from xrpd_toolbox.utils.messenger import DEFAULT_DII_PROCESSED_DESTINATION, Messenger
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
     h5_to_array,
@@ -176,17 +175,19 @@ class SampleAligner(Model[XYEData]):
         if self.data.source is not None:
             title = os.path.basename(self.data.source)
         else:
-            title = None
+            title = ""
 
         profile = calculate_profile(self.data.x, self.sample_and_capillary)
         profile = profile + self.background.calculate(self.data.x)
 
         plot_data = FittedDataPlot(
-            data=self.data,
+            title=title,
+            x=self.data.x,
+            y=self.data.y,
             calc=profile,
             diff=self.data.y - profile,
             background=self.background.calculate(self.data.x),
-            title=title,
+            data_type="Sample_Alignment",
             markers=np.array([self.centre]),
         )
 
@@ -345,7 +346,7 @@ def sample_alignment(
         data = BaseDataLoader(filepath=filepath, dataset_path=dataset_path)
         summed_frames = data.sum_frames()
         index = np.linspace(0, len(summed_frames), len(summed_frames))
-        xyedata = XYEData(x=index, y=summed_frames)
+        xyedata = XYEData(title="sample_alignment", x=index, y=summed_frames)
 
     best_model = run_sample_alignment(data=xyedata)
 
@@ -354,24 +355,20 @@ def sample_alignment(
 
     plot_data = best_model.get_plot_data()
 
+    if beamline is not None:
+        plot_data.publish(beamline=beamline)
+
     if save:
         processed_dir, file_name = processed_directory_and_filename(filepath)
         save_file = os.path.join(processed_dir, file_name + "_alignment_fit.png")
         plot_data.plot(save_to=save_file)
-
-    if beamline is not None:
-        messenger = Messenger("i15-1", destinations=["/topic/public.data.plot"])
-        messenger.send_message(
-            DEFAULT_DII_PROCESSED_DESTINATION, sample_centre_result.model_dump_json()
-        )
-        messenger.send_plot_data(plot_data)
 
     return sample_centre_result.model_dump_json()
 
 
 def fake_sample_alignment_i15_1(
     filepath: str | Path,
-    dataset_path: str = "/entry/instrument/fastcs_eiger/fastcs_eiger",
+    dataset_path: str = "/entry/instrument/fastcs_eiger/data",
     position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
@@ -382,6 +379,8 @@ def fake_sample_alignment_i15_1(
     sample_positions = h5_to_array(filepath, position_path)
 
     fake_centre = sample_positions[int(len(sample_positions) / 2)]
+    fake_centre = float(fake_centre)
+
     fake_peak = GaussianPeak(amplitude=1, centre=fake_centre, fwhm=0.5)
 
     fake_sample_centre_result = SampleCenteringResult(
@@ -389,28 +388,42 @@ def fake_sample_alignment_i15_1(
     )
 
     if beamline is not None:
-        messenger = Messenger("i15-1", destinations=["/topic/public.data.plot"])
-        messenger.send_message(
-            DEFAULT_DII_PROCESSED_DESTINATION,
-            fake_sample_centre_result.model_dump_json(),
+        calc = fake_peak.calculate(sample_positions)
+        noise = np.random.normal(loc=0, scale=0.5, size=sample_positions.shape)
+
+        plot_data = FittedDataPlot(
+            title="fake_sample_alignment",
+            x=sample_positions,
+            y=fake_peak.calculate(sample_positions),
+            calc=calc + noise,
+            background=np.zeros_like(sample_positions),
+            markers=[fake_centre],
         )
+
+        plot_data.publish(beamline=beamline)
 
     return fake_sample_centre_result.model_dump_json()
 
 
-if __name__ == "__main__":
-    BEAMLINE = "i15-1"
+# if __name__ == "__main__":
+#     BEAMLINE = "i15-1"
 
-    folder = "/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
 
-    sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
+#     fake_sample_alignment_i15_1(
+#         nexus_filepath, position_path="/entry/instrument/tth/data", beamline=BEAMLINE
+#     )
 
-    print(sample_alignment_files)
+#     folder = "/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1/sample_alignment_data"
 
-    for filepath in sample_alignment_files:
-        if ".csv" not in filepath:
-            continue
+#     sample_alignment_files = [os.path.join(folder, f) for f in os.listdir(folder)]
 
-        sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
+#     print(sample_alignment_files)
 
-        print(sample_centre_result)
+#     for filepath in sample_alignment_files:
+#         if ".csv" not in filepath:
+#             continue
+
+#         sample_centre_result = sample_alignment(filepath, beamline=BEAMLINE)
+
+#         # print(sample_centre_result)

@@ -5,12 +5,14 @@ import pytest
 import scipy.integrate as integrate
 
 from xrpd_toolbox.fit_engine.peaks import find_and_fit_peaks, gaussian
+from xrpd_toolbox.utils.files import (
+    get_filenumber_from_filepath,
+    get_folder_paths,
+    nexus_file_match,
+)
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength, two_theta_to_q
 from xrpd_toolbox.utils.utils import (
-    get_filenumber_from_nxs,
-    get_folder_paths,
     load_int_array_from_file,
-    nexus_file_match,
     normalise,
     normalise_to,
 )
@@ -18,7 +20,7 @@ from xrpd_toolbox.utils.utils import (
 
 def test_get_filenumber_from_nxs():
     filedir = "/dls/i11/test/cm12345-1/i11-99999.nxs"
-    assert get_filenumber_from_nxs(filedir) == 99999
+    assert get_filenumber_from_filepath(filedir) == 99999
 
 
 def test_nexus_file_match():

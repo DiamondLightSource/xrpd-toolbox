@@ -577,6 +577,7 @@ class XRPDBaseModel(BaseModel):
 
 
 class XYEData(XRPDBaseModel):
+    title: str
     x: SerialisableNDArray = Field(repr=False)
     y: SerialisableNDArray = Field(repr=False)
     e: SerialisableNDArray | None = Field(default=None, repr=False)
@@ -600,7 +601,7 @@ class XYEData(XRPDBaseModel):
             x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
             e = None
 
-        return cls(x=x, y=y, e=e, source=str(filepath))
+        return cls(title=Path(filepath).stem, x=x, y=y, e=e, source=str(filepath))
 
     def save_to_xye(self, filepath):
         if self.e is None:
@@ -666,6 +667,7 @@ class ScatteringData(XYEData):
             e = None
 
         return cls(
+            title=Path(filepath).stem,
             x=x,
             y=y,
             e=e,
@@ -701,6 +703,7 @@ class ScatteringData(XYEData):
         )
 
         return cls(
+            title=Path(filepath).stem,
             x=x,
             y=y,
             e=e,

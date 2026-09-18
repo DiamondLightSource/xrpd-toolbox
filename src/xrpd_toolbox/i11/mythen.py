@@ -20,7 +20,6 @@ from xrpd_toolbox.core import XRPDBaseModel, XYEData
 
 # from xrpd_toolbox.fit_engine.peaks import fit_peaks
 from xrpd_toolbox.fit_engine.profile_calculation import Structure
-from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.utils import (
@@ -677,7 +676,10 @@ class MythenDetector:
         )
 
         self.xye_data = XYEData(
-            x=self.binned_tth, y=self.binned_counts, e=self.binned_error
+            title=Path(self.filepath).stem,
+            x=self.binned_tth,
+            y=self.binned_counts,
+            e=self.binned_error,
         )
         self.xye_data.save_to_xye(self.xye_filepath_out)
 
@@ -695,14 +697,9 @@ class MythenDetector:
 
         print(f"Data saved to: {self.processed_nexus_filepath}")
 
-        if plot:
-            self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
-            self.data_plot.plot()
-
         if control:
             try:
                 self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
-                self.data_plot = DataPlot(data=self.xye_data, title=self.filename)
             except Exception as e:
                 print(f"Could not connect with control - {e}")
                 pass
