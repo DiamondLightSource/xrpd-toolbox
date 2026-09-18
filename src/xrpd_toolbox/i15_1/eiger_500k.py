@@ -109,7 +109,7 @@ class EigerDataLoader:
     @cached_property
     def positions(self) -> np.ndarray:
 
-        position_path = f"{self.entry}/{self.eiger_data_path}/tth"
+        position_path = f"/{self.entry}/instrument/tth/data"
 
         deltas = h5_to_array(self.filepath, position_path)
         return deltas
