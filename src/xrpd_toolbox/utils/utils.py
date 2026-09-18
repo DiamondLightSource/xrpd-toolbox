@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from collections import defaultdict
@@ -12,6 +13,8 @@ import numpy as np
 from h5py import Dataset
 from pyFAI.calibrant import get_calibrant
 from scipy.interpolate import interp1d
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: Decide whether we can just use the normal logging within python
@@ -609,8 +612,10 @@ def wait_for_file(
     start_time = time.monotonic()
 
     while not filepath.exists():
-        if timeout is not None and time.monotonic() - start_time >= timeout:
+        duration = time.monotonic() - start_time
+        if timeout is not None and duration >= timeout:
             raise TimeoutError(f"{filepath} does not exist after {timeout} seconds")
+        logging.info(f"No file after {duration} seconds")
         time.sleep(poll_interval)
 
 
@@ -634,8 +639,9 @@ def wait_for_finished_file(
 
     while True:
         now = time.monotonic()
+        duration = now - start_time
 
-        if timeout is not None and now - start_time >= timeout:
+        if timeout is not None and duration >= timeout:
             if filepath.exists():
                 raise TimeoutError(
                     f"{filepath} did not finish writing after {timeout} seconds"
@@ -651,5 +657,5 @@ def wait_for_finished_file(
             elif stable_since is not None and now - stable_since >= stable_for:
                 # stable_since always set when last_size is
                 return
-
+        logging.info(f"No finished file after {duration} seconds")
         time.sleep(poll_interval)
