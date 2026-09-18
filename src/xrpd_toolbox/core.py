@@ -581,8 +581,6 @@ class XYEData(XRPDBaseModel):
     x: SerialisableNDArray = Field(repr=False)
     y: SerialisableNDArray = Field(repr=False)
     e: SerialisableNDArray | None = Field(default=None, repr=False)
-    x_unit: str = "index"
-    y_unit: str = "Intensity (Arb. Units)"
     source: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")

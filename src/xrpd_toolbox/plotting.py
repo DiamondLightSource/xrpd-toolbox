@@ -35,8 +35,8 @@ class DataPlot(XYEData):
     # derived from filepath instead
     instrument_session: str | None = None
     # axis labels for the frontend, e.g. "2θ / °" and "Intensity / counts"
-    x_label: str | None = "index"
-    y_label: str | None = "Intensity (Arb. Units)"
+    x_label: str = "index"
+    y_label: str = "Intensity (Arb. Units)"
     data_type: str | None = None
     plot_type: PLOT_TYPES = Field(default="line")
     # replace an existing plot that has the same title rather than adding a
@@ -76,8 +76,8 @@ class DataPlot(XYEData):
         if self.title is not None:
             plt.title(self.title)
         plt.scatter(self.x, self.y, label="Obs", color="black", s=5)
-        plt.xlabel(self.x_unit)
-        plt.ylabel(self.y_unit)
+        plt.xlabel(self.x_label)
+        plt.ylabel(self.y_label)
         plt.legend()
         plt.show()
 
@@ -154,8 +154,8 @@ class FittedDataPlot(DataPlot):
                 label="Marker",
             )
 
-        plt.xlabel(self.x_unit)
-        plt.ylabel(self.y_unit)
+        plt.xlabel(self.x_label)
+        plt.ylabel(self.y_label)
         plt.legend()
         if save_to is not None:
             plt.savefig(save_to)

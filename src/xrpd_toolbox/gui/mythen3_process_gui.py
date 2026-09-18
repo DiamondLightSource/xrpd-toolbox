@@ -138,8 +138,8 @@ class PlotWindow(QWidget):
         else:
             ax.plot(data.x, data.y, linewidth=1)
 
-        ax.set_xlabel(data.x_unit)
-        ax.set_ylabel(data.y_unit)
+        ax.set_xlabel("tth (deg)")
+        ax.set_ylabel("Intensity (Arb. Units)")
         if data.source:
             ax.set_title(Path(data.source).name)
 
@@ -805,7 +805,7 @@ class MainWindow(QWidget):
             )
             return
 
-        data.x_unit = "tth"
+        # data.x_unit = "tth"
 
         plot_window = PlotWindow(data, title=Path(output_path).name)
         self.plot_windows.append(plot_window)
