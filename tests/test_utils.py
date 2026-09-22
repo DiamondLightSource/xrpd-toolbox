@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -15,6 +16,7 @@ from xrpd_toolbox.utils.utils import (
     load_int_array_from_file,
     normalise,
     normalise_to,
+    processed_directory_and_filename,
 )
 
 
@@ -140,6 +142,25 @@ def test_find_and_fit_peaks_with_n_peaks():
     assert len(peaks) == 4
 
     assert np.allclose([float(p.centre) for p in peaks], [20, 40, 60, 80], atol=0.5)
+
+
+def test_processed_directory_and_filename_creates_processed_subfolder(tmp_path):
+    filepath = tmp_path / "scan_1234.nxs"
+    filepath.touch()
+
+    processed_dir, file_stem = processed_directory_and_filename(filepath)
+
+    assert processed_dir == str(tmp_path / "processed")
+    assert Path(processed_dir).is_dir()
+    assert file_stem == "scan_1234"
+
+
+def test_processed_directory_and_filename_accepts_directory_path(tmp_path):
+    processed_dir, file_stem = processed_directory_and_filename(tmp_path)
+
+    assert processed_dir == str(tmp_path / "processed")
+    assert Path(processed_dir).is_dir()
+    assert file_stem == tmp_path.name
 
 
 # if __name__ == "__main__":

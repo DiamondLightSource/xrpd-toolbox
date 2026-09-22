@@ -10,7 +10,10 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     integrate_with_goniometer,
 )
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
-from xrpd_toolbox.utils.utils import wait_for_finished_file
+from xrpd_toolbox.utils.utils import (
+    processed_directory_and_filename,
+    wait_for_finished_file,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -51,7 +54,7 @@ def do_eiger_calibration(nexus_filepath: str | Path):
     )
     nexus_filepath = Path(nexus_filepath)
 
-    output_dir = str(nexus_filepath.parent)
+    output_dir, _ = processed_directory_and_filename(nexus_filepath)
 
     goniometer_model_json, metadata_json = build_and_save_goniometer(
         nexus_filepath=nexus_filepath,
@@ -91,16 +94,14 @@ def do_eiger_data_reduction(
     unique_positions = np.unique(eiger_data.positions)
     mask = eiger_data.get_mask()
 
-    if output_xy_filepath is None:
-        output_xy_filepath = nexus_filepath.parent / (
-            nexus_filepath.stem + "_fastcs_eiger.xy"
-        )
+    processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
 
-    goniometer_dir = str(nexus_filepath.parent)
+    if output_xy_filepath is None:
+        output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
 
     output_xy_filepath = integrate_with_goniometer(
         images=summed_and_normalised_frames,
-        goniometer_dir=goniometer_dir,
+        goniometer_dir=processed_dir,
         positions=unique_positions,
         mask=mask,
         output_xy_filepath=output_xy_filepath,
@@ -119,7 +120,10 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     composition = eiger_data.get_composition()
     wavelength = eiger_data.get_wavelength()
     sample_environment_filepath = eiger_data.get_sample_environment_scan_filepath()
-    background_file_xy = Path(sample_environment_filepath.replace(".nxs", ".xy"))
+    bg_processed_dir, bg_file_name = processed_directory_and_filename(
+        sample_environment_filepath
+    )
+    background_file_xy = Path(bg_processed_dir) / (bg_file_name + "_fastcs_eiger.xy")
 
     if not background_file_xy.exists():
         try:

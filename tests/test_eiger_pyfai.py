@@ -263,7 +263,7 @@ def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
     }
 
 
-def test_build_and_save_goniometer_default_output_dir_is_nexus_parent(
+def test_build_and_save_goniometer_default_output_dir_is_processed_subfolder(
     tmp_path, fake_gonioref
 ):
     images = np.zeros((2, 4, 5))
@@ -278,8 +278,9 @@ def test_build_and_save_goniometer_default_output_dir_is_nexus_parent(
         wavelength_in_angstrom=0.161699,
     )
 
-    assert Path(gonio_path).parent == nexus_filepath.parent
-    assert Path(meta_path).parent == nexus_filepath.parent
+    expected_dir = nexus_filepath.parent / "processed"
+    assert Path(gonio_path).parent == expected_dir
+    assert Path(meta_path).parent == expected_dir
 
 
 def test_build_and_save_goniometer_stores_radial_range_and_npt(tmp_path, fake_gonioref):
