@@ -219,6 +219,64 @@ def test_plan_name(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# EigerDataLoader - single persistent file handle
+# ---------------------------------------------------------------------------
+
+
+def test_get_i0_is_cached(nexus_file):
+    loader = EigerDataLoader(nexus_file)
+
+    # cached_property: second call returns the same cached array, rather
+    # than re-reading the dataset from disk
+    assert loader.get_i0() is loader.get_i0()
+
+
+def test_data_loader_only_opens_the_file_once(nexus_file):
+    import xrpd_toolbox.i15_1.eiger_500k as eiger_500k_module
+
+    open_count = 0
+    real_file_cls = eiger_500k_module.File
+
+    class CountingFile(real_file_cls):
+        def __init__(self, *args, **kwargs):
+            nonlocal open_count
+            open_count += 1
+            super().__init__(*args, **kwargs)
+
+    with patch.object(eiger_500k_module, "File", CountingFile):
+        loader = EigerDataLoader(nexus_file)  # opens the file once, in __init__
+
+        # methods that used to each open their own fresh file handle
+        loader.get_data(0)
+        loader.get_data([0, 2])
+        loader.get_i0()
+        loader.get_i0()
+        loader.positions  # noqa: B018
+        loader.energy_kev  # noqa: B018
+
+    assert open_count == 1
+
+
+def test_close_releases_the_file_handle(nexus_file):
+    loader = EigerDataLoader(nexus_file)
+    loader.positions  # noqa: B018 - force the handle to actually be opened
+
+    loader.close()
+
+    assert loader._file is None
+    # closing twice is a no-op, not an error
+    loader.close()
+
+
+def test_context_manager_closes_file_on_exit(nexus_file):
+    with EigerDataLoader(nexus_file) as loader:
+        loader.positions  # noqa: B018
+        assert loader._file is not None
+
+    assert loader._file is None
+
+
+# ---------------------------------------------------------------------------
 # Eiger500K construction / geometry handling
 # ---------------------------------------------------------------------------
 

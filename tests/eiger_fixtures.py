@@ -48,6 +48,8 @@ def build_eiger_nexus(
     include_background: bool = True,
     plan_name: str | None = "data_collection",
     include_plan_name: bool = True,
+    i0: np.ndarray | None = None,
+    include_i0: bool = True,
 ) -> Path:
     """Build a minimal NeXus-like HDF5 file with the datapaths that
     EigerDataLoader reads.
@@ -67,6 +69,9 @@ def build_eiger_nexus(
 
     if count_time is None:
         count_time = np.full(n_frames, 0.1)
+
+    if i0 is None:
+        i0 = np.full(n_frames, 1.0)
 
     with h5py.File(path, "w") as f:
         entry_grp = f.create_group(entry)
@@ -111,5 +116,9 @@ def build_eiger_nexus(
 
         if include_plan_name and plan_name is not None:
             plan_metadata_grp.create_dataset("plan_name", data=plan_name)
+
+        if include_i0:
+            i0_grp = entry_grp.create_group("i0")
+            i0_grp.create_dataset("data", data=np.asarray(i0))
 
     return path
