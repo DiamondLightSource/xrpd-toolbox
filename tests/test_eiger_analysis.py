@@ -191,11 +191,12 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path):
     ):
         result_path = eiger_analysis.do_eiger_data_reduction(nexus_filepath)
 
-    expected_path = tmp_path / "processed" / "scan_fastcs_eiger.xy"
+    expected_path = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
     assert result_path == expected_path
     assert expected_path.exists()
-    # the same "processed" folder used for the output file must be searched
-    # for a previously-saved goniometer calibration
+    # the goniometer calibration is shared across every file in the
+    # directory, so it must be looked up in the flat processed/ folder, not
+    # the per-file processed/scan/ subfolder used for the output xy
     assert mock_integrate.call_args.kwargs["goniometer_dir"] == str(
         tmp_path / "processed"
     )
@@ -237,9 +238,9 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
     bg_nexus_filepath = tmp_path / "empty_capillary.nxs"
     bg_nexus_filepath.touch()
 
-    processed_dir = tmp_path / "processed"
-    processed_dir.mkdir()
-    existing_bg_xy = processed_dir / "empty_capillary_fastcs_eiger.xy"
+    bg_processed_dir = tmp_path / "processed" / "empty_capillary"
+    bg_processed_dir.mkdir(parents=True)
+    existing_bg_xy = bg_processed_dir / "empty_capillary_fastcs_eiger.xy"
     existing_bg_xy.write_text("previously reduced background")
 
     fake_eiger_data = _fake_eiger_data(
@@ -255,7 +256,9 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
         patch.object(eiger_analysis, "do_eiger_data_reduction") as mock_reduction,
         patch.object(eiger_analysis, "send_xy_to_pdfcurl") as mock_send,
     ):
-        mock_reduction.return_value = processed_dir / "scan_fastcs_eiger.xy"
+        mock_reduction.return_value = (
+            tmp_path / "processed" / "scan" / ("scan_fastcs_eiger.xy")
+        )
 
         eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
 
@@ -281,7 +284,9 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
         ),
     )
 
-    expected_bg_xy = tmp_path / "processed" / "empty_capillary_fastcs_eiger.xy"
+    expected_bg_xy = (
+        tmp_path / "processed" / "empty_capillary" / "empty_capillary_fastcs_eiger.xy"
+    )
 
     with (
         patch.object(eiger_analysis, "EigerDataLoader", return_value=fake_eiger_data),
@@ -290,7 +295,7 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
     ):
         mock_reduction.side_effect = [
             expected_bg_xy,
-            tmp_path / "processed" / "scan_fastcs_eiger.xy",
+            tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy",
         ]
 
         eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)

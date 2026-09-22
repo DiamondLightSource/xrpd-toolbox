@@ -64,9 +64,12 @@ def test_sample_alignment_saves_plot_into_processed_subfolder(tmp_path):
 
     sample_alignment(csv_copy, save=True)
 
-    processed_dir = tmp_path / "processed"
+    processed_dir = tmp_path / "processed" / "NIST_Si-95016"
     expected_plot = processed_dir / "NIST_Si-95016_alignment_fit.png"
     assert processed_dir.is_dir()
     assert expected_plot.exists()
-    # nothing should have been written next to the source csv itself
+    # nothing should have been written next to the source csv itself, or
+    # directly in the flat processed/ folder (that's for shared, non-per-file
+    # data like goniometer calibrations)
     assert not (tmp_path / "NIST_Si-95016_alignment_fit.png").exists()
+    assert not (tmp_path / "processed" / "NIST_Si-95016_alignment_fit.png").exists()

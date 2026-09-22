@@ -190,7 +190,9 @@ def build_and_save_goniometer(
     nexus_path = Path(nexus_filepath)
 
     if output_dir is None:
-        output_dir_str, _ = processed_directory_and_filename(nexus_path)
+        output_dir_str, _ = processed_directory_and_filename(
+            nexus_path, nest_by_filename=False
+        )
         output_dir = Path(output_dir_str)
     else:
         output_dir = Path(output_dir)

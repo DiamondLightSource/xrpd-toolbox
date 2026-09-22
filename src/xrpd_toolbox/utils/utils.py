@@ -586,14 +586,31 @@ def cluster_points_auto(
     return labels, n_groups
 
 
-def processed_directory_and_filename(filepath: str | Path) -> tuple[str, str]:
+def processed_directory_and_filename(
+    filepath: str | Path, nest_by_filename: bool = True
+) -> tuple[str, str]:
+    """Returns (and creates) the processed-data directory for filepath, plus
+    its filename stem.
+
+    By default the processed directory is nested under a subfolder named
+    after filepath's stem, e.g. for /a/b/i15-1-12345.nxs this is
+    /a/b/processed/i15-1-12345 - so that files derived from different nexus
+    files never collide.
+
+    Pass nest_by_filename=False for data that is shared across every file in
+    a directory rather than specific to one of them (eg. a goniometer
+    calibration), which should just go directly in /a/b/processed.
+    """
     path = Path(filepath)
 
     base_dir = path.parent if path.suffix else path
+    file_stem = path.stem  # filename without extension
+
     processed_dir = base_dir / "processed"
+    if nest_by_filename:
+        processed_dir = processed_dir / file_stem
 
     processed_dir.mkdir(parents=True, exist_ok=True)
-    file_stem = path.stem  # filename without extension
 
     return str(processed_dir), str(file_stem)
 
