@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,7 @@ from xrpd_toolbox.fit_engine.background import ConstantBackground
 from xrpd_toolbox.i15_1.sample_alignment import (
     SampleAligner,
     run_sample_alignment,
+    sample_alignment,
     sample_alignment_model_builder,
 )
 
@@ -54,3 +56,20 @@ def test_run_sample_alignment_returns_centered_model(
     assert len(model.sample_and_capillary) > 0
     assert model.data.x.shape[0] > 0
     assert model.centre == pytest.approx(expected_centre, abs=2)
+
+
+def test_sample_alignment_saves_plot_into_processed_subfolder(tmp_path):
+    csv_copy = tmp_path / "NIST_Si-95016.csv"
+    shutil.copy(TEST_FILE, csv_copy)
+
+    sample_alignment(csv_copy, save=True)
+
+    processed_dir = tmp_path / "processed" / "NIST_Si-95016"
+    expected_plot = processed_dir / "NIST_Si-95016_alignment_fit.png"
+    assert processed_dir.is_dir()
+    assert expected_plot.exists()
+    # nothing should have been written next to the source csv itself, or
+    # directly in the flat processed/ folder (that's for shared, non-per-file
+    # data like goniometer calibrations)
+    assert not (tmp_path / "NIST_Si-95016_alignment_fit.png").exists()
+    assert not (tmp_path / "processed" / "NIST_Si-95016_alignment_fit.png").exists()

@@ -29,6 +29,8 @@ from pyFAI.goniometer import (
     SingleGeometry,
 )
 
+from xrpd_toolbox.utils.utils import processed_directory_and_filename
+
 logger = logging.getLogger(__name__)
 
 # Geometry model
@@ -188,10 +190,13 @@ def build_and_save_goniometer(
     nexus_path = Path(nexus_filepath)
 
     if output_dir is None:
-        output_dir = Path(nexus_path.parent)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir_str, _ = processed_directory_and_filename(
+            nexus_path, nest_by_filename=False
+        )
+        output_dir = Path(output_dir_str)
     else:
         output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loaded %d calibration frames from %s", len(angles), nexus_path)
     wavelength_m = wavelength_in_angstrom / 1e10

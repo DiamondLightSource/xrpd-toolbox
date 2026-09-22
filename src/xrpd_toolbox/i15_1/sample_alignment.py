@@ -345,8 +345,10 @@ def sample_alignment(
 
         data = BaseDataLoader(filepath=filepath, dataset_path=dataset_path)
         summed_frames = data.sum_frames()
-        index = np.linspace(0, len(summed_frames), len(summed_frames))
-        xyedata = XYEData(title="sample_alignment", x=index, y=summed_frames)
+        # index = np.linspace(0, len(summed_frames), len(summed_frames))
+        positions = h5_to_array(filepath, position_path)
+
+        xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
 
     best_model = run_sample_alignment(data=xyedata)
 
