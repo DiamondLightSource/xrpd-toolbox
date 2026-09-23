@@ -190,7 +190,7 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-# if __name__ == "__main__":  # pragma: no cover - manual/interactive smoke test
+# if __name__ == "__main__":  # pragma
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
 
 #     import matplotlib.pyplot as plt

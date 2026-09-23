@@ -18,11 +18,7 @@ from pyFAI.method_registry import IntegrationMethod
 
 from xrpd_toolbox.core import XRPDBaseModel
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
-from xrpd_toolbox.utils.utils import (
-    get_entry,
-    h5_to_array,
-    h5_to_string,
-)
+from xrpd_toolbox.utils.utils import h5_to_array
 
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 250  # mm
@@ -95,6 +91,17 @@ class EigerSettings(XRPDBaseModel):
 
 
 class EigerDataLoader:
+    """Reads a single nexus file's worth of Eiger data.
+
+    Keeps one h5py.File handle open for the lifetime of the instance instead
+    of reopening the file on every read - most of these methods are called
+    once per unique two-theta position when reducing a scan (see
+    sum_unique_two_theta_positions_and_normalise), and re-opening the file
+    from scratch every time was the dominant cost there. Call close() (or
+    use as a context manager) to release the handle deterministically;
+    otherwise it is released when the instance is garbage collected.
+    """
+
     def __init__(
         self,
         filepath: str | Path,
@@ -102,16 +109,53 @@ class EigerDataLoader:
     ):
         self.filepath = str(filepath)
         self.eiger_data_path = eiger_data_path
+        self._file: File | None = None
 
-        self.entry = get_entry(self.filepath)  # /entry
+        self.entry = list(self.file.keys())[0]  # /entry
         self.dataset_path = f"/{self.entry}/{self.eiger_data_path}/data"
+
+    @property
+    def file(self) -> File:
+        if self._file is None:
+            self._file = File(self.filepath, "r", libver="latest", swmr=True)
+        return self._file
+
+    def close(self) -> None:
+        if self._file is not None:
+            self._file.close()
+            self._file = None
+
+    def __enter__(self) -> "EigerDataLoader":
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self.close()
+
+    def _read_array(self, data_path: str) -> np.ndarray:
+        data = self.file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            return np.asarray(data)
+        else:
+            raise ValueError(f"Data is None at {data_path} in {self.filepath}")
+
+    def _read_string(self, data_path: str) -> str:
+        data = self.file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            value = data[()]
+
+            if isinstance(value, bytes):
+                value = value.decode()
+
+            return value
+        else:
+            raise ValueError(f"Data is None at {data_path} in {self.filepath}")
 
     @cached_property
     def positions(self) -> np.ndarray:
 
         position_path = f"/{self.entry}/instrument/tth/data"
 
-        deltas = h5_to_array(self.filepath, position_path)
+        deltas = self._read_array(position_path)
         return deltas
 
     def get_unique_tth_positions(self):
@@ -124,14 +168,14 @@ class EigerDataLoader:
 
         count_time_path = f"/{self.entry}/plan_metadata/exposure_time_per_frame"
 
-        return h5_to_array(self.filepath, count_time_path)
+        return self._read_array(count_time_path)
 
     @cached_property
     def energy_kev(self) -> float:
 
         energy_kev_data_path = f"/{self.entry}/instrument/xtal/energy_kev"
 
-        energy_kev_arr = h5_to_array(self.filepath, energy_kev_data_path)
+        energy_kev_arr = self._read_array(energy_kev_data_path)
 
         energy_kev = float(np.mean(energy_kev_arr))
 
@@ -163,31 +207,28 @@ class EigerDataLoader:
         frames: int | Collection[int] | slice,
     ):
 
-        with File(self.filepath, "r") as file:
-            if self.dataset_path not in file:
-                raise ValueError(
-                    f"Dataset path {self.dataset_path} not found in HDF5 file."
-                )
+        if self.dataset_path not in self.file:
+            raise ValueError(
+                f"Dataset path {self.dataset_path} not found in HDF5 file."
+            )
 
-            data = file.get(self.dataset_path)
+        data = self.file.get(self.dataset_path)
 
-            if (data is not None) and isinstance(data, Dataset):
-                if data.ndim < 1:
-                    raise ValueError("Data has insufficient dimensions.")
-                module_frame_data = data[frames, ...]
+        if (data is not None) and isinstance(data, Dataset):
+            if data.ndim < 1:
+                raise ValueError("Data has insufficient dimensions.")
+            module_frame_data = data[frames, ...]
 
-                return np.asarray(module_frame_data)
-            else:
-                raise ValueError(
-                    f"Data at {self.dataset_path} in {self.filepath}is None."
-                )
+            return np.asarray(module_frame_data)
+        else:
+            raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
 
     @cached_property
     def mask_filepath(self):
 
         pixel_mask_path = f"{self.entry}/instrument/{self.eiger_data_path}/pixel_mask"
 
-        mask_filepath = h5_to_string(self.filepath, pixel_mask_path)
+        mask_filepath = self._read_string(pixel_mask_path)
 
         return mask_filepath
 
@@ -208,7 +249,7 @@ class EigerDataLoader:
         calibrant_path = (
             f"/{self.entry}/plan_metadata/auxiliary_scans/Standard Sample/pin/contents"
         )
-        return h5_to_string(self.filepath, calibrant_path)
+        return self._read_string(calibrant_path)
 
     def get_air_scan_filepath(self):
 
@@ -216,7 +257,7 @@ class EigerDataLoader:
             f"/{self.entry}/plan_metadata/auxiliary_scans/Air/filename"  # noqa
         )
 
-        air_scan_filename = h5_to_string(self.filepath, air_scan_filename_dataset_path)
+        air_scan_filename = self._read_string(air_scan_filename_dataset_path)
 
         air_scan_filepath = Path(self.filepath).parent / air_scan_filename
 
@@ -228,9 +269,7 @@ class EigerDataLoader:
             f"/{self.entry}/plan_metadata/auxiliary_scans/Empty Capillary/filename"  # noqa
         )
 
-        air_scan_filename = h5_to_string(
-            self.filepath, sample_environment_filename_dataset_path
-        )
+        air_scan_filename = self._read_string(sample_environment_filename_dataset_path)
 
         sample_environment_filepath = Path(self.filepath).parent / air_scan_filename
 
@@ -248,7 +287,7 @@ class EigerDataLoader:
 
         scan_type_path = f"/{self.entry}/plan_metadata/scan_type"
 
-        return h5_to_string(self.filepath, scan_type_path)
+        return self._read_string(scan_type_path)
 
     @cached_property
     def plan_name(self) -> str:
@@ -261,14 +300,14 @@ class EigerDataLoader:
 
         plan_name_path = f"{self.entry}/plan_metadata/plan_name"
 
-        return h5_to_string(self.filepath, plan_name_path)
+        return self._read_string(plan_name_path)
 
     def get_composition(self) -> str:
         """returns the composition of the sample eg. SiO2 or Tb(HCO2)3. etc"""
 
         composition_path = f"{self.entry}/plan_metadata/sample_info/data/composition"
 
-        return h5_to_string(self.filepath, composition_path)
+        return self._read_string(composition_path)
 
     def get_summed_and_normalised_frames(self) -> np.ndarray:
         summed_and_normalised_frames = sum_unique_two_theta_positions_and_normalise(
@@ -288,11 +327,14 @@ class EigerDataLoader:
 
         return summed_normalised_and_masked_frames
 
-    def get_i0(self):
-
+    @cached_property
+    def i0(self) -> np.ndarray:
         i0_data_path = f"{self.entry}/i0/data"
 
-        return h5_to_array(self.filepath, i0_data_path)
+        return self._read_array(i0_data_path)
+
+    def get_i0(self):
+        return self.i0
 
 
 class Eiger500K(Detector):
