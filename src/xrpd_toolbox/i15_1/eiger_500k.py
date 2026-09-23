@@ -328,13 +328,13 @@ class EigerDataLoader:
         return summed_normalised_and_masked_frames
 
     @cached_property
-    def _i0(self) -> np.ndarray:
+    def i0(self) -> np.ndarray:
         i0_data_path = f"{self.entry}/i0/data"
 
         return self._read_array(i0_data_path)
 
     def get_i0(self):
-        return self._i0
+        return self.i0
 
 
 class Eiger500K(Detector):
