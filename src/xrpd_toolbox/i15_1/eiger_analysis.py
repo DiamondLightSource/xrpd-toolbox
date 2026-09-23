@@ -190,19 +190,19 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-if __name__ == "__main__":  # pragma
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
+# if __name__ == "__main__":  # pragma
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
 
-    import matplotlib.pyplot as plt
+#     import matplotlib.pyplot as plt
 
-    eiger_data = EigerDataLoader(nexus_filepath)
+#     eiger_data = EigerDataLoader(nexus_filepath)
 
-    print(eiger_data.get_scan_type())
+#     print(eiger_data.get_scan_type())
 
-    frames = eiger_data.get_summed_and_normalised_frames()
+#     frames = eiger_data.get_summed_and_normalised_frames()
 
-    for frame in frames:
-        plt.imshow(frame)
-        plt.show()
+#     for frame in frames:
+#         plt.imshow(frame)
+#         plt.show()
 
-    run_eiger_analysis(nexus_filepath)
+#     run_eiger_analysis(nexus_filepath)
