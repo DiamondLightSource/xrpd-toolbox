@@ -12,7 +12,6 @@ import numpy as np
 from scipy.signal import find_peaks
 
 from xrpd_toolbox.core import Parameter, XYEData
-from xrpd_toolbox.data_loader import BaseDataLoader
 from xrpd_toolbox.fit_engine.background import (
     BackgroundType,
     ConstantBackground,
@@ -25,6 +24,7 @@ from xrpd_toolbox.fit_engine.peaks import (
     calculate_profile,
     peak_factory,
 )
+from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.plotting import FittedDataPlot
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
@@ -328,9 +328,9 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
     return best_model
 
 
-def sample_alignment(
+def sample_alignment_i15_1(
     filepath: str | Path,
-    dataset_path: str = "/entry/instrument/fastcs_eiger/fastcs_eiger",
+    dataset_path: str = "/entry/instrument/fastcs_eiger/data",
     position_path: str = "/entry/instrument/hexapod/z",
     beamline: str | None = None,
     save: bool = False,
@@ -343,7 +343,7 @@ def sample_alignment(
     else:
         wait_for_finished_file(filepath, timeout=600)
 
-        data = BaseDataLoader(filepath=filepath, dataset_path=dataset_path)
+        data = EigerDataLoader(filepath=filepath, eiger_data_path=dataset_path)
         summed_frames = data.sum_frames()
         # index = np.linspace(0, len(summed_frames), len(summed_frames))
         positions = h5_to_array(filepath, position_path)

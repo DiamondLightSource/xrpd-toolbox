@@ -336,6 +336,29 @@ class EigerDataLoader:
     def get_i0(self):
         return self.i0
 
+    def sum_frames(self) -> np.ndarray:
+        """Returns a 1D array containing the total counts of each frame.
+
+        Any leading (scan) dimensions are flattened, so the output has one
+        entry per frame. Frames are read one at a time to limit memory use.
+        """
+
+        data = self.file.get(self.dataset_path)
+
+        if not isinstance(data, Dataset):
+            raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
+
+        if data.ndim < 2:
+            raise ValueError(f"Expected image data with ndim >= 2, got {data.ndim}")
+
+        frame_indices = list(np.ndindex(data.shape[:-2]))
+        totals = np.zeros(len(frame_indices), dtype=np.float64)
+
+        for n, index in enumerate(frame_indices):
+            totals[n] = np.sum(data[index], dtype=np.float64)
+
+        return totals
+
 
 class Eiger500K(Detector):
     IS_FLAT = False  # this detector is flat
