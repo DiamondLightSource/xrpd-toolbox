@@ -118,7 +118,7 @@ def do_eiger_data_reduction(
         data_plot = DataPlot.from_csv(output_xy_filepath)
         data_plot.x_label = "2θ (deg)"
         data_plot.data_type = "pxrd"
-        data_plot.publish()
+        data_plot.publish(beamline="i15-1")
     except Exception as e:
         logger.error(e)
 
