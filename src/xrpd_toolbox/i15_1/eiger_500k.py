@@ -275,13 +275,18 @@ class EigerDataLoader:
 
         return str(sample_environment_filepath)
 
-    def get_mask(self):
+    def get_mask(self, as_nan: bool = False):
 
         mask_filepath, mask_datapath = self.get_pixel_mask_filepath_and_datapath()
 
         mask = h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
-
-        return mask.astype(bool)
+        if as_nan:
+            nan_mask = np.where(
+                mask != 0, np.nan, 1.0
+            )  # Eiger convention: nonzero = bad
+            return nan_mask
+        else:
+            return mask.astype(bool)
 
     def get_scan_type(self) -> str:
 

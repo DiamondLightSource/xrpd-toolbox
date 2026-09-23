@@ -204,18 +204,18 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 
 # if __name__ == "__main__":  # pragma
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
 
 #     import matplotlib.pyplot as plt
 
 #     eiger_data = EigerDataLoader(nexus_filepath)
 
-#     print(eiger_data.get_scan_type())
+#     mask = eiger_data.get_mask(as_nan=True)
 
 #     frames = eiger_data.get_summed_and_normalised_frames()
 
 #     for frame in frames:
-#         plt.imshow(frame)
+#         plt.imshow(frame * mask, cmap="viridis")
 #         plt.show()
 
 #     run_eiger_analysis(nexus_filepath)
