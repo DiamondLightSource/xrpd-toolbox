@@ -218,6 +218,64 @@ def test_plan_name(tmp_path):
     assert loader.get_plan_name() == "calibration_collection"
 
 
+def test_sum_frames(tmp_path):
+    data = np.arange(3 * 4 * 5, dtype=np.uint32).reshape(3, 4, 5)
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    loader = EigerDataLoader(nxs)
+
+    totals = loader.sum_frames()
+
+    assert totals.shape == (3,)
+    assert totals.dtype == np.float64
+    assert np.array_equal(totals, [190.0, 590.0, 990.0])
+
+
+def test_sum_frames_flattens_leading_scan_dimensions(tmp_path):
+    rng = np.random.default_rng(1)
+    data = rng.integers(0, 100, size=(2, 3, 4, 5)).astype(np.uint32)
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    loader = EigerDataLoader(nxs)
+
+    totals = loader.sum_frames()
+
+    assert totals.shape == (6,)
+    assert np.array_equal(totals, data.sum(axis=(-2, -1)).ravel())
+
+
+def test_sum_frames_single_image(tmp_path):
+    data = np.ones((4, 5), dtype=np.uint32)
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    loader = EigerDataLoader(nxs)
+
+    assert np.array_equal(loader.sum_frames(), [20.0])
+
+
+def test_sum_frames_does_not_overflow(tmp_path):
+    # 4 * 5 pixels at the uint32 max would overflow a uint32 accumulator
+    data = np.full((2, 4, 5), np.iinfo(np.uint32).max, dtype=np.uint32)
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    loader = EigerDataLoader(nxs)
+
+    expected = 20 * float(np.iinfo(np.uint32).max)
+    assert np.array_equal(loader.sum_frames(), [expected, expected])
+
+
+def test_sum_frames_non_dataset_raises(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data_is_group=True)
+    loader = EigerDataLoader(nxs)
+
+    with pytest.raises(ValueError, match="Data is None"):
+        loader.sum_frames()
+
+
+def test_sum_frames_scalar_dataset_raises(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data_is_scalar=True)
+    loader = EigerDataLoader(nxs)
+
+    with pytest.raises(ValueError, match="ndim >= 2"):
+        loader.sum_frames()
+
+
 # ---------------------------------------------------------------------------
 # EigerDataLoader - single persistent file handle
 # ---------------------------------------------------------------------------
