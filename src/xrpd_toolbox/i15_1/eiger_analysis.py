@@ -9,6 +9,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
+from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import (
     processed_directory_and_filename,
@@ -113,6 +114,14 @@ def do_eiger_data_reduction(
         npt=DEFAULT_NPT,
     )
 
+    try:
+        data_plot = DataPlot.from_csv(output_xy_filepath)
+        data_plot.x_label = "2θ (deg)"
+        data_plot.data_type = "pxrd"
+        data_plot.publish()
+    except Exception as e:
+        logger.error(e)
+
     return output_xy_filepath
 
 
@@ -142,14 +151,18 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
 
     output_xy_filepath = do_eiger_data_reduction(nexus_filepath, output_xy_filepath)
 
-    response_from_pdfcurl = send_xy_to_pdfcurl(
-        xy_filepath=str(output_xy_filepath),
-        composition=composition,
-        wavelength=wavelength,
-        background_file=str(background_file_xy),
-    )
+    try:
+        response_from_pdfcurl = send_xy_to_pdfcurl(
+            xy_filepath=str(output_xy_filepath),
+            composition=composition,
+            wavelength=wavelength,
+            background_file=str(background_file_xy),
+        )
 
-    logger.info(response_from_pdfcurl)
+        logger.info(response_from_pdfcurl)
+
+    except Exception as e:
+        logger.error(e)
 
     return output_xy_filepath
 
