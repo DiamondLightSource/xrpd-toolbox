@@ -22,6 +22,9 @@ from xrpd_toolbox.utils.utils import h5_to_array
 
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 250  # mm
+# (rows, cols) in pyFAI's frame: the two-theta arm is rot2, which sweeps the
+# rings along dim1, so the long (1028) axis must be dim1. The detector writes
+# frames as (512, 1028), so EigerDataLoader transposes frames and mask on read.
 DEFAULT_MAX_SHAPE = (1028, 512)
 
 
@@ -39,41 +42,28 @@ def unique_slices(arr: np.ndarray):
     return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
 
 
-def sum_unique_two_theta_positions_and_normalise(eiger_data: "EigerDataLoader"):
+def to_detector_orientation(image: np.ndarray) -> np.ndarray:
+    """Transposes the last two axes of an image (or stack of images) from the
+    (512, 1028) layout the Eiger writes to the (1028, 512) layout of
+    DEFAULT_MAX_SHAPE, where the two-theta arm (rot2) sweeps along dim1."""
 
-    slices_of_data = unique_slices(eiger_data.positions)
+    image = np.asarray(image)
 
-    assert len(slices_of_data) == len(np.unique(eiger_data.positions))
+    if image.ndim < 2:
+        return image
 
-    summed_and_normalised_frames = []
-
-    for slice in slices_of_data:
-        frames_with_position = eiger_data.get_data(slice)
-        i0_for_frames = eiger_data.get_i0()[slice]
-
-        summed_frames_at_tth_position = np.sum(frames_with_position, axis=0)
-
-        assert summed_frames_at_tth_position.ndim > 1
-
-        summed_and_normalised_frames_at_tth_position = (
-            summed_frames_at_tth_position / np.sum(i0_for_frames)
-        )
-
-        summed_and_normalised_frames.append(
-            summed_and_normalised_frames_at_tth_position
-        )
-
-    summed_and_normalised_frames = np.array(summed_and_normalised_frames)
-
-    return summed_and_normalised_frames
+    return np.swapaxes(image, -1, -2)
 
 
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """applys a mask to all frames in the image"""
+    """Zeroes the masked pixels in every frame.
 
-    masked_image_frames = [image * mask for image in image_frames]
+    Follows the Eiger/pyFAI convention: nonzero (True) in the mask = bad pixel.
+    """
 
-    masked_image_frames = np.array(masked_image_frames)
+    bad_pixels = np.asarray(mask).astype(bool)
+
+    masked_image_frames = np.where(bad_pixels, 0, np.asarray(image_frames))
 
     return masked_image_frames
 
@@ -94,12 +84,7 @@ class EigerDataLoader:
     """Reads a single nexus file's worth of Eiger data.
 
     Keeps one h5py.File handle open for the lifetime of the instance instead
-    of reopening the file on every read - most of these methods are called
-    once per unique two-theta position when reducing a scan (see
-    sum_unique_two_theta_positions_and_normalise), and re-opening the file
-    from scratch every time was the dominant cost there. Call close() (or
-    use as a context manager) to release the handle deterministically;
-    otherwise it is released when the instance is garbage collected.
+    of reopening the file on every read
     """
 
     def __init__(
@@ -130,6 +115,13 @@ class EigerDataLoader:
 
     def __exit__(self, *exc_info) -> None:
         self.close()
+
+    def get_data_dimensions(self):
+        data = self.file.get(self.dataset_path)
+        if (data is not None) and isinstance(data, Dataset):
+            return np.shape(data[()])
+        else:
+            raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
 
     def _read_array(self, data_path: str) -> np.ndarray:
         data = self.file.get(data_path)
@@ -219,7 +211,7 @@ class EigerDataLoader:
                 raise ValueError("Data has insufficient dimensions.")
             module_frame_data = data[frames, ...]
 
-            return np.asarray(module_frame_data)
+            return to_detector_orientation(module_frame_data)
         else:
             raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
 
@@ -279,7 +271,9 @@ class EigerDataLoader:
 
         mask_filepath, mask_datapath = self.get_pixel_mask_filepath_and_datapath()
 
-        mask = h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
+        mask = to_detector_orientation(
+            h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
+        )
         if as_nan:
             nan_mask = np.where(
                 mask != 0, np.nan, 1.0
@@ -325,11 +319,21 @@ class EigerDataLoader:
         return self._read_string(composition_path)
 
     def get_summed_and_normalised_frames(self) -> np.ndarray:
-        summed_and_normalised_frames = sum_unique_two_theta_positions_and_normalise(
-            eiger_data=self
+        summed_and_normalised_frames = (
+            self.sum_unique_two_theta_positions_and_normalise()
         )
 
         return summed_and_normalised_frames
+
+    def get_summed_and_masked_frames(self) -> np.ndarray:
+        """Summed at each unique two-theta position and masked, but not
+        normalised by i0 - for calibration, where only ring positions matter."""
+
+        summed_frames = self.sum_unique_two_theta_positions_and_normalise(
+            normalise=False
+        )
+
+        return apply_mask(image_frames=summed_frames, mask=self.get_mask())
 
     def get_summed_normalised_and_masked_frames(self) -> np.ndarray:
 
@@ -344,12 +348,16 @@ class EigerDataLoader:
 
     @property
     def i0(self) -> np.ndarray:
-        i0_data_path = f"{self.entry}/i0/data"
+        i0_data_path = f"/{self.entry}/i0/data"
 
-        return self._read_array(i0_data_path)
+        # stored as (n_frames, 1) by areaDetector - flatten to one value per frame
+        return self._read_array(i0_data_path).flatten()
 
-    def get_i0(self) -> np.ndarray:
-        return self.i0
+    def get_i0(self, abs: bool = True) -> np.ndarray:
+        if abs:
+            return np.abs(self.i0)
+        else:
+            return self.i0
 
     def sum_frames(self) -> np.ndarray:
         """Returns a 1D array containing the total counts of each frame.
@@ -373,6 +381,38 @@ class EigerDataLoader:
             totals[n] = np.sum(data[index], dtype=np.float64)
 
         return totals
+
+    def sum_unique_two_theta_positions_and_normalise(
+        self, normalise: bool = True
+    ) -> np.ndarray:
+        """Sums the frames at each unique two-theta position, giving one image
+        per position with shape (n_unique_positions, rows, cols).
+
+        normalise based on i0 and number of frames
+
+        If normalise is True each summed image is divided by the total i0 over
+        the frames that went into it.
+        """
+
+        shape = self.get_data_dimensions()
+
+        i0 = self.get_i0(abs=True) if normalise else np.ones(shape=shape[0])
+
+        tth_summed_frames = []
+
+        for frame_slices in unique_slices(self.positions):
+            frames = self.get_data(frame_slices)
+            i0_for_frame = i0[frame_slices]
+
+            summed_frame = np.sum(frames, axis=0)
+
+            summed_frame_normalised_by_n_frames = summed_frame / len(frames)
+
+            normalised_frames = summed_frame_normalised_by_n_frames / i0_for_frame
+
+            tth_summed_frames.append(normalised_frames)
+
+        return np.array(tth_summed_frames)
 
 
 class Eiger500K(Detector):

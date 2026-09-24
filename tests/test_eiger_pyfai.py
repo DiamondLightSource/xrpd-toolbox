@@ -1,13 +1,4 @@
-"""Tests for xrpd_toolbox.i15_1.eiger_pyfai.
-
-Two kinds of tests live here:
-
-- Unit tests and Two "system" tests
-
-      pytest tests/test_eiger_pyfai.py -k system -s -v
-
-  or run this file directly with python tests/test_eiger_pyfai.py
-"""
+"""Tests for xrpd_toolbox.i15_1.eiger_pyfai."""
 
 import json
 import logging
@@ -36,6 +27,7 @@ def test_calibrate_single_geometry_from_rings_extracts_once_at_largest_ring_coun
     # so only the largest ring count is ever used, in a single extract+
     # refine pass.
     geometry = MagicMock()
+    geometry.geometry_refinement.data = np.zeros((10, 3))
 
     result = eiger_pyfai.calibrate_single_geometry_from_rings(geometry, rings=[5, 7, 9])
 
@@ -44,10 +36,24 @@ def test_calibrate_single_geometry_from_rings_extracts_once_at_largest_ring_coun
 
 def test_calibrate_single_geometry_from_rings_with_fix():
     geometry = MagicMock()
+    geometry.geometry_refinement.data = np.zeros((10, 3))
 
     eiger_pyfai.calibrate_single_geometry_from_rings(geometry, rings=[5], fix=["dist"])
 
     geometry.geometry_refinement.refine2.assert_called_once_with(fix=["dist"])
+
+
+def test_calibrate_single_geometry_from_rings_no_control_points_raises():
+    # pyFAI leaves an empty 1D array when extract_cp finds nothing, which
+    # would otherwise crash inside refine2 with an unpacking error
+    geometry = MagicMock()
+    geometry.label = "frame_0000"
+    geometry.geometry_refinement.data = np.asarray([], dtype=np.float64)
+
+    with pytest.raises(ValueError, match="No control points found for frame_0000"):
+        eiger_pyfai.calibrate_single_geometry_from_rings(geometry, rings=[5])
+
+    geometry.geometry_refinement.refine2.assert_not_called()
 
 
 def test_calibrate_single_frame_without_rings():

@@ -102,3 +102,78 @@ def test_wait_for_finished_file_accepts_string_path(tmp_path):
     f = tmp_path / "str.txt"
     f.write_bytes(b"done")
     wait_for_finished_file(str(f), stable_for=0.1, poll_interval=0.05)
+
+
+class FakeClock:
+    """Stands in for time.monotonic/time.sleep so long waits run instantly."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def _wait_log_messages(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("Waited")
+    ]
+
+
+def test_wait_for_file_logs_every_poll(tmp_path, monkeypatch, caplog):
+    clock = FakeClock()
+    monkeypatch.setattr(time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(time, "sleep", clock.sleep)
+    f = tmp_path / "ghost.txt"
+
+    with caplog.at_level("INFO", logger="xrpd_toolbox.utils.utils"):
+        with pytest.raises(TimeoutError):
+            wait_for_file(f, timeout=3, poll_interval=1.0)
+
+    assert _wait_log_messages(caplog) == [
+        f"Waited 0 seconds for {f}, does not exist yet",
+        f"Waited 1 seconds for {f}, does not exist yet",
+        f"Waited 2 seconds for {f}, does not exist yet",
+    ]
+
+
+def test_wait_for_file_does_not_log_if_file_already_exists(tmp_path, caplog):
+    f = tmp_path / "ready.txt"
+    f.write_bytes(b"")
+
+    with caplog.at_level("INFO", logger="xrpd_toolbox.utils.utils"):
+        wait_for_file(f)
+
+    assert _wait_log_messages(caplog) == []
+
+
+def test_wait_for_finished_file_logs_every_poll(tmp_path, monkeypatch, caplog):
+    # file appears at 2 s then keeps growing: every poll is logged, and the
+    # message switches from "does not exist yet" to "still being written"
+    clock = FakeClock()
+    monkeypatch.setattr(time, "monotonic", clock.monotonic)
+    f = tmp_path / "late_and_growing.txt"
+
+    def appear_then_grow(seconds: float) -> None:
+        clock.sleep(seconds)
+        if clock.now >= 2:
+            with f.open("ab") as fh:
+                fh.write(b"x")
+
+    monkeypatch.setattr(time, "sleep", appear_then_grow)
+
+    with caplog.at_level("INFO", logger="xrpd_toolbox.utils.utils"):
+        with pytest.raises(TimeoutError, match="did not finish writing after 4"):
+            wait_for_finished_file(f, timeout=4, poll_interval=1.0)
+
+    assert _wait_log_messages(caplog) == [
+        f"Waited 0 seconds for {f} to finish, does not exist yet",
+        f"Waited 1 seconds for {f} to finish, does not exist yet",
+        f"Waited 2 seconds for {f} to finish, still being written",
+        f"Waited 3 seconds for {f} to finish, still being written",
+    ]

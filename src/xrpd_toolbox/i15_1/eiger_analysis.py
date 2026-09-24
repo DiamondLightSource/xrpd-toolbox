@@ -49,9 +49,9 @@ def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None 
 
     unique_positions = np.unique(eiger_data.positions)
 
-    summed_normalised_and_masked_frames = (
-        eiger_data.get_summed_normalised_and_masked_frames()
-    )
+    # not normalised by i0: only ring positions matter for calibration, and
+    # a bad i0 reading must not stop the detector from being calibrated
+    summed_and_masked_frames = eiger_data.get_summed_and_masked_frames()
     nexus_filepath = Path(nexus_filepath)
 
     output_dir, _ = processed_directory_and_filename(
@@ -60,7 +60,7 @@ def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None 
 
     goniometer_model_json, metadata_json = build_and_save_goniometer(
         nexus_filepath=nexus_filepath,
-        images=summed_normalised_and_masked_frames,
+        images=summed_and_masked_frames,
         angles=unique_positions,
         wavelength_in_angstrom=eiger_data.wavelength,
         calibrant_name=calibrant,
@@ -72,7 +72,7 @@ def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None 
         npt=DEFAULT_NPT,
     )
 
-    do_eiger_data_reduction(nexus_filepath)  # then reduce the data we just collect
+    do_eiger_data_reduction(nexus_filepath)  # then reduce the data we just collected
     # - do this in workflow?
 
     return goniometer_model_json, metadata_json
@@ -205,11 +205,12 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 if __name__ == "__main__":
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
 
-    do_eiger_calibration(nexus_filepath, calibrant_name="Silicon")
+    eiger_data = EigerDataLoader(nexus_filepath)
+    print(eiger_data.get_data_dimensions())
+
+    do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
 
     #     import matplotlib.pyplot as plt
-
-    #     eiger_data = EigerDataLoader(nexus_filepath)
 
     #     mask = eiger_data.get_mask(as_nan=True)
 
@@ -219,4 +220,4 @@ if __name__ == "__main__":
     #         plt.imshow(frame * mask, cmap="viridis")
     #         plt.show()
 
-    run_eiger_analysis(nexus_filepath)
+    # run_eiger_analysis(nexus_filepath)

@@ -1,9 +1,4 @@
-"""Tests for xrpd_toolbox.i15_1.eiger_500k.
-
-Uses small synthetic NeXus/HDF5 files (see eiger_fixtures.py) instead of a
-real Eiger500K data collection, and small synthetic .poni files for the
-pyFAI geometry-loading branches of Eiger500K.__init__.
-"""
+"""Tests for xrpd_toolbox.i15_1.eiger_500k."""
 
 from pathlib import Path
 from unittest.mock import patch
@@ -136,17 +131,18 @@ def test_load_all_data(nexus_file):
 
     data = loader.load_all_data()
 
-    assert data.shape == (3, 4, 5)
+    # written as (frames, 4, 5); transposed to the detector orientation
+    assert data.shape == (3, 5, 4)
 
 
 def test_get_data_with_int_and_list(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
     single = loader.get_data(0)
-    assert single.shape == (4, 5)
+    assert single.shape == (5, 4)
 
     subset = loader.get_data([0, 2])
-    assert subset.shape == (2, 4, 5)
+    assert subset.shape == (2, 5, 4)
 
 
 def test_get_data_missing_dataset_raises(tmp_path):
@@ -201,12 +197,30 @@ def test_get_pixel_mask_filepath_and_datapath_fallback(tmp_path):
     assert mask_datapath == "entry/mask"
 
 
+def test_get_data_and_mask_are_transposed_to_detector_orientation(tmp_path):
+    # the Eiger writes (512, 1028); pyFAI's Eiger500K is (1028, 512) so the
+    # two-theta arm (rot2) sweeps the rings along dim1
+    data = np.arange(2 * 4 * 5, dtype=np.uint32).reshape(2, 4, 5)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data=data, mask_ref=f"{mask_file}//entry/mask"
+    )
+    loader = EigerDataLoader(nxs)
+
+    assert np.array_equal(loader.get_data(1), data[1].T)
+    assert np.array_equal(loader.load_all_data(), data.transpose(0, 2, 1))
+    assert loader.get_mask().shape == loader.get_data(0).shape
+    assert loader.get_mask(as_nan=True).shape == loader.get_data(0).shape
+
+
 def test_get_mask(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
     mask = loader.get_mask()
 
-    assert mask.shape == (4, 5)
+    # transposed to match get_data
+    assert mask.shape == (5, 4)
     assert mask.dtype == bool
 
 
@@ -234,6 +248,99 @@ def test_get_plan_type_missing_raises(tmp_path):
 
     with pytest.raises(ValueError, match="plan_type"):
         loader.get_plan_type()
+
+
+def _constant_frames(*values: float) -> np.ndarray:
+    """One (4, 5) frame per value, every pixel set to that value."""
+    return np.stack([np.full((4, 5), value) for value in values])
+
+
+def test_sum_unique_two_theta_positions_normalises_each_position(tmp_path):
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(10.0, 20.0, 30.0),
+        tth=np.array([1.0, 2.0, 3.0]),
+        i0=np.array([2.0, 4.0, 5.0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    # one frame per position, each divided by its own i0; frames come back
+    # in the detector orientation (see to_detector_orientation)
+    assert result.shape == (3, 5, 4)
+    assert np.allclose(result[0], 10.0 / 2.0)
+    assert np.allclose(result[1], 20.0 / 4.0)
+    assert np.allclose(result[2], 30.0 / 5.0)
+
+
+def test_sum_unique_two_theta_positions_sums_repeated_positions(tmp_path):
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 3.0, 4.0),
+        tth=np.array([1.0, 1.0, 2.0, 2.0]),
+        i0=np.array([1.0, 1.0, 2.0, 3.0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    # frames at the same position are summed, then divided by their total i0
+    assert result.shape == (2, 5, 4)
+    assert np.allclose(result[0], (1.0 + 2.0) / (1.0 + 1.0))
+    assert np.allclose(result[1], (3.0 + 4.0) / (2.0 + 3.0))
+
+
+def test_sum_unique_two_theta_positions_without_normalising_ignores_i0(tmp_path):
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 5.0),
+        tth=np.array([1.0, 1.0, 2.0]),
+        i0=np.array([-1.0, -1.0, 0.0]),  # would be invalid if it were used
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise(normalise=False)
+
+    assert result.shape == (2, 5, 4)
+    assert np.allclose(result[0], 3.0)
+    assert np.allclose(result[1], 5.0)
+
+
+@pytest.mark.parametrize("bad_i0", [-0.0033, 0.0])
+def test_sum_unique_two_theta_positions_non_positive_i0_raises(tmp_path, bad_i0):
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(2.0),
+        tth=np.array([1.0]),
+        i0=np.array([bad_i0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    with pytest.raises(ValueError, match="non-positive i0"):
+        loader.sum_unique_two_theta_positions_and_normalise()
+
+
+def test_get_summed_and_masked_frames_is_not_normalised_by_i0(tmp_path):
+    data = np.ones((2, 4, 5), dtype=np.uint32)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=data,
+        tth=np.array([1.0, 1.0]),
+        i0=np.array([[-0.5], [-0.5]]),  # negative, as seen on i15-1
+        mask_ref=f"{mask_file}//entry/mask",
+    )
+    loader = EigerDataLoader(nxs)
+
+    frames = loader.get_summed_and_masked_frames()
+
+    assert frames.shape == (1, 5, 4)
+    assert np.all(frames == 2)
+
+    with pytest.raises(ValueError, match="non-positive i0"):
+        loader.get_summed_normalised_and_masked_frames()
 
 
 def test_sum_frames(tmp_path):
@@ -299,12 +406,14 @@ def test_sum_frames_scalar_dataset_raises(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_get_i0_is_cached(nexus_file):
-    loader = EigerDataLoader(nexus_file)
+def test_get_i0_is_one_value_per_frame(tmp_path):
+    # areaDetector writes i0 as (n_frames, 1)
+    i0 = np.array([[1.0], [2.0], [3.0]])
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", n_frames=3, i0=i0)
+    loader = EigerDataLoader(nxs)
 
-    # cached_property: second call returns the same cached array, rather
-    # than re-reading the dataset from disk
-    assert loader.get_i0() is loader.get_i0()
+    assert loader.get_i0().shape == (3,)
+    assert np.array_equal(loader.get_i0(), [1.0, 2.0, 3.0])
 
 
 def test_data_loader_only_opens_the_file_once(nexus_file):

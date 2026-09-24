@@ -66,6 +66,15 @@ def calibrate_single_geometry_from_rings(
 
     for max_rings in rings:
         geometry.extract_cp(max_rings=max_rings)
+        # pyFAI stores an empty 1D array when no points are found, which then
+        # fails deep inside refine2 with an unhelpful unpacking error
+        assert geometry.geometry_refinement.data is not None
+        if geometry.geometry_refinement.data.ndim != 2:
+            raise ValueError(
+                f"No control points found for {geometry.label} "
+                f"(max_rings={max_rings}) - check the image contains "
+                "positive calibrant rings and the mask is correct"
+            )
         geometry.geometry_refinement.refine2(fix=fix)
 
     return geometry
