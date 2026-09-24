@@ -342,12 +342,13 @@ class EigerDataLoader:
 
         return summed_normalised_and_masked_frames
 
+    @property
     def i0(self) -> np.ndarray:
         i0_data_path = f"{self.entry}/i0/data"
 
         return self._read_array(i0_data_path)
 
-    def get_i0(self):
+    def get_i0(self) -> np.ndarray:
         return self.i0
 
     def sum_frames(self) -> np.ndarray:
