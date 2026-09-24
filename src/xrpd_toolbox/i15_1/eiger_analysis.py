@@ -34,14 +34,13 @@ class CollectionType(StrEnum):
 calibrant_lookup: dict[str, str] = {"Silicon": "Si"}
 
 
-def do_eiger_calibration(nexus_filepath: str | Path):
+def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None = None):
 
     eiger_data = EigerDataLoader(nexus_filepath)
 
-    calibrant_name = eiger_data.get_calibrant()
-
     if calibrant_name is None:
-        raise Exception("Calibration is not in Nexus file")
+        calibrant_name = eiger_data.get_calibrant()
+        assert calibrant_name is not None
 
     calibrant = calibrant_lookup.get(calibrant_name)
 
@@ -73,7 +72,7 @@ def do_eiger_calibration(nexus_filepath: str | Path):
         npt=DEFAULT_NPT,
     )
 
-    # do_eiger_data_reduction(nexus_filepath) then reduce the data we just collect
+    do_eiger_data_reduction(nexus_filepath)  # then reduce the data we just collect
     # - do this in workflow?
 
     return goniometer_model_json, metadata_json
@@ -205,6 +204,8 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 if __name__ == "__main__":
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
+
+    do_eiger_calibration(nexus_filepath, calibrant_name="Silicon")
 
     #     import matplotlib.pyplot as plt
 
