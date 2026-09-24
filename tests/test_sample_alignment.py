@@ -7,7 +7,7 @@ from xrpd_toolbox.fit_engine.background import ConstantBackground
 from xrpd_toolbox.i15_1.sample_alignment import (
     SampleAligner,
     run_sample_alignment,
-    sample_alignment,
+    sample_alignment_i15_1,
     sample_alignment_model_builder,
 )
 
@@ -62,7 +62,7 @@ def test_sample_alignment_saves_plot_into_processed_subfolder(tmp_path):
     csv_copy = tmp_path / "NIST_Si-95016.csv"
     shutil.copy(TEST_FILE, csv_copy)
 
-    sample_alignment(csv_copy, save=True)
+    sample_alignment_i15_1(csv_copy, save=True)
 
     processed_dir = tmp_path / "processed" / "NIST_Si-95016"
     expected_plot = processed_dir / "NIST_Si-95016_alignment_fit.png"

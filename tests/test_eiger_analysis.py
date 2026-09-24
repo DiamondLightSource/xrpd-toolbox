@@ -151,7 +151,7 @@ def _fake_eiger_data(**overrides):
     return fake
 
 
-def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path):
+def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
 
@@ -168,9 +168,10 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path):
     expected_processed_dir = str(tmp_path / "processed")
     assert mock_build.call_args.kwargs["output_dir"] == expected_processed_dir
     assert (tmp_path / "processed").is_dir()
+    nexus_filepath.unlink(missing_ok=True)
 
 
-def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path):
+def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
 
@@ -200,9 +201,10 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path):
     assert mock_integrate.call_args.kwargs["goniometer_dir"] == str(
         tmp_path / "processed"
     )
+    nexus_filepath.unlink(missing_ok=True)
 
 
-def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path):
+def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: Path):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
     explicit_output = tmp_path / "elsewhere" / "custom.xy"
@@ -228,10 +230,11 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path):
 
     assert result_path == explicit_output
     assert explicit_output.exists()
+    nexus_filepath.unlink(missing_ok=True)
 
 
 def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
-    tmp_path,
+    tmp_path: Path,
 ):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
@@ -266,10 +269,11 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
     # saved in processed/ so it is not regenerated
     mock_reduction.assert_called_once_with(nexus_filepath, None)
     assert mock_send.call_args.kwargs["background_file"] == str(existing_bg_xy)
+    nexus_filepath.unlink(missing_ok=True)
 
 
 def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
-    tmp_path,
+    tmp_path: Path,
 ):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
@@ -303,3 +307,4 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
     assert mock_reduction.call_count == 2
     mock_reduction.assert_any_call(str(bg_nexus_filepath), expected_bg_xy)
     assert mock_send.call_args.kwargs["background_file"] == str(expected_bg_xy)
+    nexus_filepath.unlink(missing_ok=True)
