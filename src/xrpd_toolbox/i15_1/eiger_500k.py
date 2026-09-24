@@ -342,7 +342,6 @@ class EigerDataLoader:
 
         return summed_normalised_and_masked_frames
 
-    @cached_property
     def i0(self) -> np.ndarray:
         i0_data_path = f"{self.entry}/i0/data"
 
