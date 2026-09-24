@@ -208,7 +208,7 @@ if __name__ == "__main__":
     eiger_data = EigerDataLoader(nexus_filepath)
     print(eiger_data.get_data_dimensions())
 
-    do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
+    do_eiger_calibration(nexus_filepath, calibrant_name="Silicon")
 
     #     import matplotlib.pyplot as plt
 

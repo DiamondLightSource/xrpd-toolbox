@@ -275,20 +275,42 @@ def test_sum_unique_two_theta_positions_normalises_each_position(tmp_path):
 
 
 def test_sum_unique_two_theta_positions_sums_repeated_positions(tmp_path):
+    # frames at the same position are summed and divided by their total i0 -
+    # not divided again by the number of frames
     nxs = build_eiger_nexus(
         tmp_path / "scan.nxs",
         data=_constant_frames(1.0, 2.0, 3.0, 4.0),
         tth=np.array([1.0, 1.0, 2.0, 2.0]),
-        i0=np.array([1.0, 1.0, 2.0, 3.0]),
+        i0=np.array([1.0, 4.0, 2.0, 3.0]),
     )
     loader = EigerDataLoader(nxs)
 
     result = loader.sum_unique_two_theta_positions_and_normalise()
 
-    # frames at the same position are summed, then divided by their total i0
     assert result.shape == (2, 5, 4)
-    assert np.allclose(result[0], (1.0 + 2.0) / (1.0 + 1.0))
+    assert np.allclose(result[0], (1.0 + 2.0) / (1.0 + 4.0))
     assert np.allclose(result[1], (3.0 + 4.0) / (2.0 + 3.0))
+
+
+def test_sum_unique_two_theta_positions_many_frames_per_position(tmp_path):
+    # more frames at one position than there are image columns/rows, so a
+    # wrong broadcast can't accidentally line up
+    n_frames = 7
+    data = np.stack([np.full((4, 5), 2.0 * (n + 1)) for n in range(n_frames)])
+    i0 = np.arange(1, n_frames + 1, dtype=float)
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=data,
+        tth=np.full(n_frames, 5.0),
+        i0=i0.reshape(-1, 1),  # (n_frames, 1) as written by areaDetector
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    # every frame is 2 * i0, so every normalised frame is 2
+    assert result.shape == (1, 5, 4)
+    assert np.allclose(result, 2.0)
 
 
 def test_sum_unique_two_theta_positions_without_normalising_ignores_i0(tmp_path):
@@ -302,23 +324,25 @@ def test_sum_unique_two_theta_positions_without_normalising_ignores_i0(tmp_path)
 
     result = loader.sum_unique_two_theta_positions_and_normalise(normalise=False)
 
+    # frames at each position averaged, with no i0 division
     assert result.shape == (2, 5, 4)
-    assert np.allclose(result[0], 3.0)
+    assert np.allclose(result[0], (1.0 + 2.0) / 2)
     assert np.allclose(result[1], 5.0)
 
 
-@pytest.mark.parametrize("bad_i0", [-0.0033, 0.0])
-def test_sum_unique_two_theta_positions_non_positive_i0_raises(tmp_path, bad_i0):
+def test_sum_unique_two_theta_positions_uses_magnitude_of_negative_i0(tmp_path):
+    # i15-1 i0 reads negative - its magnitude is used so images stay positive
     nxs = build_eiger_nexus(
         tmp_path / "scan.nxs",
         data=_constant_frames(2.0),
         tth=np.array([1.0]),
-        i0=np.array([bad_i0]),
+        i0=np.array([-0.5]),
     )
     loader = EigerDataLoader(nxs)
 
-    with pytest.raises(ValueError, match="non-positive i0"):
-        loader.sum_unique_two_theta_positions_and_normalise()
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    assert np.allclose(result, 4.0)
 
 
 def test_get_summed_and_masked_frames_is_not_normalised_by_i0(tmp_path):
@@ -329,18 +353,13 @@ def test_get_summed_and_masked_frames_is_not_normalised_by_i0(tmp_path):
         tmp_path / "scan.nxs",
         data=data,
         tth=np.array([1.0, 1.0]),
-        i0=np.array([[-0.5], [-0.5]]),  # negative, as seen on i15-1
+        i0=np.array([[0.5], [0.5]]),
         mask_ref=f"{mask_file}//entry/mask",
     )
     loader = EigerDataLoader(nxs)
 
-    frames = loader.get_summed_and_masked_frames()
-
-    assert frames.shape == (1, 5, 4)
-    assert np.all(frames == 2)
-
-    with pytest.raises(ValueError, match="non-positive i0"):
-        loader.get_summed_normalised_and_masked_frames()
+    assert np.all(loader.get_summed_and_masked_frames() == 1)
+    assert np.all(loader.get_summed_normalised_and_masked_frames() == 2)
 
 
 def test_sum_frames(tmp_path):

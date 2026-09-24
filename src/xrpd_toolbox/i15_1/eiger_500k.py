@@ -388,29 +388,23 @@ class EigerDataLoader:
         """Sums the frames at each unique two-theta position, giving one image
         per position with shape (n_unique_positions, rows, cols).
 
-        normalise based on i0 and number of frames
-
         If normalise is True each summed image is divided by the total i0 over
-        the frames that went into it.
+        the frames that went into it, which already accounts for the number of
+        frames. If False, i0 is taken as 1 per frame, so this is the mean frame.
         """
 
-        shape = self.get_data_dimensions()
-
-        i0 = self.get_i0(abs=True) if normalise else np.ones(shape=shape[0])
+        i0 = self.get_i0(abs=True) if normalise else np.ones(len(self.positions))
 
         tth_summed_frames = []
 
         for frame_slices in unique_slices(self.positions):
             frames = self.get_data(frame_slices)
-            i0_for_frame = i0[frame_slices]
+            i0_for_frames = i0[frame_slices]
 
             summed_frame = np.sum(frames, axis=0)
+            summed_i0 = np.sum(i0_for_frames)
 
-            summed_frame_normalised_by_n_frames = summed_frame / len(frames)
-
-            normalised_frames = summed_frame_normalised_by_n_frames / i0_for_frame
-
-            tth_summed_frames.append(normalised_frames)
+            tth_summed_frames.append(summed_frame / summed_i0)
 
         return np.array(tth_summed_frames)
 
