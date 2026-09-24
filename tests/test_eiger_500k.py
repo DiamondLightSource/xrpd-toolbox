@@ -218,6 +218,24 @@ def test_plan_name(tmp_path):
     assert loader.get_plan_name() == "calibration_collection"
 
 
+def test_get_plan_type(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", plan_type="step_scan")
+    loader = EigerDataLoader(nxs)
+
+    plan_type = loader.get_plan_type()
+
+    assert plan_type == "step_scan"
+    assert isinstance(plan_type, str)
+
+
+def test_get_plan_type_missing_raises(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", include_plan_type=False)
+    loader = EigerDataLoader(nxs)
+
+    with pytest.raises(ValueError, match="plan_type"):
+        loader.get_plan_type()
+
+
 def test_sum_frames(tmp_path):
     data = np.arange(3 * 4 * 5, dtype=np.uint32).reshape(3, 4, 5)
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
