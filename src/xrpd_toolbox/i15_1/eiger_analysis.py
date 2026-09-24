@@ -173,7 +173,7 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
     eiger_data = EigerDataLoader(nexus_filepath)
     plan_name = eiger_data.get_plan_name()
-    scan_type = eiger_data.get_scan_type()
+    scan_type = eiger_data.get_plan_type()
 
     if scan_type == CollectionType.centring:
         logger.info(f"Nothing to do for {scan_type}. HeliotrAPI is doing it")
@@ -203,19 +203,19 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-# if __name__ == "__main__":  # pragma
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
+if __name__ == "__main__":
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
 
-#     import matplotlib.pyplot as plt
+    #     import matplotlib.pyplot as plt
 
-#     eiger_data = EigerDataLoader(nexus_filepath)
+    #     eiger_data = EigerDataLoader(nexus_filepath)
 
-#     mask = eiger_data.get_mask(as_nan=True)
+    #     mask = eiger_data.get_mask(as_nan=True)
 
-#     frames = eiger_data.get_summed_and_normalised_frames()
+    #     frames = eiger_data.get_summed_and_normalised_frames()
 
-#     for frame in frames:
-#         plt.imshow(frame * mask, cmap="viridis")
-#         plt.show()
+    #     for frame in frames:
+    #         plt.imshow(frame * mask, cmap="viridis")
+    #         plt.show()
 
-#     run_eiger_analysis(nexus_filepath)
+    run_eiger_analysis(nexus_filepath)
