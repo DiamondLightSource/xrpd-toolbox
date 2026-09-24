@@ -307,6 +307,16 @@ class EigerDataLoader:
 
         return self._read_string(plan_name_path)
 
+    def get_data_shape(self) -> dict:
+
+        data_shape_path = f"/{self.entry}/plan_metadata/data_shape"
+
+        data_shape_array = self._read_array(data_shape_path)
+
+        data_shape_dict = dict(data_shape_array)
+
+        return data_shape_dict
+
     def get_composition(self) -> str:
         """returns the composition of the sample eg. SiO2 or Tb(HCO2)3. etc"""
 
