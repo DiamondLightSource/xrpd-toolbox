@@ -1,8 +1,8 @@
+import logging
 from collections.abc import Collection
 from copy import deepcopy
 from functools import cached_property
 from pathlib import Path
-from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,91 +16,68 @@ from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
-from xrpd_toolbox.core import XRPDBaseModel
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 from xrpd_toolbox.utils.utils import h5_to_array
 
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 250  # mm
-DEFAULT_MAX_SHAPE = (1028, 512)
+
+DEFAULT_MAX_SHAPE = (512, 1028)
+
+# the arm swings horizontally so it drives pyFAI's rot1, and on i15-1 the beam
+# centre moves to higher columns as two-theta increases, hence the sign
+ARM_ROTATION_SIGN = -1.0
+logger = logging.getLogger(__name__)
 
 
-def unique_slices(arr: np.ndarray):
-    """Retturns slices at which the all the values for the input array are the same
-    assumes that the input array is sorted and only increases/decreases
+# the tth readback jitters by ~6e-5 deg
+TTH_GROUP_TOLERANCE_DEG = 1e-3
+SUM_CHUNK_FRAMES = 100
 
-    if it's not will have to use np.argwhere - but that isn't this functons
 
+def group_positions(
+    positions: Collection[float], tolerance: float = TTH_GROUP_TOLERANCE_DEG
+) -> tuple[np.ndarray, np.ndarray]:
+    """Group readbacks within `tolerance` of each other, as the readback jitters.
+
+    Returns the group of each frame and the mean position of each group.
     """
-    arr = np.asarray(arr)
-    _, start_idx = np.unique(arr, return_index=True)
-    start_idx = np.sort(start_idx)
-    end_idx = np.append(start_idx[1:], len(arr))
-    return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
+    positions = np.asarray(positions, dtype=np.float64)
+    if positions.size == 0:
+        return np.empty(0, dtype=int), np.empty(0)
+
+    order = np.argsort(positions, kind="stable")
+    sorted_labels = np.concatenate(
+        [[0], np.cumsum(np.diff(positions[order]) > tolerance)]
+    )
+    labels = np.empty(positions.size, dtype=int)
+    labels[order] = sorted_labels
+
+    n_groups = sorted_labels[-1] + 1
+    counts = np.bincount(labels, minlength=n_groups)
+    means = np.bincount(labels, weights=positions, minlength=n_groups) / counts
+    return labels, means
 
 
-def sum_unique_two_theta_positions_and_normalise(eiger_data: "EigerDataLoader"):
-
-    slices_of_data = unique_slices(eiger_data.positions)
-
-    assert len(slices_of_data) == len(np.unique(eiger_data.positions))
-
-    summed_and_normalised_frames = []
-
-    for slice in slices_of_data:
-        frames_with_position = eiger_data.get_data(slice)
-        i0_for_frames = eiger_data.get_i0()[slice]
-
-        summed_frames_at_tth_position = np.sum(frames_with_position, axis=0)
-
-        assert summed_frames_at_tth_position.ndim > 1
-
-        summed_and_normalised_frames_at_tth_position = (
-            summed_frames_at_tth_position / np.sum(i0_for_frames)
-        )
-
-        summed_and_normalised_frames.append(
-            summed_and_normalised_frames_at_tth_position
-        )
-
-    summed_and_normalised_frames = np.array(summed_and_normalised_frames)
-
-    return summed_and_normalised_frames
+def _contiguous_runs(labels: np.ndarray) -> list[slice]:
+    """Slices over which `labels` doesn't change."""
+    starts = np.flatnonzero(np.diff(labels)) + 1
+    bounds = np.concatenate([[0], starts, [labels.size]])
+    return [slice(a, b) for a, b in zip(bounds[:-1], bounds[1:], strict=True)]
 
 
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """applys a mask to all frames in the image"""
+    """Zero the masked (nonzero) pixels in every frame."""
 
-    masked_image_frames = [image * mask for image in image_frames]
+    bad_pixels = np.asarray(mask).astype(bool)
 
-    masked_image_frames = np.array(masked_image_frames)
+    masked_image_frames = np.where(bad_pixels, 0, np.asarray(image_frames))
 
     return masked_image_frames
 
 
-class EigerSettings(XRPDBaseModel):
-    bad_channels_filepath: str | Path = "/dls_sw/i15-1/software/bad_channel_mask.hdf5"
-    bad_channel_masking: bool = True
-    flatfield_filepath: str | Path | None = None
-    apply_flatfield: bool = False
-    darkfield_filepath: str | Path | None = None
-    send_to_ispyb: bool = False
-    rebin_step: float = 0.004
-    error_calc: Literal["poisson", "std_dev", "max"] = "poisson"
-    poni_filepath: str | Path | None = None
-
-
 class EigerDataLoader:
-    """Reads a single nexus file's worth of Eiger data.
-
-    Keeps one h5py.File handle open for the lifetime of the instance instead
-    of reopening the file on every read - most of these methods are called
-    once per unique two-theta position when reducing a scan (see
-    sum_unique_two_theta_positions_and_normalise), and re-opening the file
-    from scratch every time was the dominant cost there. Call close() (or
-    use as a context manager) to release the handle deterministically;
-    otherwise it is released when the instance is garbage collected.
-    """
+    """Reads the Eiger data in one nexus file, keeping the file open."""
 
     def __init__(
         self,
@@ -131,6 +108,13 @@ class EigerDataLoader:
     def __exit__(self, *exc_info) -> None:
         self.close()
 
+    def get_data_dimensions(self):
+        data = self.file.get(self.dataset_path)
+        if (data is not None) and isinstance(data, Dataset):
+            return np.shape(data[()])
+        else:
+            raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
+
     def _read_array(self, data_path: str) -> np.ndarray:
         data = self.file.get(data_path)
         if (data is not None) and isinstance(data, Dataset):
@@ -158,10 +142,20 @@ class EigerDataLoader:
         deltas = self._read_array(position_path)
         return deltas
 
-    def get_unique_tth_positions(self):
-        """returns uniuqe positions as defined by tth"""
+    @cached_property
+    def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
+        labels, group_tth = group_positions(self.positions)
+        counts = np.bincount(labels, minlength=len(group_tth))
+        logger.info(
+            "Grouped %d frames into %d two-theta positions", labels.size, counts.size
+        )
+        for tth, count in zip(group_tth, counts, strict=True):
+            logger.debug("  2θ=%.5f°: %d frames", tth, count)
+        return labels, group_tth
 
-        return np.unique(self.positions)
+    def get_unique_tth_positions(self) -> np.ndarray:
+        """Ascending, in the same order as the summed frames."""
+        return self.tth_groups[1]
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -194,12 +188,7 @@ class EigerDataLoader:
         return self.wavelength
 
     def load_all_data(self) -> np.ndarray:
-        """Dangerous as it might contains a lot of data,
-        which will then be loaded into memory - you have been warned
-
-        ideally use get_data with specific frames as slice
-
-        """
+        """Loads every frame into memory - prefer get_data with a slice."""
         return self.get_data(frames=slice(None))
 
     def get_data(
@@ -219,7 +208,7 @@ class EigerDataLoader:
                 raise ValueError("Data has insufficient dimensions.")
             module_frame_data = data[frames, ...]
 
-            return np.asarray(module_frame_data)
+            return module_frame_data
         else:
             raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
 
@@ -325,11 +314,20 @@ class EigerDataLoader:
         return self._read_string(composition_path)
 
     def get_summed_and_normalised_frames(self) -> np.ndarray:
-        summed_and_normalised_frames = sum_unique_two_theta_positions_and_normalise(
-            eiger_data=self
+        summed_and_normalised_frames = (
+            self.sum_unique_two_theta_positions_and_normalise()
         )
 
         return summed_and_normalised_frames
+
+    def get_summed_and_masked_frames(self) -> np.ndarray:
+        """Summed and masked but not normalised, for calibration."""
+
+        summed_frames = self.sum_unique_two_theta_positions_and_normalise(
+            normalise=False
+        )
+
+        return apply_mask(image_frames=summed_frames, mask=self.get_mask())
 
     def get_summed_normalised_and_masked_frames(self) -> np.ndarray:
 
@@ -342,21 +340,21 @@ class EigerDataLoader:
 
         return summed_normalised_and_masked_frames
 
-    @cached_property
+    @property
     def i0(self) -> np.ndarray:
-        i0_data_path = f"{self.entry}/i0/data"
+        i0_data_path = f"/{self.entry}/i0/data"
 
-        return self._read_array(i0_data_path)
+        # areaDetector writes (n_frames, 1)
+        return self._read_array(i0_data_path).flatten()
 
-    def get_i0(self):
-        return self.i0
+    def get_i0(self, abs: bool = True) -> np.ndarray:
+        if abs:
+            return np.abs(self.i0)
+        else:
+            return self.i0
 
     def sum_frames(self) -> np.ndarray:
-        """Returns a 1D array containing the total counts of each frame.
-
-        Any leading (scan) dimensions are flattened, so the output has one
-        entry per frame. Frames are read one at a time to limit memory use.
-        """
+        """Total counts in each frame."""
 
         data = self.file.get(self.dataset_path)
 
@@ -374,6 +372,38 @@ class EigerDataLoader:
 
         return totals
 
+    def sum_unique_two_theta_positions_and_normalise(
+        self, normalise: bool = True
+    ) -> np.ndarray:
+        """One summed image per two-theta position, divided by its total i0.
+
+        Without normalise that's the mean frame at each position.
+        """
+
+        labels, group_tth = self.tth_groups
+        i0 = self.get_i0(abs=True) if normalise else np.ones(labels.size)
+
+        summed_frames: np.ndarray | None = None
+        summed_i0 = np.zeros(len(group_tth))
+
+        # chunked so a position with ~1000 frames doesn't all load at once
+        for run in _contiguous_runs(labels):
+            group = labels[run.start]
+            for start in range(run.start, run.stop, SUM_CHUNK_FRAMES):
+                chunk = slice(start, min(start + SUM_CHUNK_FRAMES, run.stop))
+                frames = np.asarray(self.get_data(chunk))
+                if summed_frames is None:
+                    summed_frames = np.zeros(
+                        (len(group_tth), *frames.shape[1:]), dtype=np.float64
+                    )
+                summed_frames[group] += frames.sum(axis=0, dtype=np.float64)
+                summed_i0[group] += i0[chunk].sum()
+
+        if summed_frames is None:
+            raise ValueError(f"No frames to sum in {self.filepath}")
+
+        return summed_frames / summed_i0[:, np.newaxis, np.newaxis]
+
 
 class Eiger500K(Detector):
     IS_FLAT = False  # this detector is flat
@@ -384,12 +414,10 @@ class Eiger500K(Detector):
     def __init__(
         self,
         filepath: str | Path | None = None,
-        settings: EigerSettings | None = None,
         poni: str | Path | dict | None = None,
         wavelength: float | None = None,  # in Angstrom
     ):
         self.filepath = filepath
-        self.settings = settings
         self.poni = poni
         self.calibrant = None
         self.wavelength = wavelength
@@ -405,8 +433,6 @@ class Eiger500K(Detector):
             self.ai = pyFAI.load(str(self.poni))
         elif isinstance(self.poni, dict):
             self.ai = AzimuthalIntegrator(detector=self, **self.poni)
-        elif self.settings is not None:
-            self.ai = pyFAI.load(str(self.settings.poni_filepath))
         else:
             self.ai = None
 
@@ -416,20 +442,6 @@ class Eiger500K(Detector):
             raise ValueError(
                 f"Pixel size in poni file ({self.ai.pixel1}, {self.ai.pixel2}) does not match expected pixel size ({PIXEL_SIZE})."  # noqa
             )
-
-    def process_step_scan(self):
-        for _position in self.data_loader.positions:
-            # do geometry transformation
-
-            pass
-
-    def load_geometry(self, poni_files: str | list[str | Path]):
-        # if isinstance(poni_files, list) and (len(poni_files) > 1):
-        #     mg = MultiGeometry()
-
-        # else:
-        #     self.ai = pyFAI.load(str(poni_files))
-        pass
 
     def set_calibrant(self, calibrant_name: str, wavelength_in_ang: float):
         self.calibrant = get_calibrant(calibrant_name)
@@ -467,11 +479,11 @@ class Eiger500K(Detector):
         fig, ax = plt.subplots(1, 5, figsize=(20, 4))
         for i in range(5):
             my_ai = deepcopy(ai)
-            my_ai.rot2 -= i * step
+            my_ai.rot1 += ARM_ROTATION_SIGN * i * step
             my_img = lab6.fake_calibration_image(my_ai)
             jupyter.display(
                 my_img,
-                label=f"Angle rot2: {np.degrees(my_ai.rot2)}",
+                label=f"Angle rot1: {np.degrees(my_ai.rot1)}",
                 ax=ax[i],
             )
             ais.append(my_ai)
@@ -512,7 +524,7 @@ class Eiger500K(Detector):
 
         for position in positions_rad:
             ai_copy = deepcopy(self.ai)
-            ai_copy.rot2 = position
+            ai_copy.rot1 = ARM_ROTATION_SIGN * position
 
             simulated_image = self.calibrant.fake_calibration_image(
                 ai_copy, shape=self.max_shape, resolution=resolution

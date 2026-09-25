@@ -1,26 +1,20 @@
-"""Tests for xrpd_toolbox.i15_1.eiger_500k.
-
-Uses small synthetic NeXus/HDF5 files (see eiger_fixtures.py) instead of a
-real Eiger500K data collection, and small synthetic .poni files for the
-pyFAI geometry-loading branches of Eiger500K.__init__.
-"""
+"""Tests for xrpd_toolbox.i15_1.eiger_500k."""
 
 from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
 import pytest
-from pydantic import ValidationError
 from pyFAI.detectors import Detector
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 from eiger_fixtures import build_eiger_nexus, build_mask_file
 from xrpd_toolbox.i15_1.eiger_500k import (
+    ARM_ROTATION_SIGN,
     DEFAULT_MAX_SHAPE,
     PIXEL_SIZE,
     Eiger500K,
     EigerDataLoader,
-    EigerSettings,
 )
 
 WAVELENGTH_ANGSTROM = 0.161699
@@ -51,43 +45,6 @@ def make_poni_file(path: Path, pixel_size: float = PIXEL_SIZE) -> Path:
     )
     ai.save(str(path))
     return path
-
-
-# ---------------------------------------------------------------------------
-# EigerSettings
-# ---------------------------------------------------------------------------
-
-
-def test_eiger_settings_defaults():
-    settings = EigerSettings()
-
-    assert settings.bad_channel_masking is True
-    assert settings.apply_flatfield is False
-    assert settings.error_calc == "poisson"
-    assert settings.poni_filepath is None
-
-
-def test_eiger_settings_overrides():
-    settings = EigerSettings(
-        bad_channels_filepath="mask.h5",
-        bad_channel_masking=False,
-        flatfield_filepath="flat.h5",
-        apply_flatfield=True,
-        darkfield_filepath="dark.h5",
-        send_to_ispyb=True,
-        rebin_step=0.01,
-        error_calc="std_dev",
-        poni_filepath="calib.poni",
-    )
-
-    assert settings.apply_flatfield is True
-    assert settings.error_calc == "std_dev"
-    assert settings.poni_filepath == "calib.poni"
-
-
-def test_eiger_settings_rejects_invalid_error_calc():
-    with pytest.raises(ValidationError):
-        EigerSettings(error_calc="not_a_valid_choice")  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -136,17 +93,18 @@ def test_load_all_data(nexus_file):
 
     data = loader.load_all_data()
 
-    assert data.shape == (3, 4, 5)
+    # written as (frames, 4, 5); transposed to the detector orientation
+    assert data.shape == (3, 5, 4)
 
 
 def test_get_data_with_int_and_list(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
     single = loader.get_data(0)
-    assert single.shape == (4, 5)
+    assert single.shape == (5, 4)
 
     subset = loader.get_data([0, 2])
-    assert subset.shape == (2, 4, 5)
+    assert subset.shape == (2, 5, 4)
 
 
 def test_get_data_missing_dataset_raises(tmp_path):
@@ -201,12 +159,30 @@ def test_get_pixel_mask_filepath_and_datapath_fallback(tmp_path):
     assert mask_datapath == "entry/mask"
 
 
+def test_get_data_and_mask_are_transposed_to_detector_orientation(tmp_path):
+    # the Eiger writes (512, 1028); pyFAI's Eiger500K is (1028, 512) so the
+    # two-theta arm (rot2) sweeps the rings along dim1
+    data = np.arange(2 * 4 * 5, dtype=np.uint32).reshape(2, 4, 5)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data=data, mask_ref=f"{mask_file}//entry/mask"
+    )
+    loader = EigerDataLoader(nxs)
+
+    assert np.array_equal(loader.get_data(1), data[1].T)
+    assert np.array_equal(loader.load_all_data(), data.transpose(0, 2, 1))
+    assert loader.get_mask().shape == loader.get_data(0).shape
+    assert loader.get_mask(as_nan=True).shape == loader.get_data(0).shape
+
+
 def test_get_mask(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
     mask = loader.get_mask()
 
-    assert mask.shape == (4, 5)
+    # transposed to match get_data
+    assert mask.shape == (5, 4)
     assert mask.dtype == bool
 
 
@@ -234,6 +210,139 @@ def test_get_plan_type_missing_raises(tmp_path):
 
     with pytest.raises(ValueError, match="plan_type"):
         loader.get_plan_type()
+
+
+def _constant_frames(*values: float) -> np.ndarray:
+    """One (4, 5) frame per value, every pixel set to that value."""
+    return np.stack([np.full((4, 5), value) for value in values])
+
+
+def test_sum_unique_two_theta_positions_normalises_each_position(tmp_path):
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(10.0, 20.0, 30.0),
+        tth=np.array([1.0, 2.0, 3.0]),
+        i0=np.array([2.0, 4.0, 5.0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    # one frame per position, each divided by its own i0; frames come back
+    # in the detector orientation (see to_detector_orientation)
+    assert result.shape == (3, 5, 4)
+    assert np.allclose(result[0], 10.0 / 2.0)
+    assert np.allclose(result[1], 20.0 / 4.0)
+    assert np.allclose(result[2], 30.0 / 5.0)
+
+
+def test_sum_unique_two_theta_positions_sums_repeated_positions(tmp_path):
+    # frames at the same position are summed and divided by their total i0 -
+    # not divided again by the number of frames
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 3.0, 4.0),
+        tth=np.array([1.0, 1.0, 2.0, 2.0]),
+        i0=np.array([1.0, 4.0, 2.0, 3.0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    assert result.shape == (2, 5, 4)
+    assert np.allclose(result[0], (1.0 + 2.0) / (1.0 + 4.0))
+    assert np.allclose(result[1], (3.0 + 4.0) / (2.0 + 3.0))
+
+
+def test_sum_unique_two_theta_positions_many_frames_per_position(tmp_path):
+    # more frames at one position than there are image columns/rows, so a
+    # wrong broadcast can't accidentally line up
+    n_frames = 7
+    data = np.stack([np.full((4, 5), 2.0 * (n + 1)) for n in range(n_frames)])
+    i0 = np.arange(1, n_frames + 1, dtype=float)
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=data,
+        tth=np.full(n_frames, 5.0),
+        i0=i0.reshape(-1, 1),  # (n_frames, 1) as written by areaDetector
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    # every frame is 2 * i0, so every normalised frame is 2
+    assert result.shape == (1, 5, 4)
+    assert np.allclose(result, 2.0)
+
+
+def test_sum_unique_two_theta_positions_without_normalising_ignores_i0(tmp_path):
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 5.0),
+        tth=np.array([1.0, 1.0, 2.0]),
+        i0=np.array([-1.0, -1.0, 0.0]),  # would be invalid if it were used
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise(normalise=False)
+
+    # frames at each position averaged, with no i0 division
+    assert result.shape == (2, 5, 4)
+    assert np.allclose(result[0], (1.0 + 2.0) / 2)
+    assert np.allclose(result[1], 5.0)
+
+
+def test_sum_unique_two_theta_positions_uses_magnitude_of_negative_i0(tmp_path):
+    # i15-1 i0 reads negative - its magnitude is used so images stay positive
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(2.0),
+        tth=np.array([1.0]),
+        i0=np.array([-0.5]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    assert np.allclose(result, 4.0)
+
+
+def test_sum_unique_two_theta_positions_groups_jittered_interleaved_readbacks(
+    tmp_path,
+):
+    # the readback wanders between two values at each position; frames must be
+    # summed with the others at that position, in the order of the angles
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 3.0, 10.0, 20.0),
+        tth=np.array([50.000005, 50.000061, 50.000005, 59.999995, 60.000051]),
+        i0=np.ones(5),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    assert result.shape[0] == 2
+    assert np.allclose(result[0], (1.0 + 2.0 + 3.0) / 3)
+    assert np.allclose(result[1], (10.0 + 20.0) / 2)
+    assert loader.get_unique_tth_positions() == pytest.approx([50.00002367, 60.0000230])
+
+
+def test_get_summed_and_masked_frames_is_not_normalised_by_i0(tmp_path):
+    data = np.ones((2, 4, 5), dtype=np.uint32)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=data,
+        tth=np.array([1.0, 1.0]),
+        i0=np.array([[0.5], [0.5]]),
+        mask_ref=f"{mask_file}//entry/mask",
+    )
+    loader = EigerDataLoader(nxs)
+
+    assert np.all(loader.get_summed_and_masked_frames() == 1)
+    assert np.all(loader.get_summed_normalised_and_masked_frames() == 2)
 
 
 def test_sum_frames(tmp_path):
@@ -299,12 +408,14 @@ def test_sum_frames_scalar_dataset_raises(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_get_i0_is_cached(nexus_file):
-    loader = EigerDataLoader(nexus_file)
+def test_get_i0_is_one_value_per_frame(tmp_path):
+    # areaDetector writes i0 as (n_frames, 1)
+    i0 = np.array([[1.0], [2.0], [3.0]])
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", n_frames=3, i0=i0)
+    loader = EigerDataLoader(nxs)
 
-    # cached_property: second call returns the same cached array, rather
-    # than re-reading the dataset from disk
-    assert loader.get_i0() is loader.get_i0()
+    assert loader.get_i0().shape == (3,)
+    assert np.array_equal(loader.get_i0(), [1.0, 2.0, 3.0])
 
 
 def test_data_loader_only_opens_the_file_once(nexus_file):
@@ -382,21 +493,6 @@ def test_eiger500k_with_poni_filepath_path_object(tmp_path):
     assert eiger.ai is not None
 
 
-def test_eiger500k_with_settings_poni(tmp_path):
-    poni_path = make_poni_file(tmp_path / "good.poni")
-    settings = EigerSettings(poni_filepath=str(poni_path))
-
-    eiger = Eiger500K(settings=settings)
-
-    assert eiger.ai is not None
-    assert eiger.ai.dist == pytest.approx(0.25)
-
-
-def test_eiger500k_settings_without_poni_filepath_raises():
-    with pytest.raises(FileNotFoundError):
-        Eiger500K(settings=EigerSettings())
-
-
 def test_eiger500k_no_poni_no_settings_has_no_ai():
     eiger = Eiger500K()
 
@@ -409,22 +505,6 @@ def test_eiger500k_pixel_size_mismatch_raises(tmp_path):
 
     with pytest.raises(ValueError, match="Pixel size"):
         Eiger500K(poni=str(mismatched_poni))
-
-
-def test_eiger500k_with_filepath_builds_data_loader_and_process_step_scan(tmp_path):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", tth=np.array([1.0, 2.0]))
-
-    eiger = Eiger500K(filepath=nxs)
-
-    assert isinstance(eiger.data_loader, EigerDataLoader)
-    # exercises the (currently no-op) loop over positions without error
-    eiger.process_step_scan()
-
-
-def test_load_geometry_is_currently_a_noop():
-    eiger = Eiger500K(poni=PONI_DICT)
-
-    assert eiger.load_geometry("some.poni") is None
 
 
 def test_set_calibrant():
@@ -458,8 +538,11 @@ def test_simulate_data(eiger):
     assert len(images) == len(ais) == 4
     assert images[0].shape == DEFAULT_MAX_SHAPE
     assert np.any(images[0] > 0)
-    # rot2 should track the requested two-theta position (in radians)
-    assert ais[1].rot2 == pytest.approx(np.deg2rad(positions_in_tth[1]))
+    # the arm swings horizontally, so rot1 tracks the requested two-theta
+    assert ais[1].rot1 == pytest.approx(
+        ARM_ROTATION_SIGN * np.deg2rad(positions_in_tth[1])
+    )
+    assert ais[1].rot2 == 0.0
 
 
 def test_simulate_data_reuses_existing_calibrant(eiger):

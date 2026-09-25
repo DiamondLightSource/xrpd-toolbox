@@ -1,15 +1,4 @@
-"""
-Eiger500K goniometer calibration and integration.
-
-Two public functions:
-
-- ``build_and_save_goniometer``: calibrate a Goniometer model from images of
-  a known calibrant and save to disk.
-- ``integrate_with_goniometer``: load that model and integrate arbitrary
-  detector images into a 1-D .xy pattern.
-
-All data is read from NeXus/HDF5 files.
-"""
+"""Eiger500K goniometer calibration and integration."""
 
 from __future__ import annotations
 
@@ -19,8 +8,12 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Literal
 
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LogNorm
 from pyFAI.calibrant import Calibrant, get_calibrant
+from pyFAI.detectors import Detector, detector_factory
+from pyFAI.geometry import Geometry
 from pyFAI.goniometer import (
     GeometryTransformation,
     Goniometer,
@@ -29,35 +22,35 @@ from pyFAI.goniometer import (
     SingleGeometry,
 )
 
+from xrpd_toolbox.i15_1.eiger_500k import ARM_ROTATION_SIGN
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
 
 logger = logging.getLogger(__name__)
 
-# Geometry model
-# a rotating detector arm around tth: dist/poni1/poni2/rot1/rot3 should be constant;
-# rot2 is linear in two_theta.  Maybe extend expressions here for non-ideal arms?
-
+# rigid arm swinging horizontally, so only rot1 changes with two_theta
 GEOMETRY_TRANSFORMATION = GeometryTransformation(
-    param_names=["dist", "poni1", "poni2", "rot1", "rot2_scale", "rot2_offset", "rot3"],
+    param_names=["dist", "poni1", "poni2", "rot1_scale", "rot1_offset", "rot2", "rot3"],
     pos_names=["two_theta"],
     dist_expr="dist",
     poni1_expr="poni1",
     poni2_expr="poni2",
-    rot1_expr="rot1",
-    # numexpr can't call numpy functions (eg.. np.deg2rad,
-    # and it has no built-in deg2rad,
-    # so conversion factor pi/180 = 0.0174532...
-    rot2_expr="rot2_scale * (two_theta * 0.017453292519943295) + rot2_offset",
+    # numexpr has no deg2rad
+    rot1_expr="rot1_scale * (two_theta * 0.017453292519943295) + rot1_offset",
+    rot2_expr="rot2",
     rot3_expr="rot3",
 )
 
+# once the beam centre is off the detector a frame can't separate these from rot1
+SEEDED_FRAME_FIX = ["wavelength", "dist", "poni1", "poni2"]
+
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
 METADATA_SAVE_NAME = "calibration_metadata.json"
+FITS_DIR_NAME = "calibration_fits"
 
 
 def calibrate_single_geometry_from_rings(
     geometry: SingleGeometry,
-    rings: list[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa
+    rings: list[int] = [3, 5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa
     fix: list | None = None,
 ):
     """Extract control points for geometry and refine it."""
@@ -66,24 +59,51 @@ def calibrate_single_geometry_from_rings(
 
     for max_rings in rings:
         geometry.extract_cp(max_rings=max_rings)
+        # pyFAI leaves an empty 1D array, which fails obscurely inside refine2
+        assert geometry.geometry_refinement.data is not None
+        if geometry.geometry_refinement.data.ndim != 2:
+            raise ValueError(
+                f"No control points found for {geometry.label} "
+                f"(max_rings={max_rings}) - check the image contains "
+                "positive calibrant rings and the mask is correct"
+            )
+        npts = len(geometry.geometry_refinement.data)
         geometry.geometry_refinement.refine2(fix=fix)
+        gr = geometry.geometry_refinement
+        logger.info(
+            "  %s max_rings=%d: %d points, chi2=%.3g, dist/poni1/poni2/rot1-3=%s",
+            geometry.label,
+            max_rings,
+            npts,
+            gr.chi2(),
+            np.round(gr.param[:6], 5),
+        )
 
     return geometry
 
 
-def _load_goniometer_dir(output_dir: Path) -> tuple[Goniometer, dict]:
-    """Load a Goniometer and its metadata which have previously
-    been saved in output_dir."""
-    gonio_path = output_dir / GONIOMETER_SAVE_NAME
-    meta_path = output_dir / METADATA_SAVE_NAME
-    for p in (gonio_path, meta_path):
-        if not p.exists():
-            raise FileNotFoundError(f"{p.name} not found in {output_dir}")
+def _load_goniometer_dir(goniometer_filepath: Path) -> Goniometer:
+    """Load a Goniometer which has previously been saved."""
 
-    gonio = Goniometer.sload(str(gonio_path))
-    meta: dict = json.loads(meta_path.read_text())
-    logger.info("Loaded goniometer from %s", output_dir)
-    return gonio, meta
+    if not goniometer_filepath.exists():
+        raise FileNotFoundError(
+            f"{goniometer_filepath.name} not found in {goniometer_filepath.parent}"
+        )
+
+    gonio = Goniometer.sload(str(goniometer_filepath))
+    logger.info("Loaded goniometer from %s", goniometer_filepath.parent)
+    return gonio
+
+
+def _resolve_detector(detector: Detector | str | None) -> Detector:
+    """None -> the simulation Eiger500K; a name -> pyFAI's registry detector."""
+    from xrpd_toolbox.i15_1.eiger_500k import Eiger500K
+
+    if detector is None:
+        return Eiger500K()
+    if isinstance(detector, str):
+        return detector_factory(detector)
+    return detector
 
 
 def _calibrate_single_frame(
@@ -94,50 +114,44 @@ def _calibrate_single_frame(
     initial_dist_m: float,
     max_rings: int | None | Iterable[int],
     pts_per_deg: float,
+    detector: Detector | str | None = None,
+    initial_beam_centre_px: tuple[float, float] | None = None,
+    seed_geometry: dict[str, float] | None = None,
+    fix: list[str] | None = None,
 ) -> SingleGeometry:
-    """Calibrate one frame independently and return the refined SingleGeometry.
+    """Extract control points and refine the geometry of one frame.
 
-    A SingleGeometry is initialised with an
-    approximate sample-to-detector distance and beam centre at the detector
-    centre.  Control points are then extracted and the per-frame geometry is
-    refined before being handed to the GoniometerRefinement
-
-    Returns SingleGeometry with control points extracted and geometry refined.
+    Starts from the beam centre (default: detector centre) with any values in
+    `seed_geometry` taking priority. `detector` defaults to the sim Eiger500K.
     """
-    from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, Eiger500K
+    # pass an instance: SingleGeometry looks up name strings in pyFAI's own
+    # registry, and "eiger500k" there is a different shaped detector
+    detector = _resolve_detector(detector)
+    assert detector.max_shape is not None
+    if initial_beam_centre_px is None:
+        rows, cols = detector.max_shape
+        initial_beam_centre_px = (rows / 2, cols / 2)
+    centre_row, centre_col = initial_beam_centre_px
 
-    # NOTE: must be an actual Eiger500K() instance, not the "Eiger500k" name
-    # string - SingleGeometry.__init__ resolves a `detector=` string via
-    # pyFAI's own detector registry, which (case-insensitively) maps
-    # "eiger500k" to pyFAI's *own* built-in Eiger500k detector
-    # (max_shape (514, 1030)), silently overriding whatever detector object
-    # was set on `initial_geometry["detector"]" below - and that shape
-    # doesn't match images produced by Eiger500K.simulate_data() (max_shape
-    # DEFAULT_MAX_SHAPE = (1028, 512)), which crashes extract_cp(). Passing
-    # an instance bypasses that string lookup entirely (detector_factory
-    # returns a Detector instance unchanged).
-    detector = Eiger500K()
-    rows, cols = DEFAULT_MAX_SHAPE
-
-    # Approximate geometry: beam hits the detector centre, arm at two_theta.
     initial_geometry = {
         "dist": initial_dist_m,
-        "poni1": rows / 2 * detector.pixel1,
-        "poni2": cols / 2 * detector.pixel2,
-        "rot1": 0.0,
-        "rot2": np.deg2rad(two_theta_deg),
+        # the PONI moves with the arm, so the 0° beam centre works at any angle
+        "poni1": centre_row * detector.pixel1,
+        "poni2": centre_col * detector.pixel2,
+        "rot1": ARM_ROTATION_SIGN * np.deg2rad(two_theta_deg),
+        "rot2": 0.0,
         "rot3": 0.0,
         "wavelength": calibrant.wavelength,
         "detector": detector,
     }
+    if seed_geometry is not None:
+        initial_geometry.update(seed_geometry)
 
     sg = SingleGeometry(
         label=label,
         image=image,
         metadata=two_theta_deg,
-        # GoniometerRefinement.refine2()/chi2() call single.get_position(), which
-        # calls pos_function(metadata) - without this, that's None and every
-        # refinement crashes with "'NoneType' object is not callable".
+        # needed by GoniometerRefinement, which calls get_position()
         pos_function=lambda two_theta: (two_theta,),
         calibrant=calibrant,
         detector=detector,
@@ -145,22 +159,87 @@ def _calibrate_single_frame(
     )
 
     if isinstance(max_rings, Iterable):
-        sg = calibrate_single_geometry_from_rings(geometry=sg, rings=list(max_rings))
+        sg = calibrate_single_geometry_from_rings(
+            geometry=sg, rings=list(max_rings), fix=fix
+        )
 
     else:
         sg.extract_cp(max_rings=max_rings, pts_per_deg=pts_per_deg)
-        sg.geometry_refinement.refine2()
+        sg.geometry_refinement.refine2(fix=fix)
 
     assert sg.geometry_refinement.data is not None
-
-    logger.debug(
-        "  %s: dist=%.4f m  rot2=%.4f rad  npts=%d",
-        label,
-        sg.geometry_refinement.dist,
-        sg.geometry_refinement.rot2,
-        len(sg.geometry_refinement.data),
-    )
     return sg
+
+
+def _seed_from(
+    previous: SingleGeometry, two_theta_deg: float
+) -> tuple[dict[str, float], list[str]]:
+    """Previous frame's geometry with rot1 moved on by the arm step."""
+    gr = previous.geometry_refinement
+    names = ("dist", "poni1", "poni2", "rot1", "rot2", "rot3")
+    seed = {name: float(getattr(gr, name)) for name in names}
+    assert previous.metadata is not None
+    step = np.deg2rad(two_theta_deg - float(previous.metadata))
+    seed["rot1"] += ARM_ROTATION_SIGN * step
+    return seed, list(SEEDED_FRAME_FIX)
+
+
+def _plot_fit(
+    sg: SingleGeometry,
+    model: Geometry | None = None,
+    save_path: Path | None = None,
+    show: bool = False,
+):
+    """Rings over the image and Δ2θ residuals, for the frame fit and the model."""
+    gr = sg.geometry_refinement
+    assert gr.data is not None and sg.image is not None and sg.calibrant is not None
+    d1, d2, rings = gr.data[:, 0], gr.data[:, 1], gr.data[:, 2].astype(int)
+    chi = np.degrees(gr.chi(d1, d2))
+    ring_tth = gr.calc_2th(rings)
+    # only the rings with control points, the rest just clutter the image
+    levels = np.unique(ring_tth)
+
+    fig, axes = plt.subplot_mosaic(
+        [["img", "chi"], ["img", "tth"]],
+        figsize=(16, 6),
+        width_ratios=[2.5, 1],
+        layout="constrained",
+    )
+    ax_img = axes["img"]
+    image = np.nan_to_num(sg.image)
+    positive = image[image > 0]
+    norm = LogNorm(*np.percentile(positive, [5, 99.9])) if positive.size else None
+    ax_img.imshow(image, cmap="gray", norm=norm)
+    ax_img.plot(d2, d1, ".", color="orange", ms=2, alpha=0.5)
+
+    title = f"{sg.label}: {len(d1)} points on {len(np.unique(rings))} rings"
+    for geometry, colour, name in [(gr, "cyan", "frame fit"), (model, "red", "model")]:
+        if geometry is None:
+            continue
+        tth = geometry.center_array(unit="2th_rad", scale=False)
+        # contour warns about levels outside the image
+        in_image = levels[(levels > tth.min()) & (levels < tth.max())]
+        if in_image.size:
+            ax_img.contour(tth, levels=in_image, colors=colour, linewidths=0.8)
+        residual = np.degrees(geometry.tth(d1, d2) - ring_tth) * 1e3
+        axes["chi"].plot(chi, residual, ".", color=colour, ms=3, label=name)
+        axes["tth"].plot(np.degrees(ring_tth), residual, ".", color=colour, ms=3)
+        title += f", rms {name} {np.sqrt(np.mean(residual**2)):.1f} mdeg"
+
+    for key, xlabel in [("chi", "χ (°)"), ("tth", "ring 2θ (°)")]:
+        axes[key].axhline(0, color="k", lw=0.5)
+        axes[key].set_xlabel(xlabel)
+        axes[key].set_ylabel("Δ2θ (mdeg)")
+    axes["chi"].legend()
+    key = "cyan: frame fit, " + ("red: model, " if model is not None else "")
+    fig.suptitle(f"{title}\n{key}orange: control points")
+
+    if save_path is not None:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path)
+    if show:
+        plt.show()
+    plt.close(fig)
 
 
 def build_and_save_goniometer(
@@ -176,17 +255,21 @@ def build_and_save_goniometer(
     unit: str = "2th_deg",
     radial_range: tuple[float, float] | None = None,
     npt: int = 2000,
+    detector: Detector | str | None = None,
+    plot_fits: bool = False,
+    show_plots: bool = False,
+    initial_beam_centre_px: tuple[float, float] | None = None,
+    seed_from_previous: bool = True,
 ) -> tuple[str, str]:
-    """Calibrate a Goniometer from calibrant images and save it.
+    """Fit each frame, then fit GEOMETRY_TRANSFORMATION across all of them.
 
-    Each calibration frame is first calibrated independently via SingleGeometry
-    to extract rings and refine a per-frame geometry.  Those per-frame geometries
-    create a .GoniometerRefinement  that fits GEOMETRY_TRANSFORMATION
-    across all frames simultaneously, producing a model of how the detector g
-    eometry varies with two_theta.
-
-    returns a tuple of strings to goniometer calibration, and calibration metadata
+    Angles should be ascending from a frame with the beam on the detector.
+    `plot_fits` saves the fit for each frame, then with the model, and
+    `show_plots` opens them.
+    Returns the paths of the saved goniometer and metadata files.
     """
+    detector = _resolve_detector(detector)
+
     nexus_path = Path(nexus_filepath)
 
     if output_dir is None:
@@ -203,13 +286,17 @@ def build_and_save_goniometer(
 
     calibrant = get_calibrant(calibrant_name=calibrant_name, wavelength=wavelength_m)
 
-    # calibrate each frame independently
     single_geometries: list[SingleGeometry] = []
     for i, (image, two_theta_deg) in enumerate(zip(images, angles, strict=True)):
         label = f"frame_{i:04d}_{two_theta_deg:.4f}deg"
         logger.info(
             "Calibrating frame %d / %d at %.4f°", i + 1, len(angles), two_theta_deg
         )
+        seed_geometry, fix = None, None
+        if seed_from_previous and single_geometries:
+            previous = single_geometries[-1]
+            seed_geometry, fix = _seed_from(previous, float(two_theta_deg))
+            logger.info("  seeded from %s, fixing %s", previous.label, ", ".join(fix))
         sg = _calibrate_single_frame(
             label,
             image,
@@ -218,43 +305,66 @@ def build_and_save_goniometer(
             initial_dist_m,
             max_rings,
             pts_per_deg,
+            detector=detector,
+            initial_beam_centre_px=initial_beam_centre_px,
+            seed_geometry=seed_geometry,
+            fix=fix,
         )
         single_geometries.append(sg)
 
-    # --- Step 2: seed GoniometerRefinement from the first refined frame ---
+        if plot_fits or show_plots:
+            fits_path = output_dir / FITS_DIR_NAME / f"{label}_frame.png"
+            _plot_fit(sg, save_path=fits_path if plot_fits else None, show=show_plots)
+
     first = single_geometries[0].geometry_refinement
     initial_params = {
         "dist": first.dist,
         "poni1": first.poni1,
         "poni2": first.poni2,
-        "rot1": first.rot1,
-        "rot2_scale": 1.0,
-        "rot2_offset": first.rot2 - np.deg2rad(angles[0]),
+        "rot1_scale": ARM_ROTATION_SIGN,
+        "rot1_offset": first.rot1 - ARM_ROTATION_SIGN * np.deg2rad(angles[0]),
+        "rot2": first.rot2,
         "rot3": first.rot3,
     }
-
-    from xrpd_toolbox.i15_1.eiger_500k import Eiger500K
 
     gonioref = GoniometerRefinement(
         initial_params,
         pos_function=lambda two_theta: (two_theta,),
         trans_function=GEOMETRY_TRANSFORMATION,
-        # see the NOTE in _calibrate_single_frame - must be an instance, not
-        # the "Eiger500k" name string, or this silently resolves to pyFAI's
-        # own (wrongly-shaped) built-in Eiger500k detector.
-        detector=Eiger500K(),  # type: ignore[arg-type]
+        detector=detector,  # type: ignore[arg-type]
         wavelength=wavelength_m,
     )
 
-    # register each SingleGeometry with its control points
     for sg in single_geometries:
         gonioref.single_geometries[sg.label] = sg
 
-    # --- Step 4: global refinement ---
     logger.info("Refining goniometer model across %d frames …", len(angles))
 
-    gonioref.refine2()
+    # passed on to scipy, prints every iteration
+    gonioref.refine2(iprint=2, disp=True)
     logger.info("Refinement done. χ² = %.6g", gonioref.chi2())
+
+    for sg in single_geometries:
+        gr = sg.geometry_refinement
+        assert gr.data is not None
+        model = gonioref.get_ai(sg.get_position())
+        model_param = [model.dist, model.poni1, model.poni2]
+        model_param += [model.rot1, model.rot2, model.rot3]
+        frame_rms, model_rms = np.degrees(
+            np.sqrt([gr.chi2(), gr.chi2(model_param)]) / np.sqrt(len(gr.data))
+        )
+        logger.info(
+            "  %s: rms Δ2θ %.4f° frame fit, %.4f° goniometer model",
+            sg.label,
+            frame_rms,
+            model_rms,
+        )
+
+        if plot_fits or show_plots:
+            fits_path = output_dir / FITS_DIR_NAME / f"{sg.label}_model.png"
+            _plot_fit(
+                sg, model, save_path=fits_path if plot_fits else None, show=show_plots
+            )
 
     calibration_save_filepath = str(output_dir / GONIOMETER_SAVE_NAME)
     metadata_output_filepath = output_dir / METADATA_SAVE_NAME
@@ -282,48 +392,32 @@ def build_and_save_goniometer(
 def integrate_with_goniometer(
     images: np.ndarray,
     positions: np.ndarray,
-    goniometer_dir: Path | str,
+    goniometer_filepath: Path | str,
     output_xy_filepath: Path | str,
-    npt: int | None = None,
+    npt: int = 2000,
     polarization_factor: float = 0.99,
     correct_solid_angle: bool = True,
     mask: np.ndarray | None = None,
     error_model: Literal["poisson", "azimuthal"] = "azimuthal",
-    save_xy_with_header: bool = False,
+    unit: str = "2th_deg",
     save_xye: bool = False,
+    wavelength: float | None = None,
 ) -> Path:
-    """Integrate detector images using a saved Goniometer model.
-
-    Return a Path to the written ``.xy`` file.
-    """
-    goniometer_dir = Path(goniometer_dir)
+    """Integrate images with a saved goniometer and write an .xy file."""
     output_xy_filepath = Path(output_xy_filepath)
     output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    gonio, meta = _load_goniometer_dir(goniometer_dir)
-
-    calib_angles = np.asarray(meta["calib_two_theta_deg"])
-    out_of_range = (positions < calib_angles.min()) | (positions > calib_angles.max())
-    if out_of_range.any():
-        logger.warning(
-            "%d frame(s) outside calibrated range [%.4f°, %.4f°] — extrapolating.",
-            out_of_range.sum(),
-            calib_angles.min(),
-            calib_angles.max(),
-        )
-
-    effective_npt: int = npt if npt is not None else meta["npt"]
-    radial_range: tuple[float, float] | None = (
-        tuple(meta["radial_range"]) if meta.get("radial_range") else None  # type: ignore[assignment]
-    )
+    gonio = _load_goniometer_dir(goniometer_filepath=Path(goniometer_filepath))
 
     frame_ais = [gonio.get_ai(float(two_theta)) for two_theta in positions]
 
+    if wavelength is None:
+        wavelength = gonio.wavelength
+
     mg = MultiGeometry(
         frame_ais,
-        unit=meta["unit"],
-        radial_range=radial_range,
-        wavelength=meta["wavelength"],
+        unit=unit,
+        wavelength=wavelength,
     )
 
     n_frames = len(images)
@@ -331,7 +425,7 @@ def integrate_with_goniometer(
 
     result = mg.integrate1d(
         list(images),
-        npt=effective_npt,
+        npt=npt,
         correctSolidAngle=correct_solid_angle,
         polarization_factor=polarization_factor,
         lst_mask=lst_mask,
@@ -344,26 +438,9 @@ def integrate_with_goniometer(
 
     assert len(tth) == len(intensity) == len(error)
 
-    if save_xy_with_header:
-        header = "\n".join(
-            [
-                f"# goniometer_dir: {goniometer_dir}",
-                f"# frames: {n_frames}",
-                f"# npt: {effective_npt}",
-                f"# unit: {meta['unit']}",
-                f"# wavelength_m: {meta['wavelength']}",
-                f"# polarization_factor: {polarization_factor}",
-                f"# correct_solid_angle: {correct_solid_angle}",
-                f"# {meta['unit']}    Intensity",
-            ]
-        )
-    else:
-        header = ""
-
     np.savetxt(
         str(output_xy_filepath),
         np.column_stack([tth, intensity]),
-        header=header,
         comments="",
         fmt="%.8g",
     )
@@ -372,7 +449,6 @@ def integrate_with_goniometer(
         np.savetxt(
             str(output_xy_filepath).replace(".xy", ".xye"),
             np.column_stack([tth, intensity, error]),
-            header=header,
             comments="",
             fmt="%.8g",
         )

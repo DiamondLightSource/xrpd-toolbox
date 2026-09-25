@@ -1,110 +1,58 @@
-"""Tests for xrpd_toolbox.i15_1.eiger_analysis.
-
-do_eiger_calibration/do_eiger_data_reduction are tested with the
-lower-level EigerDataLoader helpers mocked out so their own orchestration
-logic can be verified independently.
-"""
+"""Tests for xrpd_toolbox.i15_1.eiger_analysis."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from xrpd_toolbox.i15_1 import eiger_analysis
 from xrpd_toolbox.i15_1.eiger_500k import (
     apply_mask,
-    sum_unique_two_theta_positions_and_normalise,
-    unique_slices,
+    group_positions,
 )
 
 # ---------------------------------------------------------------------------
-# unique_slices
+# group_positions
 # ---------------------------------------------------------------------------
 
 
-def test_unique_slices_groups_runs_of_equal_values():
-    arr = np.array([1, 1, 2, 2, 2, 3])
+def test_group_positions_groups_runs_of_equal_values():
+    labels, positions = group_positions([1.0, 1.0, 2.0, 2.0, 2.0, 3.0])
 
-    slices = unique_slices(arr)
-
-    assert [arr[s].tolist() for s in slices] == [[1, 1], [2, 2, 2], [3]]
-
-
-def test_unique_slices_all_values_unique():
-    arr = np.array([1.0, 2.0, 3.0])
-
-    slices = unique_slices(arr)
-
-    assert slices == [slice(0, 1), slice(1, 2), slice(2, 3)]
+    assert labels.tolist() == [0, 0, 1, 1, 1, 2]
+    assert positions.tolist() == [1.0, 2.0, 3.0]
 
 
-def test_unique_slices_single_value_repeated():
-    arr = np.array([5.0, 5.0, 5.0])
+def test_group_positions_merges_readback_jitter():
+    # real i15-1 readbacks: 50° and 60° each read back as two values ~6e-5 apart,
+    # interleaved - exact equality made four "positions" out of two
+    tth = [50.000005, 50.000061, 50.000005, 59.999995, 60.000051, 59.999995]
 
-    slices = unique_slices(arr)
+    labels, positions = group_positions(tth)
 
-    assert len(slices) == 1
-    assert arr[slices[0]].tolist() == [5.0, 5.0, 5.0]
-
-
-def test_unique_slices_accepts_plain_list():
-    # unique_slices does np.asarray(arr) internally, so list input works too
-    slices = unique_slices([1, 1, 2])  # type: ignore[arg-type]
-
-    assert slices == [slice(0, 2), slice(2, 3)]
+    assert labels.tolist() == [0, 0, 0, 1, 1, 1]
+    assert positions == pytest.approx([np.mean(tth[:3]), np.mean(tth[3:])])
 
 
-# ---------------------------------------------------------------------------
-# sum_unique_two_theta_positions_and_normalise
-# ---------------------------------------------------------------------------
+def test_group_positions_does_not_need_sorted_or_contiguous_frames():
+    labels, positions = group_positions([20.0, 10.0, 20.0, 10.0])
+
+    assert labels.tolist() == [1, 0, 1, 0]
+    assert positions.tolist() == [10.0, 20.0]
 
 
-class FakeEigerData:
-    """Minimal stand-in for EigerDataLoader exposing just what
-    sum_unique_two_theta_positions_and_normalise needs."""
+def test_group_positions_keeps_positions_further_apart_than_tolerance():
+    labels, positions = group_positions([1.0, 1.01, 1.02], tolerance=1e-3)
 
-    def __init__(self, positions, data, i0):
-        self.positions = positions
-        self._data = data
-        self._i0 = i0
-
-    def get_data(self, frames):
-        return self._data[frames]
-
-    def get_i0(self):
-        return self._i0
+    assert labels.tolist() == [0, 1, 2]
+    assert len(positions) == 3
 
 
-def test_sum_unique_two_theta_positions_groups_and_normalises_multiple_positions():
-    fake = FakeEigerData(
-        positions=np.array([1.0, 2.0, 3.0]),
-        data=np.stack([np.full((4, 5), value) for value in (10.0, 20.0, 30.0)]),
-        i0=np.array([2.0, 4.0, 5.0]),
-    )
+def test_group_positions_empty():
+    labels, positions = group_positions([])
 
-    result = sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
-
-    # one frame per unique position, so summing over axis=0 is a no-op and
-    # each frame is normalised by dividing by its own i0
-    assert result.shape == (3, 4, 5)
-    assert np.allclose(result[0], 10.0 / 2.0)
-    assert np.allclose(result[1], 20.0 / 4.0)
-    assert np.allclose(result[2], 30.0 / 5.0)
-
-
-def test_sum_unique_two_theta_positions_single_frame_at_position_one():
-    fake = FakeEigerData(
-        positions=np.array([1.0]),
-        data=np.full((1, 4, 5), 2.0),
-        i0=np.array([3.0]),
-    )
-
-    result = sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
-
-    # sum over the frames axis (a no-op for a single frame) then normalised
-    # by dividing by the summed i0
-    assert result.shape == (1, 4, 5)
-    assert np.allclose(result, 2.0 / 3.0)
+    assert labels.size == 0 and positions.size == 0
 
 
 # ---------------------------------------------------------------------------
@@ -112,15 +60,16 @@ def test_sum_unique_two_theta_positions_single_frame_at_position_one():
 # ---------------------------------------------------------------------------
 
 
-def test_apply_mask_multiplies_each_frame():
+def test_apply_mask_zeroes_bad_pixels_in_each_frame():
     frames = np.ones((2, 3, 3))
     mask = np.array([[1, 0, 1], [0, 1, 0], [1, 1, 1]])
 
     masked = apply_mask(frames, mask)
 
     assert masked.shape == (2, 3, 3)
-    assert np.array_equal(masked[0], mask)
-    assert np.array_equal(masked[1], mask)
+    # Eiger/pyFAI convention: nonzero in the mask = bad pixel
+    assert np.array_equal(masked[0], 1 - mask)
+    assert np.array_equal(masked[1], 1 - mask)
 
 
 def test_apply_mask_with_boolean_mask():
@@ -129,7 +78,19 @@ def test_apply_mask_with_boolean_mask():
 
     masked = apply_mask(frames, mask)
 
-    assert np.array_equal(masked[0], [[1.0, 0.0], [0.0, 4.0]])
+    assert np.array_equal(masked[0], [[0.0, 2.0], [3.0, 0.0]])
+
+
+def test_apply_mask_removes_saturated_bad_pixels():
+    # bad Eiger pixels read as the uint32 max - they must not survive masking
+    frames = np.full((1, 2, 2), 10.0)
+    frames[0, 0, 0] = np.iinfo(np.uint32).max
+    mask = np.array([[1, 0], [0, 0]], dtype=np.uint32)
+
+    masked = apply_mask(frames, mask)
+
+    assert masked.max() == 10.0
+    assert masked[0, 0, 0] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +104,7 @@ def _fake_eiger_data(**overrides):
     fake.get_calibrant.return_value = "Silicon"
     fake.positions = np.array([1.0, 2.0])
     fake.get_summed_normalised_and_masked_frames.return_value = np.zeros((2, 4, 5))
+    fake.get_summed_and_masked_frames.return_value = np.zeros((2, 4, 5))
     fake.get_summed_and_normalised_frames.return_value = np.zeros((2, 4, 5))
     fake.get_mask.return_value = None
     fake.wavelength = 1.0
@@ -156,17 +118,21 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
     nexus_filepath.touch()
 
     mock_build = MagicMock(return_value=("gonio.json", "meta.json"))
+    mock_reduction = MagicMock()
 
     with (
         patch.object(
             eiger_analysis, "EigerDataLoader", return_value=_fake_eiger_data()
         ),
         patch.object(eiger_analysis, "build_and_save_goniometer", mock_build),
+        patch.object(eiger_analysis, "do_eiger_data_reduction", mock_reduction),
     ):
-        eiger_analysis.do_eiger_calibration(nexus_filepath)
+        eiger_analysis.do_eiger_goniometer_calibration(nexus_filepath)
 
     expected_processed_dir = str(tmp_path / "processed")
     assert mock_build.call_args.kwargs["output_dir"] == expected_processed_dir
+    # the calibration scan is reduced straight after the goniometer is built
+    mock_reduction.assert_called_once_with(nexus_filepath)
     assert (tmp_path / "processed").is_dir()
     nexus_filepath.unlink(missing_ok=True)
 
