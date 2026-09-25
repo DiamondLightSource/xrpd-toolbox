@@ -2,7 +2,6 @@ import logging
 from enum import StrEnum
 from pathlib import Path
 
-import numpy as np
 from pyFAI.detectors import detector_factory
 
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
@@ -11,6 +10,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
+from xrpd_toolbox.i15_1.goniometer_diagnostics import setup_calibration_logging
 from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import (
@@ -23,6 +23,22 @@ logger.setLevel(logging.INFO)
 
 DEFAULT_NPT = 3000
 DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm
+# (row, col) of the direct beam with the arm at 0°, read off the Si calibrant
+# scan i15-1-98680 - update if the detector is moved. The detector centre
+# (256, 514) is too far off for the rings to be indexed correctly.
+DEFAULT_BEAM_CENTRE_PX = (250.0, 470.0)
+
+
+def high_q_helper(beam_energg: float, tth_angle: float):
+
+    from xrpd_toolbox.utils.unit_conversion import (
+        beam_energy_to_wavelength,
+        two_theta_to_q,
+    )
+
+    wavelength = beam_energy_to_wavelength(beam_energg)
+    q = two_theta_to_q(tth_angle, wavelength)
+    return q
 
 
 class CollectionType(StrEnum):
@@ -41,8 +57,16 @@ PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
 def do_eiger_goniometer_calibration(
-    nexus_filepath: str | Path, calibrant_name: str | None = None
+    nexus_filepath: str | Path,
+    calibrant_name: str | None = None,
+    plot_fits: bool = False,
+    show_plots: bool = False,
 ):
+    """Calibrate the goniometer from a calibrant scan, then reduce that scan.
+
+    `plot_fits` saves a figure of the fit at each angle (and a refinement
+    summary) to processed/goniometer_diagnostics; `show_plots` also opens them.
+    """
 
     eiger_data = EigerDataLoader(nexus_filepath)
 
@@ -55,7 +79,7 @@ def do_eiger_goniometer_calibration(
     if calibrant is None:
         raise Exception(f"Calibration  {calibrant_name} is not in calibrant_lookup")
 
-    unique_positions = np.unique(eiger_data.positions)
+    unique_positions = eiger_data.get_unique_tth_positions()
 
     # not normalised by i0: only ring positions matter for calibration, and
     # a bad i0 reading must not stop the detector from being calibrated
@@ -74,11 +98,14 @@ def do_eiger_goniometer_calibration(
         calibrant_name=calibrant,
         initial_dist_m=DEFAULT_DETECTOR_DISTANCE_M,
         output_dir=output_dir,
-        max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
+        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17],
         pts_per_deg=1.0,
         unit="2th_deg",
         npt=DEFAULT_NPT,
         detector=detector_factory(PYFAI_DETECTOR_NAME),
+        plot_fits=plot_fits,
+        show_plots=show_plots,
+        initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
     do_eiger_data_reduction(nexus_filepath)  # then reduce the data we just collected
@@ -103,7 +130,7 @@ def do_eiger_data_reduction(
 
     summed_and_normalised_frames = eiger_data.get_summed_and_normalised_frames()
 
-    unique_positions = np.unique(eiger_data.positions)
+    unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
 
     processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
@@ -227,27 +254,33 @@ if __name__ == "__main__":
         "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"
     )
 
+    # print(high_q_helper(40, 80))
+    # print(high_q_helper(76.76, 80))
+    # quit()
+
     eiger_data = EigerDataLoader(nexus_filepath)
 
-    import matplotlib.pyplot as plt
-
-    from xrpd_toolbox.i15_1.eiger_pyfai import _load_goniometer_dir
-
-    gonio = _load_goniometer_dir(goniometer_filepath)
-
-    mask = eiger_data.get_mask(as_nan=False)
+    # mask = eiger_data.get_mask(as_nan=False)
 
     frames = eiger_data.get_summed_and_normalised_frames()
 
-    for frame, tth in zip(frames, eiger_data.get_unique_tth_positions(), strict=True):
-        frame[mask] = 0
+    # for frame, tth in zip(frames, eiger_data.get_unique_tth_positions(), strict=True):
+    #     frame[mask] = 0
 
-        plt.imshow(frame * mask, cmap="viridis")
+    #     plt.imshow(frame * mask, cmap="viridis")
 
-    #     np.save(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth:.2f}.npy", frame)
+    #     np.save(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth:.2f}.npy", frame) #noqa
 
     # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
 
-    do_eiger_goniometer_calibration(nexus_filepath, calibrant_name="Si")
+    setup_calibration_logging()
+    # do_eiger_goniometer_calibration(
+    #     nexus_filepath, calibrant_name="Si", plot_fits=True, show_plots=False
+    # )
 
+    output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+        nexus_filepath
+    )  # then reduce the data we just collected
+
+    print(output_xy_filepath)
     # run_eiger_analysis(nexus_filepath)

@@ -10,6 +10,7 @@ from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 from eiger_fixtures import build_eiger_nexus, build_mask_file
 from xrpd_toolbox.i15_1.eiger_500k import (
+    ARM_ROTATION_SIGN,
     DEFAULT_MAX_SHAPE,
     PIXEL_SIZE,
     Eiger500K,
@@ -306,6 +307,27 @@ def test_sum_unique_two_theta_positions_uses_magnitude_of_negative_i0(tmp_path):
     assert np.allclose(result, 4.0)
 
 
+def test_sum_unique_two_theta_positions_groups_jittered_interleaved_readbacks(
+    tmp_path,
+):
+    # the readback wanders between two values at each position; frames must be
+    # summed with the others at that position, in the order of the angles
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 3.0, 10.0, 20.0),
+        tth=np.array([50.000005, 50.000061, 50.000005, 59.999995, 60.000051]),
+        i0=np.ones(5),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.sum_unique_two_theta_positions_and_normalise()
+
+    assert result.shape[0] == 2
+    assert np.allclose(result[0], (1.0 + 2.0 + 3.0) / 3)
+    assert np.allclose(result[1], (10.0 + 20.0) / 2)
+    assert loader.get_unique_tth_positions() == pytest.approx([50.00002367, 60.0000230])
+
+
 def test_get_summed_and_masked_frames_is_not_normalised_by_i0(tmp_path):
     data = np.ones((2, 4, 5), dtype=np.uint32)
     mask_file = tmp_path / "mask.h5"
@@ -516,8 +538,11 @@ def test_simulate_data(eiger):
     assert len(images) == len(ais) == 4
     assert images[0].shape == DEFAULT_MAX_SHAPE
     assert np.any(images[0] > 0)
-    # rot2 should track the requested two-theta position (in radians)
-    assert ais[1].rot2 == pytest.approx(np.deg2rad(positions_in_tth[1]))
+    # the arm swings horizontally, so rot1 tracks the requested two-theta
+    assert ais[1].rot1 == pytest.approx(
+        ARM_ROTATION_SIGN * np.deg2rad(positions_in_tth[1])
+    )
+    assert ais[1].rot2 == 0.0
 
 
 def test_simulate_data_reuses_existing_calibrant(eiger):

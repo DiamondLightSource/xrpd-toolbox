@@ -4,48 +4,55 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from xrpd_toolbox.i15_1 import eiger_analysis
 from xrpd_toolbox.i15_1.eiger_500k import (
     apply_mask,
-    unique_slices,
+    group_positions,
 )
 
 # ---------------------------------------------------------------------------
-# unique_slices
+# group_positions
 # ---------------------------------------------------------------------------
 
 
-def test_unique_slices_groups_runs_of_equal_values():
-    arr = np.array([1, 1, 2, 2, 2, 3])
+def test_group_positions_groups_runs_of_equal_values():
+    labels, positions = group_positions([1.0, 1.0, 2.0, 2.0, 2.0, 3.0])
 
-    slices = unique_slices(arr)
-
-    assert [arr[s].tolist() for s in slices] == [[1, 1], [2, 2, 2], [3]]
-
-
-def test_unique_slices_all_values_unique():
-    arr = np.array([1.0, 2.0, 3.0])
-
-    slices = unique_slices(arr)
-
-    assert slices == [slice(0, 1), slice(1, 2), slice(2, 3)]
+    assert labels.tolist() == [0, 0, 1, 1, 1, 2]
+    assert positions.tolist() == [1.0, 2.0, 3.0]
 
 
-def test_unique_slices_single_value_repeated():
-    arr = np.array([5.0, 5.0, 5.0])
+def test_group_positions_merges_readback_jitter():
+    # real i15-1 readbacks: 50° and 60° each read back as two values ~6e-5 apart,
+    # interleaved - exact equality made four "positions" out of two
+    tth = [50.000005, 50.000061, 50.000005, 59.999995, 60.000051, 59.999995]
 
-    slices = unique_slices(arr)
+    labels, positions = group_positions(tth)
 
-    assert len(slices) == 1
-    assert arr[slices[0]].tolist() == [5.0, 5.0, 5.0]
+    assert labels.tolist() == [0, 0, 0, 1, 1, 1]
+    assert positions == pytest.approx([np.mean(tth[:3]), np.mean(tth[3:])])
 
 
-def test_unique_slices_accepts_plain_list():
-    # unique_slices does np.asarray(arr) internally, so list input works too
-    slices = unique_slices([1, 1, 2])  # type: ignore[arg-type]
+def test_group_positions_does_not_need_sorted_or_contiguous_frames():
+    labels, positions = group_positions([20.0, 10.0, 20.0, 10.0])
 
-    assert slices == [slice(0, 2), slice(2, 3)]
+    assert labels.tolist() == [1, 0, 1, 0]
+    assert positions.tolist() == [10.0, 20.0]
+
+
+def test_group_positions_keeps_positions_further_apart_than_tolerance():
+    labels, positions = group_positions([1.0, 1.01, 1.02], tolerance=1e-3)
+
+    assert labels.tolist() == [0, 1, 2]
+    assert len(positions) == 3
+
+
+def test_group_positions_empty():
+    labels, positions = group_positions([])
+
+    assert labels.size == 0 and positions.size == 0
 
 
 # ---------------------------------------------------------------------------

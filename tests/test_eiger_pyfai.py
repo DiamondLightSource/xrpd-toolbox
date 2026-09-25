@@ -11,7 +11,12 @@ import pytest
 from pyFAI.calibrant import get_calibrant
 
 from xrpd_toolbox.i15_1 import eiger_pyfai
-from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, PIXEL_SIZE, Eiger500K
+from xrpd_toolbox.i15_1.eiger_500k import (
+    ARM_ROTATION_SIGN,
+    DEFAULT_MAX_SHAPE,
+    PIXEL_SIZE,
+    Eiger500K,
+)
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
@@ -52,7 +57,7 @@ def test_calibrate_single_geometry_from_rings_no_control_points_raises():
 def test_calibrate_single_frame_without_rings():
     mock_sg_cls = MagicMock()
     mock_sg = mock_sg_cls.return_value
-    mock_sg.geometry_refinement.data = np.zeros((5, 2))
+    mock_sg.geometry_refinement.data = np.zeros((5, 3))
 
     with patch.object(eiger_pyfai, "SingleGeometry", mock_sg_cls):
         result = eiger_pyfai._calibrate_single_frame(
@@ -67,7 +72,7 @@ def test_calibrate_single_frame_without_rings():
 
     assert result is mock_sg
     mock_sg.extract_cp.assert_called_once_with(max_rings=None, pts_per_deg=1.0)
-    mock_sg.geometry_refinement.refine2.assert_called_once_with()
+    mock_sg.geometry_refinement.refine2.assert_called_once_with(fix=None)
 
     _, kwargs = mock_sg_cls.call_args
     assert kwargs["label"] == "frame_0000_3.0000deg"
@@ -83,7 +88,9 @@ def test_calibrate_single_frame_without_rings():
     # `geometry` must be the same object - only the former actually takes
     # effect, but they should never be allowed to disagree.
     assert geometry["detector"] is kwargs["detector"]
-    assert geometry["rot2"] == pytest.approx(np.deg2rad(3.0))
+    # the arm swings horizontally: rot1 tracks two-theta, rot2 starts flat
+    assert geometry["rot1"] == pytest.approx(ARM_ROTATION_SIGN * np.deg2rad(3.0))
+    assert geometry["rot2"] == 0.0
     assert geometry["wavelength"] == SI_CALIBRANT.wavelength
     # every frame needs a pos_function or GoniometerRefinement.refine2()
     # crashes later with "'NoneType' object is not callable" - see
@@ -94,7 +101,7 @@ def test_calibrate_single_frame_without_rings():
 def test_calibrate_single_frame_with_int_max_rings():
     mock_sg_cls = MagicMock()
     mock_sg = mock_sg_cls.return_value
-    mock_sg.geometry_refinement.data = np.zeros((5, 2))
+    mock_sg.geometry_refinement.data = np.zeros((5, 3))
 
     with patch.object(eiger_pyfai, "SingleGeometry", mock_sg_cls):
         eiger_pyfai._calibrate_single_frame(
@@ -107,7 +114,7 @@ def test_calibrate_single_frame_with_int_max_rings():
 def test_calibrate_single_frame_with_iterable_rings_delegates():
     mock_sg_cls = MagicMock()
     mock_sg = mock_sg_cls.return_value
-    mock_sg.geometry_refinement.data = np.zeros((5, 2))
+    mock_sg.geometry_refinement.data = np.zeros((5, 3))
 
     calls = []
     original = eiger_pyfai.calibrate_single_geometry_from_rings
@@ -183,17 +190,21 @@ def _fake_calibrate_single_frame_factory():
         max_rings,
         pts_per_deg,
         detector=None,
+        initial_beam_centre_px=None,
+        seed_geometry=None,
+        fix=None,
     ):
         sg = MagicMock()
+        sg.metadata = two_theta_deg
         sg.label = label
         sg.geometry_refinement = SimpleNamespace(
             dist=initial_dist_m,
             poni1=0.05,
             poni2=0.02,
-            rot1=0.0,
-            rot2=np.deg2rad(two_theta_deg),
+            rot1=ARM_ROTATION_SIGN * np.deg2rad(two_theta_deg),
+            rot2=0.0,
             rot3=0.0,
-            data=np.zeros((5, 2)),
+            data=np.zeros((5, 3)),
         )
         return sg
 
@@ -201,7 +212,20 @@ def _fake_calibrate_single_frame_factory():
 
 
 @pytest.fixture
-def fake_gonioref():
+def fake_diagnostics():
+    """Stubs the diagnostics that need real pyFAI geometries; yields the
+    refine_goniometer mock."""
+    mock_refine = MagicMock()
+    with (
+        patch.object(eiger_pyfai.diag, "refine_goniometer", mock_refine),
+        patch.object(eiger_pyfai.diag, "summarise_frame"),
+        patch.object(eiger_pyfai.diag, "log_frame_table"),
+    ):
+        yield mock_refine
+
+
+@pytest.fixture
+def fake_gonioref(fake_diagnostics):
     gonioref = MagicMock()
     gonioref.single_geometries = {}
     gonioref.chi2.return_value = 0.001
@@ -219,7 +243,9 @@ def fake_gonioref():
         yield gonioref
 
 
-def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
+def test_build_and_save_goniometer_explicit_output_dir(
+    tmp_path, fake_gonioref, fake_diagnostics
+):
     images = np.zeros((3, 4, 5))
     angles = np.array([1.0, 2.0, 3.0])
 
@@ -242,7 +268,7 @@ def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
     assert meta["calib_two_theta_deg"] == angles.tolist()
     assert meta["wavelength"] == pytest.approx(0.161699e-10)
 
-    fake_gonioref.refine2.assert_called_once()
+    fake_diagnostics.assert_called_once_with(fake_gonioref)
     fake_gonioref.chi2.assert_called_once()
     fake_gonioref.save.assert_called_once_with(gonio_path)
     assert len(fake_gonioref.single_geometries) == 3
@@ -292,7 +318,9 @@ def test_build_and_save_goniometer_stores_radial_range_and_npt(tmp_path, fake_go
     assert meta["npt"] == 500
 
 
-def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_path):
+def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(
+    tmp_path, fake_diagnostics
+):
     gonioref = MagicMock()
     gonioref.single_geometries = {}
     gonioref.chi2.return_value = 0.0
@@ -320,8 +348,9 @@ def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_pa
 
     initial_params = mock_gonioref_cls.call_args.args[0]
     assert initial_params["dist"] == pytest.approx(0.3)
-    assert initial_params["rot2_scale"] == 1.0
-    assert initial_params["rot2_offset"] == pytest.approx(0.0)
+    assert initial_params["rot1_scale"] == ARM_ROTATION_SIGN
+    assert initial_params["rot1_offset"] == pytest.approx(0.0)
+    assert initial_params["rot2"] == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -621,9 +650,9 @@ def test_calibrate_goniometer_recovers_input_geometry():
         "dist": dist_true,
         "poni1": poni1_true,
         "poni2": poni2_true,
-        "rot1": 0.0,
-        "rot2_scale": 1.0,
-        "rot2_offset": 0.0,
+        "rot1_scale": ARM_ROTATION_SIGN,
+        "rot1_offset": 0.0,
+        "rot2": 0.0,
         "rot3": 0.0,
     }
     for name, value in fitted.items():
@@ -632,11 +661,11 @@ def test_calibrate_goniometer_recovers_input_geometry():
     assert fitted["dist"] == pytest.approx(dist_true, abs=1e-3)
     assert fitted["poni1"] == pytest.approx(poni1_true, abs=2e-3)
     assert fitted["poni2"] == pytest.approx(poni2_true, abs=2e-3)
-    assert fitted["rot1"] == pytest.approx(0.0, abs=2e-3)
+    assert fitted["rot2"] == pytest.approx(0.0, abs=2e-3)
     assert fitted["rot3"] == pytest.approx(0.0, abs=2e-3)
-    assert fitted["rot2_scale"] == pytest.approx(1.0, abs=2e-3)
+    assert fitted["rot1_scale"] == pytest.approx(ARM_ROTATION_SIGN, abs=2e-3)
     # two-theta arm's error - a fraction of a degree
-    assert fitted["rot2_offset"] == pytest.approx(0.0, abs=np.deg2rad(0.5))
+    assert fitted["rot1_offset"] == pytest.approx(0.0, abs=np.deg2rad(0.5))
 
 
 def test_system_calibrate():
@@ -775,3 +804,71 @@ def test_system_integrate():
 if __name__ == "__main__":
     # test_system_calibrate()
     test_system_integrate()
+
+
+def test_build_and_save_goniometer_plot_fits_writes_diagnostics():
+    """plot_fits saves a per-angle fit figure before and after the global
+    refinement, plus a summary; the refinement trace starts at iteration 0."""
+    output_dir = _fresh_output_dir("calibration_diagnostics")
+    angles = np.array([5.0, 10.0])
+    images, _ = _true_eiger().simulate_data(
+        positions_in_tth=angles,
+        calibrant_name="Si",
+        wavelength_in_ang=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
+        resolution=0.05,
+    )
+
+    traces = []
+    original_refine = eiger_pyfai.diag.refine_goniometer
+
+    def spy(gonioref):
+        traces.append(original_refine(gonioref))
+        return traces[-1]
+
+    with patch.object(eiger_pyfai.diag, "refine_goniometer", spy):
+        eiger_pyfai.build_and_save_goniometer(
+            nexus_filepath=output_dir / "fake_calibration_scan.nxs",
+            images=np.array(images),
+            angles=angles,
+            wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
+            output_dir=output_dir,
+            max_rings=[5, 7],
+            plot_fits=True,
+        )
+
+    (trace,) = traces
+    assert len(trace.chi2) == len(trace.params) >= 1
+    assert trace.param_names == list(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names)
+
+    plot_dir = output_dir / eiger_pyfai.DIAGNOSTICS_DIR_NAME
+    assert sorted(p.name for p in plot_dir.iterdir()) == [
+        "frame_0000_5.0000deg_frame_fit.png",
+        "frame_0000_5.0000deg_model_fit.png",
+        "frame_0001_10.0000deg_frame_fit.png",
+        "frame_0001_10.0000deg_model_fit.png",
+        "refinement_summary.png",
+    ]
+
+
+def test_seed_from_previous_frame_advances_rot1_by_arm_step():
+    previous = SimpleNamespace(
+        label="frame_0000",
+        metadata=10.0,
+        geometry_refinement=SimpleNamespace(
+            dist=0.25, poni1=0.02, poni2=0.04, rot1=0.1, rot2=0.01, rot3=0.0
+        ),
+    )
+
+    seed, fix = eiger_pyfai._seed_from(previous, 25.0)  # type: ignore[arg-type]
+
+    assert seed["rot1"] == pytest.approx(0.1 + ARM_ROTATION_SIGN * np.deg2rad(15.0))
+    assert {k: seed[k] for k in ("dist", "poni1", "poni2", "rot2", "rot3")} == {
+        "dist": 0.25,
+        "poni1": 0.02,
+        "poni2": 0.04,
+        "rot2": 0.01,
+        "rot3": 0.0,
+    }
+    # wavelength must stay in the list: pyFAI only fixes it by default when
+    # no fix list is given at all
+    assert fix == ["wavelength", "dist", "poni1", "poni2"]

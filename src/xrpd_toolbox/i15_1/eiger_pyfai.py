@@ -30,42 +30,51 @@ from pyFAI.goniometer import (
     SingleGeometry,
 )
 
+from xrpd_toolbox.i15_1 import goniometer_diagnostics as diag
+from xrpd_toolbox.i15_1.eiger_500k import ARM_ROTATION_SIGN
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
 
 logger = logging.getLogger(__name__)
 
 # Geometry model
-# a rotating detector arm around tth: dist/poni1/poni2/rot1/rot3 should be constant;
-# rot2 is linear in two_theta.  Maybe extend expressions here for non-ideal arms?
+# a detector arm swinging horizontally around tth (see ARM_ROTATION_SIGN):
+# dist/poni1/poni2/rot2/rot3 should be constant; rot1 is linear in two_theta,
+# with rot1_scale ~ ARM_ROTATION_SIGN.  Maybe extend expressions here for
+# non-ideal arms?
 
 GEOMETRY_TRANSFORMATION = GeometryTransformation(
-    param_names=["dist", "poni1", "poni2", "rot1", "rot2_scale", "rot2_offset", "rot3"],
+    param_names=["dist", "poni1", "poni2", "rot1_scale", "rot1_offset", "rot2", "rot3"],
     pos_names=["two_theta"],
     dist_expr="dist",
     poni1_expr="poni1",
     poni2_expr="poni2",
-    rot1_expr="rot1",
     # numexpr can't call numpy functions (eg.. np.deg2rad,
     # and it has no built-in deg2rad,
     # so conversion factor pi/180 = 0.0174532...
-    rot2_expr="rot2_scale * (two_theta * 0.017453292519943295) + rot2_offset",
+    rot1_expr="rot1_scale * (two_theta * 0.017453292519943295) + rot1_offset",
+    rot2_expr="rot2",
     rot3_expr="rot3",
 )
 
+# refined per frame only on the first frame when seeding from the previous one:
+# once the beam centre is off the detector a frame can't separate these from rot1
+SEEDED_FRAME_FIX = ["wavelength", "dist", "poni1", "poni2"]
+
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
 METADATA_SAVE_NAME = "calibration_metadata.json"
+DIAGNOSTICS_DIR_NAME = "goniometer_diagnostics"
 
 
 def calibrate_single_geometry_from_rings(
     geometry: SingleGeometry,
-    rings: list[int] = [5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa
+    rings: list[int] = [3, 5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa
     fix: list | None = None,
 ):
     """Extract control points for geometry and refine it."""
     if fix is None:
         fix = []
 
-    for max_rings in rings:
+    for step, max_rings in enumerate(rings, start=1):
         geometry.extract_cp(max_rings=max_rings)
         # pyFAI stores an empty 1D array when no points are found, which then
         # fails deep inside refine2 with an unhelpful unpacking error
@@ -76,7 +85,14 @@ def calibrate_single_geometry_from_rings(
                 f"(max_rings={max_rings}) - check the image contains "
                 "positive calibrant rings and the mask is correct"
             )
+        rms_before = diag.rms_mdeg(geometry.geometry_refinement)
         geometry.geometry_refinement.refine2(fix=fix)
+        diag.log_geometry_step(
+            geometry.label,
+            f"step {step}/{len(rings)} max_rings={max_rings}",
+            geometry.geometry_refinement,
+            rms_before,
+        )
 
     return geometry
 
@@ -114,13 +130,19 @@ def _calibrate_single_frame(
     max_rings: int | None | Iterable[int],
     pts_per_deg: float,
     detector: Detector | str | None = None,
+    initial_beam_centre_px: tuple[float, float] | None = None,
+    seed_geometry: dict[str, float] | None = None,
+    fix: list[str] | None = None,
 ) -> SingleGeometry:
     """Calibrate one frame independently and return the refined SingleGeometry.
 
     A SingleGeometry is initialised with an
-    approximate sample-to-detector distance and beam centre at the detector
-    centre.  Control points are then extracted and the per-frame geometry is
-    refined before being handed to the GoniometerRefinement
+    approximate sample-to-detector distance and beam centre (row, col) - the
+    detector centre unless `initial_beam_centre_px` is given; any of dist,
+    poni1, poni2, rot1, rot2, rot3 in `seed_geometry` override that guess.
+    Control points are then extracted and the per-frame geometry is refined
+    (keeping the parameters in `fix` constant) before being handed to the
+    GoniometerRefinement
 
     `detector` defaults to the simulation Eiger500K; pass a pyFAI detector
     (or its registry name, e.g. "Eiger2CdTe_500k") for real data.
@@ -139,19 +161,26 @@ def _calibrate_single_frame(
     # returns a Detector instance unchanged).
     detector = _resolve_detector(detector)
     assert detector.max_shape is not None
-    rows, cols = detector.max_shape
+    if initial_beam_centre_px is None:
+        rows, cols = detector.max_shape
+        initial_beam_centre_px = (rows / 2, cols / 2)
+    centre_row, centre_col = initial_beam_centre_px
 
     # Approximate geometry: beam hits the detector centre, arm at two_theta.
     initial_geometry = {
         "dist": initial_dist_m,
-        "poni1": rows / 2 * detector.pixel1,
-        "poni2": cols / 2 * detector.pixel2,
-        "rot1": 0.0,
-        "rot2": np.deg2rad(two_theta_deg),
+        # the arm rotates about the sample, so the PONI stays fixed on the
+        # detector: the 0° beam centre is the right guess at every angle
+        "poni1": centre_row * detector.pixel1,
+        "poni2": centre_col * detector.pixel2,
+        "rot1": ARM_ROTATION_SIGN * np.deg2rad(two_theta_deg),
+        "rot2": 0.0,
         "rot3": 0.0,
         "wavelength": calibrant.wavelength,
         "detector": detector,
     }
+    if seed_geometry is not None:
+        initial_geometry.update(seed_geometry)
 
     sg = SingleGeometry(
         label=label,
@@ -167,22 +196,33 @@ def _calibrate_single_frame(
     )
 
     if isinstance(max_rings, Iterable):
-        sg = calibrate_single_geometry_from_rings(geometry=sg, rings=list(max_rings))
+        sg = calibrate_single_geometry_from_rings(
+            geometry=sg, rings=list(max_rings), fix=fix
+        )
 
     else:
         sg.extract_cp(max_rings=max_rings, pts_per_deg=pts_per_deg)
-        sg.geometry_refinement.refine2()
+        rms_before = diag.rms_mdeg(sg.geometry_refinement)
+        sg.geometry_refinement.refine2(fix=fix)
+        diag.log_geometry_step(
+            label, f"max_rings={max_rings}", sg.geometry_refinement, rms_before
+        )
 
     assert sg.geometry_refinement.data is not None
-
-    logger.debug(
-        "  %s: dist=%.4f m  rot2=%.4f rad  npts=%d",
-        label,
-        sg.geometry_refinement.dist,
-        sg.geometry_refinement.rot2,
-        len(sg.geometry_refinement.data),
-    )
     return sg
+
+
+def _seed_from(
+    previous: SingleGeometry, two_theta_deg: float
+) -> tuple[dict[str, float], list[str]]:
+    """Starting geometry for a frame from the previously refined one: the same
+    geometry with rot1 advanced by the arm step. Returns (seed, fix)."""
+    gr = previous.geometry_refinement
+    seed = {name: float(getattr(gr, name)) for name in diag.GEOMETRY_NAMES}
+    assert previous.metadata is not None
+    step = np.deg2rad(two_theta_deg - float(previous.metadata))
+    seed["rot1"] += ARM_ROTATION_SIGN * step
+    return seed, list(SEEDED_FRAME_FIX)
 
 
 def build_and_save_goniometer(
@@ -199,6 +239,10 @@ def build_and_save_goniometer(
     radial_range: tuple[float, float] | None = None,
     npt: int = 2000,
     detector: Detector | str | None = None,
+    plot_fits: bool = False,
+    show_plots: bool = False,
+    initial_beam_centre_px: tuple[float, float] | None = None,
+    seed_from_previous: bool = True,
 ) -> tuple[str, str]:
     """Calibrate a Goniometer from calibrant images and save it.
 
@@ -210,6 +254,26 @@ def build_and_save_goniometer(
 
     `detector` defaults to the simulation Eiger500K; pass a pyFAI detector
     (or its registry name, e.g. "Eiger2CdTe_500k") for real data.
+
+    Every step is logged (call ``diag.setup_calibration_logging()`` to see it
+    on the console). With `plot_fits`, a figure of the fit at each angle is
+    saved to ``output_dir/goniometer_diagnostics`` as each frame is
+    calibrated, then again with the goniometer model overlaid, plus a summary
+    figure. `show_plots` also opens the per-frame and summary figures
+    interactively as they are made (blocking until each is closed).
+
+    `initial_beam_centre_px` is the (row, col) of the direct beam with the arm
+    at 0°, used as the starting PONI for every frame (default: detector
+    centre). Each ring's control points are searched for within about a
+    quarter of the spacing to the next ring, so a guess much further off than
+    that assigns points to the wrong rings.
+
+    With `seed_from_previous`, frames are calibrated in the order given (which
+    should be ascending, starting with the beam on the detector): each starts
+    from the previous frame's refined geometry with rot1 advanced by the arm
+    step, and keeps dist/poni1/poni2 fixed (SEEDED_FRAME_FIX) - once the beam
+    centre is off the detector a frame can't tell a shifted PONI from a change
+    in rot1. The global goniometer refinement still refines everything.
 
     returns a tuple of strings to goniometer calibration, and calibration metadata
     """
@@ -233,6 +297,10 @@ def build_and_save_goniometer(
 
     calibrant = get_calibrant(calibrant_name=calibrant_name, wavelength=wavelength_m)
 
+    plot_dir = output_dir / DIAGNOSTICS_DIR_NAME if plot_fits else None
+    if plot_fits or show_plots:
+        logger.info("Calibration diagnostic plots -> %s", plot_dir)
+
     # calibrate each frame independently
     single_geometries: list[SingleGeometry] = []
     for i, (image, two_theta_deg) in enumerate(zip(images, angles, strict=True)):
@@ -240,6 +308,11 @@ def build_and_save_goniometer(
         logger.info(
             "Calibrating frame %d / %d at %.4f°", i + 1, len(angles), two_theta_deg
         )
+        seed_geometry, fix = None, None
+        if seed_from_previous and single_geometries:
+            previous = single_geometries[-1]
+            seed_geometry, fix = _seed_from(previous, float(two_theta_deg))
+            logger.info("  seeded from %s, fixing %s", previous.label, ", ".join(fix))
         sg = _calibrate_single_frame(
             label,
             image,
@@ -249,8 +322,18 @@ def build_and_save_goniometer(
             max_rings,
             pts_per_deg,
             detector=detector,
+            initial_beam_centre_px=initial_beam_centre_px,
+            seed_geometry=seed_geometry,
+            fix=fix,
         )
         single_geometries.append(sg)
+
+        if plot_fits or show_plots:
+            diag.finish_figure(
+                diag.plot_frame_fit(sg, float(two_theta_deg)),
+                plot_dir / f"{label}_frame_fit.png" if plot_dir else None,
+                show_plots,
+            )
 
     # --- Step 2: seed GoniometerRefinement from the first refined frame ---
     first = single_geometries[0].geometry_refinement
@@ -258,9 +341,9 @@ def build_and_save_goniometer(
         "dist": first.dist,
         "poni1": first.poni1,
         "poni2": first.poni2,
-        "rot1": first.rot1,
-        "rot2_scale": 1.0,
-        "rot2_offset": first.rot2 - np.deg2rad(angles[0]),
+        "rot1_scale": ARM_ROTATION_SIGN,
+        "rot1_offset": first.rot1 - ARM_ROTATION_SIGN * np.deg2rad(angles[0]),
+        "rot2": first.rot2,
         "rot3": first.rot3,
     }
 
@@ -276,11 +359,41 @@ def build_and_save_goniometer(
     for sg in single_geometries:
         gonioref.single_geometries[sg.label] = sg
 
+    diag.log_frame_table(
+        [
+            diag.summarise_frame(sg, float(tth))
+            for sg, tth in zip(single_geometries, angles, strict=True)
+        ]
+    )
+
     # --- Step 4: global refinement ---
     logger.info("Refining goniometer model across %d frames …", len(angles))
 
-    gonioref.refine2()
+    trace = diag.refine_goniometer(gonioref)
     logger.info("Refinement done. χ² = %.6g", gonioref.chi2())
+
+    summaries = [
+        diag.summarise_frame(sg, float(tth), gonioref)
+        for sg, tth in zip(single_geometries, angles, strict=True)
+    ]
+    diag.log_frame_table(summaries)
+
+    if plot_fits or show_plots:
+        for sg, summary in zip(single_geometries, summaries, strict=True):
+            # only saved: showing these too would double the windows to close
+            if plot_dir is not None:
+                diag.finish_figure(
+                    diag.plot_frame_fit(
+                        sg, summary.two_theta_deg, summary.model_geometry
+                    ),
+                    plot_dir / f"{sg.label}_model_fit.png",
+                    show=False,
+                )
+        diag.finish_figure(
+            diag.plot_refinement_summary(summaries, trace),
+            plot_dir / "refinement_summary.png" if plot_dir else None,
+            show_plots,
+        )
 
     calibration_save_filepath = str(output_dir / GONIOMETER_SAVE_NAME)
     metadata_output_filepath = output_dir / METADATA_SAVE_NAME

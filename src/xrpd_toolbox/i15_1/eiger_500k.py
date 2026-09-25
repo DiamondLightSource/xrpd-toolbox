@@ -23,21 +23,57 @@ PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 250  # mm
 
 DEFAULT_MAX_SHAPE = (512, 1028)
+
+# The two-theta arm swings in the horizontal plane, so the rings move along
+# the detector columns (dim2): that is pyFAI's rot1 (rotation about the
+# vertical axis), not rot2 (which moves them along the rows). With pyFAI's sign
+# convention rot1 = -two_theta moves the beam centre towards +column, as seen
+# on i15-1 (beam centre ~col 470 at 0°, ~col 1020 at 10°).
+ARM_ROTATION_SIGN = -1.0
 logger = logging.getLogger(__name__)
 
 
-def unique_slices(arr: np.ndarray):
-    """Retturns slices at which the all the values for the input array are the same
-    assumes that the input array is sorted and only increases/decreases
+# the tth readback jitters by ~6e-5 deg about the requested position
+TTH_GROUP_TOLERANCE_DEG = 1e-3
+# frames read from the file at once when summing a position
+SUM_CHUNK_FRAMES = 100
 
-    if it's not will have to use np.argwhere - but that isn't this functons
 
+def group_positions(
+    positions: Collection[float], tolerance: float = TTH_GROUP_TOLERANCE_DEG
+) -> tuple[np.ndarray, np.ndarray]:
+    """Group motor readbacks that belong to the same requested position.
+
+    The readbacks jitter around each requested position, so grouping on exact
+    equality splits one position into several. Instead the sorted readbacks
+    are split wherever consecutive values differ by more than `tolerance`.
+    Frames need not be contiguous or in any order.
+
+    Returns (labels, group_positions): labels[i] is the group of frame i, and
+    group_positions is the mean readback of each group, in ascending order.
     """
-    arr = np.asarray(arr)
-    _, start_idx = np.unique(arr, return_index=True)
-    start_idx = np.sort(start_idx)
-    end_idx = np.append(start_idx[1:], len(arr))
-    return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
+    positions = np.asarray(positions, dtype=np.float64)
+    if positions.size == 0:
+        return np.empty(0, dtype=int), np.empty(0)
+
+    order = np.argsort(positions, kind="stable")
+    sorted_labels = np.concatenate(
+        [[0], np.cumsum(np.diff(positions[order]) > tolerance)]
+    )
+    labels = np.empty(positions.size, dtype=int)
+    labels[order] = sorted_labels
+
+    n_groups = sorted_labels[-1] + 1
+    counts = np.bincount(labels, minlength=n_groups)
+    means = np.bincount(labels, weights=positions, minlength=n_groups) / counts
+    return labels, means
+
+
+def _contiguous_runs(labels: np.ndarray) -> list[slice]:
+    """Slices over which `labels` doesn't change."""
+    starts = np.flatnonzero(np.diff(labels)) + 1
+    bounds = np.concatenate([[0], starts, [labels.size]])
+    return [slice(a, b) for a, b in zip(bounds[:-1], bounds[1:], strict=True)]
 
 
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
@@ -123,10 +159,22 @@ class EigerDataLoader:
         deltas = self._read_array(position_path)
         return deltas
 
-    def get_unique_tth_positions(self):
-        """returns uniuqe positions as defined by tth"""
+    @cached_property
+    def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
+        """(labels, positions) - see group_positions."""
+        labels, group_tth = group_positions(self.positions)
+        counts = np.bincount(labels, minlength=len(group_tth))
+        logger.info(
+            "Grouped %d frames into %d two-theta positions", labels.size, counts.size
+        )
+        for tth, count in zip(group_tth, counts, strict=True):
+            logger.debug("  2θ=%.5f°: %d frames", tth, count)
+        return labels, group_tth
 
-        return np.unique(self.positions)
+    def get_unique_tth_positions(self) -> np.ndarray:
+        """Mean tth of each group of frames at the same requested position,
+        ascending - in the same order as the summed frames."""
+        return self.tth_groups[1]
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -364,21 +412,29 @@ class EigerDataLoader:
         frames. If False, i0 is taken as 1 per frame, so this is the mean frame.
         """
 
-        i0 = self.get_i0(abs=True) if normalise else np.ones(len(self.positions))
+        labels, group_tth = self.tth_groups
+        i0 = self.get_i0(abs=True) if normalise else np.ones(labels.size)
 
-        tth_summed_frames = []
+        summed_frames: np.ndarray | None = None
+        summed_i0 = np.zeros(len(group_tth))
 
-        for n, frame_slices in enumerate(unique_slices(self.positions)):
-            logger.info(f"Summing frame bunch: {n}")
-            frames = self.get_data(frame_slices)
-            i0_for_frames = i0[frame_slices]
+        # read contiguous runs of frames (in chunks) and add each to its group
+        for run in _contiguous_runs(labels):
+            group = labels[run.start]
+            for start in range(run.start, run.stop, SUM_CHUNK_FRAMES):
+                chunk = slice(start, min(start + SUM_CHUNK_FRAMES, run.stop))
+                frames = np.asarray(self.get_data(chunk))
+                if summed_frames is None:
+                    summed_frames = np.zeros(
+                        (len(group_tth), *frames.shape[1:]), dtype=np.float64
+                    )
+                summed_frames[group] += frames.sum(axis=0, dtype=np.float64)
+                summed_i0[group] += i0[chunk].sum()
 
-            summed_frame = np.sum(frames, axis=0)
-            summed_i0 = np.sum(i0_for_frames)
+        if summed_frames is None:
+            raise ValueError(f"No frames to sum in {self.filepath}")
 
-            tth_summed_frames.append(summed_frame / summed_i0)
-
-        return np.array(tth_summed_frames)
+        return summed_frames / summed_i0[:, np.newaxis, np.newaxis]
 
 
 class Eiger500K(Detector):
@@ -455,11 +511,11 @@ class Eiger500K(Detector):
         fig, ax = plt.subplots(1, 5, figsize=(20, 4))
         for i in range(5):
             my_ai = deepcopy(ai)
-            my_ai.rot2 -= i * step
+            my_ai.rot1 += ARM_ROTATION_SIGN * i * step
             my_img = lab6.fake_calibration_image(my_ai)
             jupyter.display(
                 my_img,
-                label=f"Angle rot2: {np.degrees(my_ai.rot2)}",
+                label=f"Angle rot1: {np.degrees(my_ai.rot1)}",
                 ax=ax[i],
             )
             ais.append(my_ai)
@@ -500,7 +556,7 @@ class Eiger500K(Detector):
 
         for position in positions_rad:
             ai_copy = deepcopy(self.ai)
-            ai_copy.rot2 = position
+            ai_copy.rot1 = ARM_ROTATION_SIGN * position
 
             simulated_image = self.calibrant.fake_calibration_image(
                 ai_copy, shape=self.max_shape, resolution=resolution
