@@ -21,6 +21,7 @@ from typing import Literal
 
 import numpy as np
 from pyFAI.calibrant import Calibrant, get_calibrant
+from pyFAI.detectors import Detector, detector_factory
 from pyFAI.goniometer import (
     GeometryTransformation,
     Goniometer,
@@ -93,6 +94,17 @@ def _load_goniometer_dir(goniometer_filepath: Path) -> Goniometer:
     return gonio
 
 
+def _resolve_detector(detector: Detector | str | None) -> Detector:
+    """None -> the simulation Eiger500K; a name -> pyFAI's registry detector."""
+    from xrpd_toolbox.i15_1.eiger_500k import Eiger500K
+
+    if detector is None:
+        return Eiger500K()
+    if isinstance(detector, str):
+        return detector_factory(detector)
+    return detector
+
+
 def _calibrate_single_frame(
     label: str,
     image: np.ndarray,
@@ -101,6 +113,7 @@ def _calibrate_single_frame(
     initial_dist_m: float,
     max_rings: int | None | Iterable[int],
     pts_per_deg: float,
+    detector: Detector | str | None = None,
 ) -> SingleGeometry:
     """Calibrate one frame independently and return the refined SingleGeometry.
 
@@ -109,10 +122,11 @@ def _calibrate_single_frame(
     centre.  Control points are then extracted and the per-frame geometry is
     refined before being handed to the GoniometerRefinement
 
+    `detector` defaults to the simulation Eiger500K; pass a pyFAI detector
+    (or its registry name, e.g. "Eiger2CdTe_500k") for real data.
+
     Returns SingleGeometry with control points extracted and geometry refined.
     """
-    from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, Eiger500K
-
     # NOTE: must be an actual Eiger500K() instance, not the "Eiger500k" name
     # string - SingleGeometry.__init__ resolves a `detector=` string via
     # pyFAI's own detector registry, which (case-insensitively) maps
@@ -123,8 +137,9 @@ def _calibrate_single_frame(
     # DEFAULT_MAX_SHAPE = (1028, 512)), which crashes extract_cp(). Passing
     # an instance bypasses that string lookup entirely (detector_factory
     # returns a Detector instance unchanged).
-    detector = Eiger500K()
-    rows, cols = DEFAULT_MAX_SHAPE
+    detector = _resolve_detector(detector)
+    assert detector.max_shape is not None
+    rows, cols = detector.max_shape
 
     # Approximate geometry: beam hits the detector centre, arm at two_theta.
     initial_geometry = {
@@ -183,6 +198,7 @@ def build_and_save_goniometer(
     unit: str = "2th_deg",
     radial_range: tuple[float, float] | None = None,
     npt: int = 2000,
+    detector: Detector | str | None = None,
 ) -> tuple[str, str]:
     """Calibrate a Goniometer from calibrant images and save it.
 
@@ -192,8 +208,15 @@ def build_and_save_goniometer(
     across all frames simultaneously, producing a model of how the detector g
     eometry varies with two_theta.
 
+    `detector` defaults to the simulation Eiger500K; pass a pyFAI detector
+    (or its registry name, e.g. "Eiger2CdTe_500k") for real data.
+
     returns a tuple of strings to goniometer calibration, and calibration metadata
     """
+    # see the NOTE in _calibrate_single_frame - resolve to an instance once so
+    # every frame and the GoniometerRefinement share the same detector.
+    detector = _resolve_detector(detector)
+
     nexus_path = Path(nexus_filepath)
 
     if output_dir is None:
@@ -225,6 +248,7 @@ def build_and_save_goniometer(
             initial_dist_m,
             max_rings,
             pts_per_deg,
+            detector=detector,
         )
         single_geometries.append(sg)
 
@@ -240,16 +264,11 @@ def build_and_save_goniometer(
         "rot3": first.rot3,
     }
 
-    from xrpd_toolbox.i15_1.eiger_500k import Eiger500K
-
     gonioref = GoniometerRefinement(
         initial_params,
         pos_function=lambda two_theta: (two_theta,),
         trans_function=GEOMETRY_TRANSFORMATION,
-        # see the NOTE in _calibrate_single_frame - must be an instance, not
-        # the "Eiger500k" name string, or this silently resolves to pyFAI's
-        # own (wrongly-shaped) built-in Eiger500k detector.
-        detector=Eiger500K(),  # type: ignore[arg-type]
+        detector=detector,  # type: ignore[arg-type]
         wavelength=wavelength_m,
     )
 

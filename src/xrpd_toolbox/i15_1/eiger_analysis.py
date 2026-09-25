@@ -3,6 +3,7 @@ from enum import StrEnum
 from pathlib import Path
 
 import numpy as np
+from pyFAI.detectors import detector_factory
 
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
@@ -33,6 +34,10 @@ class CollectionType(StrEnum):
 
 
 calibrant_lookup: dict[str, str] = {"Silicon": "Si"}
+
+# pyFAI's built-in Eiger2 CdTe 500K: max_shape (512, 1028), 75 um pixels,
+# with the module gaps already masked
+PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
 def do_eiger_goniometer_calibration(
@@ -73,10 +78,10 @@ def do_eiger_goniometer_calibration(
         pts_per_deg=1.0,
         unit="2th_deg",
         npt=DEFAULT_NPT,
+        detector=detector_factory(PYFAI_DETECTOR_NAME),
     )
 
     do_eiger_data_reduction(nexus_filepath)  # then reduce the data we just collected
-    # - do this in workflow?
 
     return goniometer_model_json, metadata_json
 
