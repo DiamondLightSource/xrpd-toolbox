@@ -24,33 +24,23 @@ INITIAL_DISTNACE = 250  # mm
 
 DEFAULT_MAX_SHAPE = (512, 1028)
 
-# The two-theta arm swings in the horizontal plane, so the rings move along
-# the detector columns (dim2): that is pyFAI's rot1 (rotation about the
-# vertical axis), not rot2 (which moves them along the rows). With pyFAI's sign
-# convention rot1 = -two_theta moves the beam centre towards +column, as seen
-# on i15-1 (beam centre ~col 470 at 0°, ~col 1020 at 10°).
+# the arm swings horizontally so it drives pyFAI's rot1, and on i15-1 the beam
+# centre moves to higher columns as two-theta increases, hence the sign
 ARM_ROTATION_SIGN = -1.0
 logger = logging.getLogger(__name__)
 
 
-# the tth readback jitters by ~6e-5 deg about the requested position
+# the tth readback jitters by ~6e-5 deg
 TTH_GROUP_TOLERANCE_DEG = 1e-3
-# frames read from the file at once when summing a position
 SUM_CHUNK_FRAMES = 100
 
 
 def group_positions(
     positions: Collection[float], tolerance: float = TTH_GROUP_TOLERANCE_DEG
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Group motor readbacks that belong to the same requested position.
+    """Group readbacks within `tolerance` of each other, as the readback jitters.
 
-    The readbacks jitter around each requested position, so grouping on exact
-    equality splits one position into several. Instead the sorted readbacks
-    are split wherever consecutive values differ by more than `tolerance`.
-    Frames need not be contiguous or in any order.
-
-    Returns (labels, group_positions): labels[i] is the group of frame i, and
-    group_positions is the mean readback of each group, in ascending order.
+    Returns the group of each frame and the mean position of each group.
     """
     positions = np.asarray(positions, dtype=np.float64)
     if positions.size == 0:
@@ -77,10 +67,7 @@ def _contiguous_runs(labels: np.ndarray) -> list[slice]:
 
 
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """Zeroes the masked pixels in every frame.
-
-    Follows the Eiger/pyFAI convention: nonzero (True) in the mask = bad pixel.
-    """
+    """Zero the masked (nonzero) pixels in every frame."""
 
     bad_pixels = np.asarray(mask).astype(bool)
 
@@ -90,11 +77,7 @@ def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
 
 
 class EigerDataLoader:
-    """Reads a single nexus file's worth of Eiger data.
-
-    Keeps one h5py.File handle open for the lifetime of the instance instead
-    of reopening the file on every read
-    """
+    """Reads the Eiger data in one nexus file, keeping the file open."""
 
     def __init__(
         self,
@@ -161,7 +144,6 @@ class EigerDataLoader:
 
     @cached_property
     def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
-        """(labels, positions) - see group_positions."""
         labels, group_tth = group_positions(self.positions)
         counts = np.bincount(labels, minlength=len(group_tth))
         logger.info(
@@ -172,8 +154,7 @@ class EigerDataLoader:
         return labels, group_tth
 
     def get_unique_tth_positions(self) -> np.ndarray:
-        """Mean tth of each group of frames at the same requested position,
-        ascending - in the same order as the summed frames."""
+        """Ascending, in the same order as the summed frames."""
         return self.tth_groups[1]
 
     @cached_property
@@ -207,12 +188,7 @@ class EigerDataLoader:
         return self.wavelength
 
     def load_all_data(self) -> np.ndarray:
-        """Dangerous as it might contains a lot of data,
-        which will then be loaded into memory - you have been warned
-
-        ideally use get_data with specific frames as slice
-
-        """
+        """Loads every frame into memory - prefer get_data with a slice."""
         return self.get_data(frames=slice(None))
 
     def get_data(
@@ -345,8 +321,7 @@ class EigerDataLoader:
         return summed_and_normalised_frames
 
     def get_summed_and_masked_frames(self) -> np.ndarray:
-        """Summed at each unique two-theta position and masked, but not
-        normalised by i0 - for calibration, where only ring positions matter."""
+        """Summed and masked but not normalised, for calibration."""
 
         summed_frames = self.sum_unique_two_theta_positions_and_normalise(
             normalise=False
@@ -369,7 +344,7 @@ class EigerDataLoader:
     def i0(self) -> np.ndarray:
         i0_data_path = f"/{self.entry}/i0/data"
 
-        # stored as (n_frames, 1) by areaDetector - flatten to one value per frame
+        # areaDetector writes (n_frames, 1)
         return self._read_array(i0_data_path).flatten()
 
     def get_i0(self, abs: bool = True) -> np.ndarray:
@@ -379,11 +354,7 @@ class EigerDataLoader:
             return self.i0
 
     def sum_frames(self) -> np.ndarray:
-        """Returns a 1D array containing the total counts of each frame.
-
-        Any leading (scan) dimensions are flattened, so the output has one
-        entry per frame. Frames are read one at a time to limit memory use.
-        """
+        """Total counts in each frame."""
 
         data = self.file.get(self.dataset_path)
 
@@ -404,12 +375,9 @@ class EigerDataLoader:
     def sum_unique_two_theta_positions_and_normalise(
         self, normalise: bool = True
     ) -> np.ndarray:
-        """Sums the frames at each unique two-theta position, giving one image
-        per position with shape (n_unique_positions, rows, cols).
+        """One summed image per two-theta position, divided by its total i0.
 
-        If normalise is True each summed image is divided by the total i0 over
-        the frames that went into it, which already accounts for the number of
-        frames. If False, i0 is taken as 1 per frame, so this is the mean frame.
+        Without normalise that's the mean frame at each position.
         """
 
         labels, group_tth = self.tth_groups
@@ -418,7 +386,7 @@ class EigerDataLoader:
         summed_frames: np.ndarray | None = None
         summed_i0 = np.zeros(len(group_tth))
 
-        # read contiguous runs of frames (in chunks) and add each to its group
+        # chunked so a position with ~1000 frames doesn't all load at once
         for run in _contiguous_runs(labels):
             group = labels[run.start]
             for start in range(run.start, run.stop, SUM_CHUNK_FRAMES):

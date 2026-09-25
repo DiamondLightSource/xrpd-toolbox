@@ -205,6 +205,7 @@ def _fake_calibrate_single_frame_factory():
             rot2=0.0,
             rot3=0.0,
             data=np.zeros((5, 3)),
+            chi2=lambda param=None: 0.0,
         )
         return sg
 
@@ -212,20 +213,7 @@ def _fake_calibrate_single_frame_factory():
 
 
 @pytest.fixture
-def fake_diagnostics():
-    """Stubs the diagnostics that need real pyFAI geometries; yields the
-    refine_goniometer mock."""
-    mock_refine = MagicMock()
-    with (
-        patch.object(eiger_pyfai.diag, "refine_goniometer", mock_refine),
-        patch.object(eiger_pyfai.diag, "summarise_frame"),
-        patch.object(eiger_pyfai.diag, "log_frame_table"),
-    ):
-        yield mock_refine
-
-
-@pytest.fixture
-def fake_gonioref(fake_diagnostics):
+def fake_gonioref():
     gonioref = MagicMock()
     gonioref.single_geometries = {}
     gonioref.chi2.return_value = 0.001
@@ -243,9 +231,7 @@ def fake_gonioref(fake_diagnostics):
         yield gonioref
 
 
-def test_build_and_save_goniometer_explicit_output_dir(
-    tmp_path, fake_gonioref, fake_diagnostics
-):
+def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
     images = np.zeros((3, 4, 5))
     angles = np.array([1.0, 2.0, 3.0])
 
@@ -268,7 +254,7 @@ def test_build_and_save_goniometer_explicit_output_dir(
     assert meta["calib_two_theta_deg"] == angles.tolist()
     assert meta["wavelength"] == pytest.approx(0.161699e-10)
 
-    fake_diagnostics.assert_called_once_with(fake_gonioref)
+    fake_gonioref.refine2.assert_called_once()
     fake_gonioref.chi2.assert_called_once()
     fake_gonioref.save.assert_called_once_with(gonio_path)
     assert len(fake_gonioref.single_geometries) == 3
@@ -318,9 +304,7 @@ def test_build_and_save_goniometer_stores_radial_range_and_npt(tmp_path, fake_go
     assert meta["npt"] == 500
 
 
-def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(
-    tmp_path, fake_diagnostics
-):
+def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_path):
     gonioref = MagicMock()
     gonioref.single_geometries = {}
     gonioref.chi2.return_value = 0.0
@@ -806,10 +790,8 @@ if __name__ == "__main__":
     test_system_integrate()
 
 
-def test_build_and_save_goniometer_plot_fits_writes_diagnostics():
-    """plot_fits saves a per-angle fit figure before and after the global
-    refinement, plus a summary; the refinement trace starts at iteration 0."""
-    output_dir = _fresh_output_dir("calibration_diagnostics")
+def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
+    output_dir = _fresh_output_dir("calibration_fits")
     angles = np.array([5.0, 10.0])
     images, _ = _true_eiger().simulate_data(
         positions_in_tth=angles,
@@ -818,35 +800,20 @@ def test_build_and_save_goniometer_plot_fits_writes_diagnostics():
         resolution=0.05,
     )
 
-    traces = []
-    original_refine = eiger_pyfai.diag.refine_goniometer
+    eiger_pyfai.build_and_save_goniometer(
+        nexus_filepath=output_dir / "fake_calibration_scan.nxs",
+        images=np.array(images),
+        angles=angles,
+        wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
+        output_dir=output_dir,
+        max_rings=[5, 7],
+        plot_fits=True,
+    )
 
-    def spy(gonioref):
-        traces.append(original_refine(gonioref))
-        return traces[-1]
-
-    with patch.object(eiger_pyfai.diag, "refine_goniometer", spy):
-        eiger_pyfai.build_and_save_goniometer(
-            nexus_filepath=output_dir / "fake_calibration_scan.nxs",
-            images=np.array(images),
-            angles=angles,
-            wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-            output_dir=output_dir,
-            max_rings=[5, 7],
-            plot_fits=True,
-        )
-
-    (trace,) = traces
-    assert len(trace.chi2) == len(trace.params) >= 1
-    assert trace.param_names == list(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names)
-
-    plot_dir = output_dir / eiger_pyfai.DIAGNOSTICS_DIR_NAME
-    assert sorted(p.name for p in plot_dir.iterdir()) == [
-        "frame_0000_5.0000deg_frame_fit.png",
-        "frame_0000_5.0000deg_model_fit.png",
-        "frame_0001_10.0000deg_frame_fit.png",
-        "frame_0001_10.0000deg_model_fit.png",
-        "refinement_summary.png",
+    fits_dir = output_dir / eiger_pyfai.FITS_DIR_NAME
+    assert sorted(p.name for p in fits_dir.iterdir()) == [
+        "frame_0000_5.0000deg.png",
+        "frame_0001_10.0000deg.png",
     ]
 
 

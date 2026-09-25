@@ -10,7 +10,6 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
-from xrpd_toolbox.i15_1.goniometer_diagnostics import setup_calibration_logging
 from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import (
@@ -23,9 +22,8 @@ logger.setLevel(logging.INFO)
 
 DEFAULT_NPT = 3000
 DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm
-# (row, col) of the direct beam with the arm at 0°, read off the Si calibrant
-# scan i15-1-98680 - update if the detector is moved. The detector centre
-# (256, 514) is too far off for the rings to be indexed correctly.
+# (row, col) at 0° from i15-1-98680 - the detector centre is too far off for
+# the rings to be indexed correctly. Update if the detector moves.
 DEFAULT_BEAM_CENTRE_PX = (250.0, 470.0)
 
 
@@ -51,8 +49,6 @@ class CollectionType(StrEnum):
 
 calibrant_lookup: dict[str, str] = {"Silicon": "Si"}
 
-# pyFAI's built-in Eiger2 CdTe 500K: max_shape (512, 1028), 75 um pixels,
-# with the module gaps already masked
 PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
@@ -60,12 +56,10 @@ def do_eiger_goniometer_calibration(
     nexus_filepath: str | Path,
     calibrant_name: str | None = None,
     plot_fits: bool = False,
-    show_plots: bool = False,
 ):
     """Calibrate the goniometer from a calibrant scan, then reduce that scan.
 
-    `plot_fits` saves a figure of the fit at each angle (and a refinement
-    summary) to processed/goniometer_diagnostics; `show_plots` also opens them.
+    plot_fits saves the fit at each angle to processed/calibration_fits.
     """
 
     eiger_data = EigerDataLoader(nexus_filepath)
@@ -81,8 +75,7 @@ def do_eiger_goniometer_calibration(
 
     unique_positions = eiger_data.get_unique_tth_positions()
 
-    # not normalised by i0: only ring positions matter for calibration, and
-    # a bad i0 reading must not stop the detector from being calibrated
+    # not normalised: a bad i0 shouldn't stop a calibration
     summed_and_masked_frames = eiger_data.get_summed_and_masked_frames()
     nexus_filepath = Path(nexus_filepath)
 
@@ -104,11 +97,10 @@ def do_eiger_goniometer_calibration(
         npt=DEFAULT_NPT,
         detector=detector_factory(PYFAI_DETECTOR_NAME),
         plot_fits=plot_fits,
-        show_plots=show_plots,
         initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
-    do_eiger_data_reduction(nexus_filepath)  # then reduce the data we just collected
+    do_eiger_data_reduction(nexus_filepath)
 
     return goniometer_model_json, metadata_json
 
@@ -118,12 +110,7 @@ def do_eiger_data_reduction(
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
 ) -> Path:
-    """This does the eiger data reduction at the end of scan.
-
-    Assumes that the nexus file is a data_collection with N positions
-
-    returns path to xy file
-    """
+    """Reduce a scan to an .xy file with the saved goniometer."""
 
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
@@ -273,14 +260,14 @@ if __name__ == "__main__":
 
     # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
 
-    setup_calibration_logging()
-    # do_eiger_goniometer_calibration(
-    #     nexus_filepath, calibrant_name="Si", plot_fits=True, show_plots=False
-    # )
+    logging.basicConfig(level=logging.INFO)
+    gionemeter_cal = do_eiger_goniometer_calibration(
+        nexus_filepath, calibrant_name="Si", plot_fits=True
+    )
 
-    output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
-        nexus_filepath
-    )  # then reduce the data we just collected
+    # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+    #     nexus_filepath
+    # )  # then reduce the data we just collected
 
-    print(output_xy_filepath)
+    # print(output_xy_filepath)
     # run_eiger_analysis(nexus_filepath)
