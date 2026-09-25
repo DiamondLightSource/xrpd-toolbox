@@ -19,13 +19,7 @@ SI_CALIBRANT.wavelength = 1e-10
 
 
 def test_calibrate_single_geometry_from_rings_extracts_once_at_largest_ring_count():
-    # extract_cp() *replaces* rather than accumulates control points, using
-    # the geometry's current (possibly already-nudged) dist/poni/rot to
-    # decide which pixels belong to which ring - re-extracting every round
-    # from a progressively refined geometry let small errors compound round
-    # to round (verified: several degrees off on closely-spaced Si rings),
-    # so only the largest ring count is ever used, in a single extract+
-    # refine pass.
+
     geometry = MagicMock()
     geometry.geometry_refinement.data = np.zeros((10, 3))
 

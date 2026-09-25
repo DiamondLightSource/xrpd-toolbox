@@ -2,7 +2,6 @@ from collections.abc import Collection
 from copy import deepcopy
 from functools import cached_property
 from pathlib import Path
-from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +15,6 @@ from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
-from xrpd_toolbox.core import XRPDBaseModel
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 from xrpd_toolbox.utils.utils import h5_to_array
 
@@ -66,18 +64,6 @@ def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
     masked_image_frames = np.where(bad_pixels, 0, np.asarray(image_frames))
 
     return masked_image_frames
-
-
-class EigerSettings(XRPDBaseModel):
-    bad_channels_filepath: str | Path = "/dls_sw/i15-1/software/bad_channel_mask.hdf5"
-    bad_channel_masking: bool = True
-    flatfield_filepath: str | Path | None = None
-    apply_flatfield: bool = False
-    darkfield_filepath: str | Path | None = None
-    send_to_ispyb: bool = False
-    rebin_step: float = 0.004
-    error_calc: Literal["poisson", "std_dev", "max"] = "poisson"
-    poni_filepath: str | Path | None = None
 
 
 class EigerDataLoader:
@@ -418,12 +404,10 @@ class Eiger500K(Detector):
     def __init__(
         self,
         filepath: str | Path | None = None,
-        settings: EigerSettings | None = None,
         poni: str | Path | dict | None = None,
         wavelength: float | None = None,  # in Angstrom
     ):
         self.filepath = filepath
-        self.settings = settings
         self.poni = poni
         self.calibrant = None
         self.wavelength = wavelength
@@ -439,8 +423,6 @@ class Eiger500K(Detector):
             self.ai = pyFAI.load(str(self.poni))
         elif isinstance(self.poni, dict):
             self.ai = AzimuthalIntegrator(detector=self, **self.poni)
-        elif self.settings is not None:
-            self.ai = pyFAI.load(str(self.settings.poni_filepath))
         else:
             self.ai = None
 

@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from pydantic import ValidationError
 from pyFAI.detectors import Detector
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
@@ -15,7 +14,6 @@ from xrpd_toolbox.i15_1.eiger_500k import (
     PIXEL_SIZE,
     Eiger500K,
     EigerDataLoader,
-    EigerSettings,
 )
 
 WAVELENGTH_ANGSTROM = 0.161699
@@ -46,43 +44,6 @@ def make_poni_file(path: Path, pixel_size: float = PIXEL_SIZE) -> Path:
     )
     ai.save(str(path))
     return path
-
-
-# ---------------------------------------------------------------------------
-# EigerSettings
-# ---------------------------------------------------------------------------
-
-
-def test_eiger_settings_defaults():
-    settings = EigerSettings()
-
-    assert settings.bad_channel_masking is True
-    assert settings.apply_flatfield is False
-    assert settings.error_calc == "poisson"
-    assert settings.poni_filepath is None
-
-
-def test_eiger_settings_overrides():
-    settings = EigerSettings(
-        bad_channels_filepath="mask.h5",
-        bad_channel_masking=False,
-        flatfield_filepath="flat.h5",
-        apply_flatfield=True,
-        darkfield_filepath="dark.h5",
-        send_to_ispyb=True,
-        rebin_step=0.01,
-        error_calc="std_dev",
-        poni_filepath="calib.poni",
-    )
-
-    assert settings.apply_flatfield is True
-    assert settings.error_calc == "std_dev"
-    assert settings.poni_filepath == "calib.poni"
-
-
-def test_eiger_settings_rejects_invalid_error_calc():
-    with pytest.raises(ValidationError):
-        EigerSettings(error_calc="not_a_valid_choice")  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -508,21 +469,6 @@ def test_eiger500k_with_poni_filepath_path_object(tmp_path):
     eiger = Eiger500K(poni=poni_path)
 
     assert eiger.ai is not None
-
-
-def test_eiger500k_with_settings_poni(tmp_path):
-    poni_path = make_poni_file(tmp_path / "good.poni")
-    settings = EigerSettings(poni_filepath=str(poni_path))
-
-    eiger = Eiger500K(settings=settings)
-
-    assert eiger.ai is not None
-    assert eiger.ai.dist == pytest.approx(0.25)
-
-
-def test_eiger500k_settings_without_poni_filepath_raises():
-    with pytest.raises(FileNotFoundError):
-        Eiger500K(settings=EigerSettings())
 
 
 def test_eiger500k_no_poni_no_settings_has_no_ai():
