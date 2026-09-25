@@ -120,7 +120,7 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
         patch.object(eiger_analysis, "build_and_save_goniometer", mock_build),
         patch.object(eiger_analysis, "do_eiger_data_reduction", mock_reduction),
     ):
-        eiger_analysis.do_eiger_calibration(nexus_filepath)
+        eiger_analysis.do_eiger_goniometer_calibration(nexus_filepath)
 
     expected_processed_dir = str(tmp_path / "processed")
     assert mock_build.call_args.kwargs["output_dir"] == expected_processed_dir

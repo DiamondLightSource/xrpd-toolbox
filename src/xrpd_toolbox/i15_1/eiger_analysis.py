@@ -6,6 +6,7 @@ import numpy as np
 
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
+    GONIOMETER_SAVE_NAME,
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
@@ -34,7 +35,9 @@ class CollectionType(StrEnum):
 calibrant_lookup: dict[str, str] = {"Silicon": "Si"}
 
 
-def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None = None):
+def do_eiger_goniometer_calibration(
+    nexus_filepath: str | Path, calibrant_name: str | None = None
+):
 
     eiger_data = EigerDataLoader(nexus_filepath)
 
@@ -42,7 +45,7 @@ def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None 
         calibrant_name = eiger_data.get_calibrant()
         assert calibrant_name is not None
 
-    calibrant = calibrant_lookup.get(calibrant_name)
+    calibrant = calibrant_lookup.get(calibrant_name) or calibrant_name
 
     if calibrant is None:
         raise Exception(f"Calibration  {calibrant_name} is not in calibrant_lookup")
@@ -79,7 +82,9 @@ def do_eiger_calibration(nexus_filepath: str | Path, calibrant_name: str | None 
 
 
 def do_eiger_data_reduction(
-    nexus_filepath: str | Path, output_xy_filepath: str | Path | None = None
+    nexus_filepath: str | Path,
+    output_xy_filepath: str | Path | None = None,
+    goniometer_filepath: str | Path | None = None,
 ) -> Path:
     """This does the eiger data reduction at the end of scan.
 
@@ -97,16 +102,20 @@ def do_eiger_data_reduction(
     mask = eiger_data.get_mask()
 
     processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
-    goniometer_dir, _ = processed_directory_and_filename(
-        nexus_filepath, nest_by_filename=False
-    )
+
+    if goniometer_filepath is None:
+        goniometer_dir, _ = processed_directory_and_filename(
+            nexus_filepath, nest_by_filename=False
+        )
+
+        goniometer_filepath = Path(goniometer_dir) / GONIOMETER_SAVE_NAME
 
     if output_xy_filepath is None:
         output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
 
     output_xy_filepath = integrate_with_goniometer(
         images=summed_and_normalised_frames,
-        goniometer_dir=goniometer_dir,
+        goniometer_filepath=goniometer_filepath,
         positions=unique_positions,
         mask=mask,
         output_xy_filepath=output_xy_filepath,
@@ -141,14 +150,17 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     if not background_file_xy.exists():
         try:
             background_file_xy = do_eiger_data_reduction(
-                sample_environment_filepath, background_file_xy
+                nexus_filepath=sample_environment_filepath,
+                output_xy_filepath=background_file_xy,
             )
         except Exception as e:
             logger.error(f"No background xy present, no background nxs present: {e}")
             logger.error("No background used for pdf conversion")
             background_file_xy = None
 
-    output_xy_filepath = do_eiger_data_reduction(nexus_filepath, output_xy_filepath)
+    output_xy_filepath = do_eiger_data_reduction(
+        nexus_filepath=nexus_filepath, output_xy_filepath=output_xy_filepath
+    )
 
     try:
         response_from_pdfcurl = send_xy_to_pdfcurl(
@@ -179,22 +191,24 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
     elif scan_type == CollectionType.air:
         logger.info(f"Running {do_eiger_data_reduction.__name__} for {scan_type}")
-        do_eiger_data_reduction(nexus_filepath)
+        do_eiger_data_reduction(nexus_filepath=nexus_filepath)
 
     elif scan_type == CollectionType.empty:
         logger.info(f"Running {do_eiger_data_reduction.__name__} for {scan_type}")
-        do_eiger_data_reduction(nexus_filepath)
+        do_eiger_data_reduction(nexus_filepath=nexus_filepath)
 
     elif scan_type == CollectionType.calibrant:
-        logger.info(f"Running {do_eiger_calibration.__name__} for {scan_type}")
-        do_eiger_calibration(nexus_filepath)
+        logger.info(
+            f"Running {do_eiger_goniometer_calibration.__name__} for {scan_type}"
+        )
+        do_eiger_goniometer_calibration(nexus_filepath=nexus_filepath)
 
     elif scan_type == CollectionType.data_collection:
         # If it's actually a datacollections also send it to pdfcurl too
         logger.info(
             f"Running {do_eiger_data_reduction_and_send_xy_to_pdfcurl.__name__} for {scan_type}"  # noqa
         )
-        do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
+        do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath=nexus_filepath)
 
     else:
         error = f"No analysis for bluesky plan: {plan_name} & scan type: {scan_type}"
@@ -204,20 +218,31 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 if __name__ == "__main__":
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
+    goniometer_filepath = Path(
+        "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"
+    )
 
     eiger_data = EigerDataLoader(nexus_filepath)
-    print(eiger_data.get_data_dimensions())
 
-    do_eiger_calibration(nexus_filepath, calibrant_name="Silicon")
+    import matplotlib.pyplot as plt
 
-    #     import matplotlib.pyplot as plt
+    from xrpd_toolbox.i15_1.eiger_pyfai import _load_goniometer_dir
 
-    #     mask = eiger_data.get_mask(as_nan=True)
+    gonio = _load_goniometer_dir(goniometer_filepath)
 
-    #     frames = eiger_data.get_summed_and_normalised_frames()
+    mask = eiger_data.get_mask(as_nan=False)
 
-    #     for frame in frames:
-    #         plt.imshow(frame * mask, cmap="viridis")
-    #         plt.show()
+    frames = eiger_data.get_summed_and_normalised_frames()
+
+    for frame, tth in zip(frames, eiger_data.get_unique_tth_positions(), strict=True):
+        frame[mask] = 0
+
+        plt.imshow(frame * mask, cmap="viridis")
+
+    #     np.save(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth:.2f}.npy", frame)
+
+    # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
+
+    do_eiger_goniometer_calibration(nexus_filepath, calibrant_name="Si")
 
     # run_eiger_analysis(nexus_filepath)

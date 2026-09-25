@@ -175,10 +175,9 @@ def test_load_goniometer_dir_success(tmp_path):
     mock_sload = MagicMock(return_value=fake_gonio)
 
     with patch.object(eiger_pyfai.Goniometer, "sload", mock_sload):
-        gonio, loaded_meta = eiger_pyfai._load_goniometer_dir(tmp_path)
+        gonio = eiger_pyfai._load_goniometer_dir(tmp_path)
 
     assert gonio is fake_gonio
-    assert loaded_meta == meta
     mock_sload.assert_called_once_with(str(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME))
 
 
@@ -776,7 +775,7 @@ def test_system_calibrate():
         max_rings=[5, 5, 7, 9],
     )
 
-    gonio, meta = eiger_pyfai._load_goniometer_dir(output_dir)
+    gonio = eiger_pyfai._load_goniometer_dir(output_dir)
     fitted = dict(
         zip(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names, gonio.param, strict=True)
     )

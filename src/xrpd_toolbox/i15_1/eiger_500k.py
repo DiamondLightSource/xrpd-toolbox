@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Collection
 from copy import deepcopy
 from functools import cached_property
@@ -20,10 +21,9 @@ from xrpd_toolbox.utils.utils import h5_to_array
 
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 250  # mm
-# (rows, cols) in pyFAI's frame: the two-theta arm is rot2, which sweeps the
-# rings along dim1, so the long (1028) axis must be dim1. The detector writes
-# frames as (512, 1028), so EigerDataLoader transposes frames and mask on read.
-DEFAULT_MAX_SHAPE = (1028, 512)
+
+DEFAULT_MAX_SHAPE = (512, 1028)
+logger = logging.getLogger(__name__)
 
 
 def unique_slices(arr: np.ndarray):
@@ -38,19 +38,6 @@ def unique_slices(arr: np.ndarray):
     start_idx = np.sort(start_idx)
     end_idx = np.append(start_idx[1:], len(arr))
     return [slice(s, e) for s, e in zip(start_idx, end_idx, strict=True)]
-
-
-def to_detector_orientation(image: np.ndarray) -> np.ndarray:
-    """Transposes the last two axes of an image (or stack of images) from the
-    (512, 1028) layout the Eiger writes to the (1028, 512) layout of
-    DEFAULT_MAX_SHAPE, where the two-theta arm (rot2) sweeps along dim1."""
-
-    image = np.asarray(image)
-
-    if image.ndim < 2:
-        return image
-
-    return np.swapaxes(image, -1, -2)
 
 
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
@@ -197,7 +184,7 @@ class EigerDataLoader:
                 raise ValueError("Data has insufficient dimensions.")
             module_frame_data = data[frames, ...]
 
-            return to_detector_orientation(module_frame_data)
+            return module_frame_data
         else:
             raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
 
@@ -257,9 +244,7 @@ class EigerDataLoader:
 
         mask_filepath, mask_datapath = self.get_pixel_mask_filepath_and_datapath()
 
-        mask = to_detector_orientation(
-            h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
-        )
+        mask = h5_to_array(filepath=mask_filepath, data_path=mask_datapath)
         if as_nan:
             nan_mask = np.where(
                 mask != 0, np.nan, 1.0
@@ -383,7 +368,8 @@ class EigerDataLoader:
 
         tth_summed_frames = []
 
-        for frame_slices in unique_slices(self.positions):
+        for n, frame_slices in enumerate(unique_slices(self.positions)):
+            logger.info(f"Summing frame bunch: {n}")
             frames = self.get_data(frame_slices)
             i0_for_frames = i0[frame_slices]
 
@@ -432,20 +418,6 @@ class Eiger500K(Detector):
             raise ValueError(
                 f"Pixel size in poni file ({self.ai.pixel1}, {self.ai.pixel2}) does not match expected pixel size ({PIXEL_SIZE})."  # noqa
             )
-
-    def process_step_scan(self):
-        for _position in self.data_loader.positions:
-            # do geometry transformation
-
-            pass
-
-    def load_geometry(self, poni_files: str | list[str | Path]):
-        # if isinstance(poni_files, list) and (len(poni_files) > 1):
-        #     mg = MultiGeometry()
-
-        # else:
-        #     self.ai = pyFAI.load(str(poni_files))
-        pass
 
     def set_calibrant(self, calibrant_name: str, wavelength_in_ang: float):
         self.calibrant = get_calibrant(calibrant_name)

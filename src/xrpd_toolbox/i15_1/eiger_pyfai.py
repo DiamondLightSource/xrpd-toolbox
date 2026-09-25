@@ -80,19 +80,17 @@ def calibrate_single_geometry_from_rings(
     return geometry
 
 
-def _load_goniometer_dir(output_dir: Path) -> tuple[Goniometer, dict]:
-    """Load a Goniometer and its metadata which have previously
-    been saved in output_dir."""
-    gonio_path = output_dir / GONIOMETER_SAVE_NAME
-    meta_path = output_dir / METADATA_SAVE_NAME
-    for p in (gonio_path, meta_path):
-        if not p.exists():
-            raise FileNotFoundError(f"{p.name} not found in {output_dir}")
+def _load_goniometer_dir(goniometer_filepath: Path) -> Goniometer:
+    """Load a Goniometer which has previously been saved."""
 
-    gonio = Goniometer.sload(str(gonio_path))
-    meta: dict = json.loads(meta_path.read_text())
-    logger.info("Loaded goniometer from %s", output_dir)
-    return gonio, meta
+    if not goniometer_filepath.exists():
+        raise FileNotFoundError(
+            f"{goniometer_filepath.name} not found in {goniometer_filepath.parent}"
+        )
+
+    gonio = Goniometer.sload(str(goniometer_filepath))
+    logger.info("Loaded goniometer from %s", goniometer_filepath.parent)
+    return gonio
 
 
 def _calibrate_single_frame(
@@ -291,48 +289,35 @@ def build_and_save_goniometer(
 def integrate_with_goniometer(
     images: np.ndarray,
     positions: np.ndarray,
-    goniometer_dir: Path | str,
+    goniometer_filepath: Path | str,
     output_xy_filepath: Path | str,
-    npt: int | None = None,
+    npt: int = 2000,
     polarization_factor: float = 0.99,
     correct_solid_angle: bool = True,
     mask: np.ndarray | None = None,
     error_model: Literal["poisson", "azimuthal"] = "azimuthal",
-    save_xy_with_header: bool = False,
+    unit: str = "2th_deg",
     save_xye: bool = False,
+    wavelength: float | None = None,
 ) -> Path:
     """Integrate detector images using a saved Goniometer model.
 
     Return a Path to the written ``.xy`` file.
     """
-    goniometer_dir = Path(goniometer_dir)
     output_xy_filepath = Path(output_xy_filepath)
     output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    gonio, meta = _load_goniometer_dir(goniometer_dir)
-
-    calib_angles = np.asarray(meta["calib_two_theta_deg"])
-    out_of_range = (positions < calib_angles.min()) | (positions > calib_angles.max())
-    if out_of_range.any():
-        logger.warning(
-            "%d frame(s) outside calibrated range [%.4f°, %.4f°] — extrapolating.",
-            out_of_range.sum(),
-            calib_angles.min(),
-            calib_angles.max(),
-        )
-
-    effective_npt: int = npt if npt is not None else meta["npt"]
-    radial_range: tuple[float, float] | None = (
-        tuple(meta["radial_range"]) if meta.get("radial_range") else None  # type: ignore[assignment]
-    )
+    gonio = _load_goniometer_dir(goniometer_filepath=Path(goniometer_filepath))
 
     frame_ais = [gonio.get_ai(float(two_theta)) for two_theta in positions]
 
+    if wavelength is None:
+        wavelength = gonio.wavelength
+
     mg = MultiGeometry(
         frame_ais,
-        unit=meta["unit"],
-        radial_range=radial_range,
-        wavelength=meta["wavelength"],
+        unit=unit,
+        wavelength=wavelength,
     )
 
     n_frames = len(images)
@@ -340,7 +325,7 @@ def integrate_with_goniometer(
 
     result = mg.integrate1d(
         list(images),
-        npt=effective_npt,
+        npt=npt,
         correctSolidAngle=correct_solid_angle,
         polarization_factor=polarization_factor,
         lst_mask=lst_mask,
@@ -353,26 +338,9 @@ def integrate_with_goniometer(
 
     assert len(tth) == len(intensity) == len(error)
 
-    if save_xy_with_header:
-        header = "\n".join(
-            [
-                f"# goniometer_dir: {goniometer_dir}",
-                f"# frames: {n_frames}",
-                f"# npt: {effective_npt}",
-                f"# unit: {meta['unit']}",
-                f"# wavelength_m: {meta['wavelength']}",
-                f"# polarization_factor: {polarization_factor}",
-                f"# correct_solid_angle: {correct_solid_angle}",
-                f"# {meta['unit']}    Intensity",
-            ]
-        )
-    else:
-        header = ""
-
     np.savetxt(
         str(output_xy_filepath),
         np.column_stack([tth, intensity]),
-        header=header,
         comments="",
         fmt="%.8g",
     )
@@ -381,7 +349,6 @@ def integrate_with_goniometer(
         np.savetxt(
             str(output_xy_filepath).replace(".xy", ".xye"),
             np.column_stack([tth, intensity, error]),
-            header=header,
             comments="",
             fmt="%.8g",
         )
