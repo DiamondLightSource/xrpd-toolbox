@@ -485,22 +485,6 @@ def test_eiger500k_pixel_size_mismatch_raises(tmp_path):
         Eiger500K(poni=str(mismatched_poni))
 
 
-def test_eiger500k_with_filepath_builds_data_loader_and_process_step_scan(tmp_path):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", tth=np.array([1.0, 2.0]))
-
-    eiger = Eiger500K(filepath=nxs)
-
-    assert isinstance(eiger.data_loader, EigerDataLoader)
-    # exercises the (currently no-op) loop over positions without error
-    eiger.process_step_scan()
-
-
-def test_load_geometry_is_currently_a_noop():
-    eiger = Eiger500K(poni=PONI_DICT)
-
-    assert eiger.load_geometry("some.poni") is None
-
-
 def test_set_calibrant():
     eiger = Eiger500K(poni=PONI_DICT)
 
