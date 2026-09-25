@@ -56,10 +56,12 @@ def do_eiger_goniometer_calibration(
     nexus_filepath: str | Path,
     calibrant_name: str | None = None,
     plot_fits: bool = False,
+    show_plots: bool = False,
 ):
     """Calibrate the goniometer from a calibrant scan, then reduce that scan.
 
-    plot_fits saves the fit at each angle to processed/calibration_fits.
+    plot_fits saves the fit at each angle to processed/calibration_fits,
+    show_plots opens them.
     """
 
     eiger_data = EigerDataLoader(nexus_filepath)
@@ -97,6 +99,7 @@ def do_eiger_goniometer_calibration(
         npt=DEFAULT_NPT,
         detector=detector_factory(PYFAI_DETECTOR_NAME),
         plot_fits=plot_fits,
+        show_plots=show_plots,
         initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
@@ -262,7 +265,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
     gionemeter_cal = do_eiger_goniometer_calibration(
-        nexus_filepath, calibrant_name="Si", plot_fits=True
+        nexus_filepath, calibrant_name="Si", plot_fits=True, show_plots=True
     )
 
     # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(

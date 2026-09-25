@@ -812,8 +812,10 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
 
     fits_dir = output_dir / eiger_pyfai.FITS_DIR_NAME
     assert sorted(p.name for p in fits_dir.iterdir()) == [
-        "frame_0000_5.0000deg.png",
-        "frame_0001_10.0000deg.png",
+        "frame_0000_5.0000deg_frame.png",
+        "frame_0000_5.0000deg_model.png",
+        "frame_0001_10.0000deg_frame.png",
+        "frame_0001_10.0000deg_model.png",
     ]
 
 

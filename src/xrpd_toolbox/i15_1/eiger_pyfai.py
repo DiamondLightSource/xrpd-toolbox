@@ -10,8 +10,10 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LogNorm
 from pyFAI.calibrant import Calibrant, get_calibrant
 from pyFAI.detectors import Detector, detector_factory
+from pyFAI.geometry import Geometry
 from pyFAI.goniometer import (
     GeometryTransformation,
     Goniometer,
@@ -19,7 +21,6 @@ from pyFAI.goniometer import (
     MultiGeometry,
     SingleGeometry,
 )
-from pyFAI.gui import jupyter
 
 from xrpd_toolbox.i15_1.eiger_500k import ARM_ROTATION_SIGN
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
@@ -183,6 +184,64 @@ def _seed_from(
     return seed, list(SEEDED_FRAME_FIX)
 
 
+def _plot_fit(
+    sg: SingleGeometry,
+    model: Geometry | None = None,
+    save_path: Path | None = None,
+    show: bool = False,
+):
+    """Rings over the image and Δ2θ residuals, for the frame fit and the model."""
+    gr = sg.geometry_refinement
+    assert gr.data is not None and sg.image is not None and sg.calibrant is not None
+    d1, d2, rings = gr.data[:, 0], gr.data[:, 1], gr.data[:, 2].astype(int)
+    chi = np.degrees(gr.chi(d1, d2))
+    ring_tth = gr.calc_2th(rings)
+    # only the rings with control points, the rest just clutter the image
+    levels = np.unique(ring_tth)
+
+    fig, axes = plt.subplot_mosaic(
+        [["img", "chi"], ["img", "tth"]],
+        figsize=(16, 6),
+        width_ratios=[2.5, 1],
+        layout="constrained",
+    )
+    ax_img = axes["img"]
+    image = np.nan_to_num(sg.image)
+    positive = image[image > 0]
+    norm = LogNorm(*np.percentile(positive, [5, 99.9])) if positive.size else None
+    ax_img.imshow(image, cmap="gray", norm=norm)
+    ax_img.plot(d2, d1, ".", color="orange", ms=2, alpha=0.5)
+
+    title = f"{sg.label}: {len(d1)} points on {len(np.unique(rings))} rings"
+    for geometry, colour, name in [(gr, "cyan", "frame fit"), (model, "red", "model")]:
+        if geometry is None:
+            continue
+        tth = geometry.center_array(unit="2th_rad", scale=False)
+        # contour warns about levels outside the image
+        in_image = levels[(levels > tth.min()) & (levels < tth.max())]
+        if in_image.size:
+            ax_img.contour(tth, levels=in_image, colors=colour, linewidths=0.8)
+        residual = np.degrees(geometry.tth(d1, d2) - ring_tth) * 1e3
+        axes["chi"].plot(chi, residual, ".", color=colour, ms=3, label=name)
+        axes["tth"].plot(np.degrees(ring_tth), residual, ".", color=colour, ms=3)
+        title += f", rms {name} {np.sqrt(np.mean(residual**2)):.1f} mdeg"
+
+    for key, xlabel in [("chi", "χ (°)"), ("tth", "ring 2θ (°)")]:
+        axes[key].axhline(0, color="k", lw=0.5)
+        axes[key].set_xlabel(xlabel)
+        axes[key].set_ylabel("Δ2θ (mdeg)")
+    axes["chi"].legend()
+    key = "cyan: frame fit, " + ("red: model, " if model is not None else "")
+    fig.suptitle(f"{title}\n{key}orange: control points")
+
+    if save_path is not None:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path)
+    if show:
+        plt.show()
+    plt.close(fig)
+
+
 def build_and_save_goniometer(
     nexus_filepath: Path | str,
     images: np.ndarray,
@@ -198,12 +257,15 @@ def build_and_save_goniometer(
     npt: int = 2000,
     detector: Detector | str | None = None,
     plot_fits: bool = False,
+    show_plots: bool = False,
     initial_beam_centre_px: tuple[float, float] | None = None,
     seed_from_previous: bool = True,
 ) -> tuple[str, str]:
     """Fit each frame, then fit GEOMETRY_TRANSFORMATION across all of them.
 
     Angles should be ascending from a frame with the beam on the detector.
+    `plot_fits` saves the fit for each frame, then with the model, and
+    `show_plots` opens them.
     Returns the paths of the saved goniometer and metadata files.
     """
     detector = _resolve_detector(detector)
@@ -250,6 +312,10 @@ def build_and_save_goniometer(
         )
         single_geometries.append(sg)
 
+        if plot_fits or show_plots:
+            fits_path = output_dir / FITS_DIR_NAME / f"{label}_frame.png"
+            _plot_fit(sg, save_path=fits_path if plot_fits else None, show=show_plots)
+
     first = single_geometries[0].geometry_refinement
     initial_params = {
         "dist": first.dist,
@@ -294,15 +360,11 @@ def build_and_save_goniometer(
             model_rms,
         )
 
-        if plot_fits:
-            fig, (ax_frame, ax_model) = plt.subplots(2, 1, figsize=(12, 10))
-            jupyter.display(sg=sg, ax=ax_frame)
-            jupyter.display(
-                sg=sg, ai=model, ax=ax_model, label=f"{sg.label} goniometer model"
+        if plot_fits or show_plots:
+            fits_path = output_dir / FITS_DIR_NAME / f"{sg.label}_model.png"
+            _plot_fit(
+                sg, model, save_path=fits_path if plot_fits else None, show=show_plots
             )
-            (output_dir / FITS_DIR_NAME).mkdir(exist_ok=True)
-            fig.savefig(output_dir / FITS_DIR_NAME / f"{sg.label}.png")
-            plt.close(fig)
 
     calibration_save_filepath = str(output_dir / GONIOMETER_SAVE_NAME)
     metadata_output_filepath = output_dir / METADATA_SAVE_NAME
