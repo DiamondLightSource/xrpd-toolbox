@@ -332,7 +332,7 @@ def sample_alignment_i15_1(
     filepath: str | Path,
     dataset_path: str = "/entry/instrument/fastcs_eiger/data",
     position_path: str = "/entry/instrument/hexapod/z",
-    beamline: str | None = None,
+    beamline: str | None = "i15-1",
     save: bool = False,
 ):
     if (beamline is not None) and (not beamline.startswith("i")):
