@@ -156,7 +156,7 @@ def test_calibrate_single_frame_asserts_control_points_present():
 
 def test_load_goniometer_dir_raises_when_file_missing(tmp_path):
     with pytest.raises(FileNotFoundError, match=eiger_pyfai.GONIOMETER_SAVE_NAME):
-        eiger_pyfai._load_goniometer_dir(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME)
+        eiger_pyfai._load_goniometer(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME)
 
 
 def test_load_goniometer_dir_success(tmp_path):
@@ -167,7 +167,7 @@ def test_load_goniometer_dir_success(tmp_path):
     mock_sload = MagicMock(return_value=fake_gonio)
 
     with patch.object(eiger_pyfai.Goniometer, "sload", mock_sload):
-        gonio = eiger_pyfai._load_goniometer_dir(goniometer_filepath)
+        gonio = eiger_pyfai._load_goniometer(goniometer_filepath)
 
     assert gonio is fake_gonio
     mock_sload.assert_called_once_with(str(goniometer_filepath))
@@ -624,9 +624,7 @@ def test_calibrate_goniometer_recovers_input_geometry():
         max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
     )
 
-    gonio = eiger_pyfai._load_goniometer_dir(
-        output_dir / eiger_pyfai.GONIOMETER_SAVE_NAME
-    )
+    gonio = eiger_pyfai._load_goniometer(output_dir / eiger_pyfai.GONIOMETER_SAVE_NAME)
     fitted = dict(
         zip(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names, gonio.param, strict=True)
     )
@@ -690,7 +688,7 @@ def test_system_calibrate():
         max_rings=[5, 5, 7, 9],
     )
 
-    gonio = eiger_pyfai._load_goniometer_dir(Path(gonio_path))
+    gonio = eiger_pyfai._load_goniometer(Path(gonio_path))
     fitted = dict(
         zip(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names, gonio.param, strict=True)
     )

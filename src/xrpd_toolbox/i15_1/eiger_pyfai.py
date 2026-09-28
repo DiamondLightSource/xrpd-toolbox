@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import logging
 from collections.abc import Iterable
@@ -15,6 +17,7 @@ from pyFAI.calibrant import Calibrant, get_calibrant
 from pyFAI.detectors import Detector, detector_factory
 from pyFAI.geometry import Geometry
 from pyFAI.goniometer import (
+    GeometryTransformation,
     Goniometer,
     GoniometerRefinement,
     MultiGeometry,
@@ -28,7 +31,8 @@ from xrpd_toolbox.utils.utils import processed_directory_and_filename
 logger = logging.getLogger(__name__)
 
 
-# once the beam centre is off the detector a frame can't separate these from rot1
+# once the beam centre is off the detector a frame can't separate these from rot1,
+# so they're held at what the model fitted to the earlier frames predicts
 FIX_BETWEEN_FRAMES = ["wavelength", "dist", "poni1", "poni2"]
 
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
@@ -70,7 +74,7 @@ def calibrate_single_geometry_from_rings(
     return geometry
 
 
-def _load_goniometer_dir(goniometer_filepath: Path) -> Goniometer:
+def _load_goniometer(goniometer_filepath: Path) -> Goniometer:
     """Load a Goniometer which has previously been saved."""
 
     if not goniometer_filepath.exists():
@@ -159,17 +163,42 @@ def _calibrate_single_frame(
     return sg
 
 
-def _seed_from(
-    previous: SingleGeometry, two_theta_deg: float
-) -> tuple[dict[str, float], list[str]]:
-    """Previous frame's geometry with rot1 moved on by the arm step."""
-    gr = previous.geometry_refinement
+def _start_goniometer(
+    model: GeometryTransformation,
+    first: SingleGeometry,
+    detector: Detector,
+    wavelength_m: float,
+) -> GoniometerRefinement:
+    """`model` with its parameters seeded from the first frame's fit."""
+    gr = first.geometry_refinement
+    assert first.metadata is not None
+    seeds = {
+        "dist": gr.dist,
+        "poni1": gr.poni1,
+        "poni2": gr.poni2,
+        "rot1_scale": ARM_ROTATION_SIGN,
+        "rot1_offset": gr.rot1 - ARM_ROTATION_SIGN * np.deg2rad(first.metadata),
+        "rot2": gr.rot2,
+        "rot3": gr.rot3,
+        "pitch": gr.rot2,
+        "roll": gr.rot3,
+    }
+    # anything else (quadratic terms, yaw, sample offsets) is a correction from 0
+    params = {name: seeds.get(name, 0.0) for name in model.param_names}
+    return GoniometerRefinement(
+        params,
+        pos_function=lambda two_theta: (two_theta,),
+        trans_function=model,
+        detector=detector,  # type: ignore[arg-type]
+        wavelength=wavelength_m,
+    )
+
+
+def _predict_frame(gonioref: GoniometerRefinement, two_theta_deg: float) -> dict:
+    """The model's geometry at two_theta, to start that frame's fit from."""
+    ai = gonioref.get_ai((two_theta_deg,))
     names = ("dist", "poni1", "poni2", "rot1", "rot2", "rot3")
-    seed = {name: float(getattr(gr, name)) for name in names}
-    assert previous.metadata is not None
-    step = np.deg2rad(two_theta_deg - float(previous.metadata))
-    seed["rot1"] += ARM_ROTATION_SIGN * step
-    return seed, list(FIX_BETWEEN_FRAMES)
+    return {name: float(getattr(ai, name)) for name in names}
 
 
 def _plot_fit(
@@ -248,10 +277,12 @@ def build_and_save_goniometer(
     show_plots: bool = False,
     initial_beam_centre_px: tuple[float, float] | None = None,
     seed_from_previous: bool = True,
+    model: GeometryTransformation = GEOMETRY_TRANSFORMATION,
 ) -> tuple[str, str]:
-    """Fit each frame, then fit GEOMETRY_TRANSFORMATION across all of them.
+    """Fit each frame, then fit `model` (see eiger_goniometer_models) across them.
 
-    Angles should be sorted from a frame with the beam on the detector.
+    Angles should be sorted from a frame with the beam on the detector. With
+    `seed_from_previous`, each frame starts from `model` fitted to the ones before.
     `plot_fits` saves the fit for each frame, then with the model, and
     `show_plots` opens them.
     Returns the paths of the saved goniometer and metadata files.
@@ -275,16 +306,17 @@ def build_and_save_goniometer(
     calibrant = get_calibrant(calibrant_name=calibrant_name, wavelength=wavelength_m)
 
     single_geometries: list[SingleGeometry] = []
+    gonioref: GoniometerRefinement | None = None
     for i, (image, two_theta_deg) in enumerate(zip(images, angles, strict=True)):
         label = f"frame_{i:04d}_{two_theta_deg:.4f}deg"
         logger.info(
             "Calibrating frame %d / %d at %.4f°", i + 1, len(angles), two_theta_deg
         )
         seed_geometry, fix = None, None
-        if seed_from_previous and single_geometries:
-            previous = single_geometries[-1]
-            seed_geometry, fix = _seed_from(previous, float(two_theta_deg))
-            logger.info("  seeded from %s, fixing %s", previous.label, ", ".join(fix))
+        if seed_from_previous and gonioref is not None:
+            seed_geometry = _predict_frame(gonioref, float(two_theta_deg))
+            fix = list(FIX_BETWEEN_FRAMES)
+            logger.info("  seeded from the model, fixing %s", ", ".join(fix))
         sg = _calibrate_single_frame(
             label,
             image,
@@ -300,35 +332,23 @@ def build_and_save_goniometer(
         )
         single_geometries.append(sg)
 
+        if gonioref is None:
+            gonioref = _start_goniometer(model, sg, detector, wavelength_m)
+        gonioref.single_geometries[sg.label] = sg
+        if seed_from_previous and i < len(angles) - 1:
+            # quietly: pyFAI prints on every refine2, the final one is below
+            with contextlib.redirect_stdout(io.StringIO()):
+                gonioref.refine2()
+            logger.info("  model over %d frames: χ² = %.3g", i + 1, gonioref.chi2())
+
         if plot_fits or show_plots:
             fits_path = output_dir / FITS_DIR_NAME / f"{label}_frame.png"
             _plot_fit(sg, save_path=fits_path if plot_fits else None, show=show_plots)
 
-    first = single_geometries[0].geometry_refinement
-    initial_params = {
-        "dist": first.dist,
-        "poni1": first.poni1,
-        "poni2": first.poni2,
-        "rot1_scale": ARM_ROTATION_SIGN,
-        "rot1_quad": 0.0,
-        "rot1_offset": first.rot1 - ARM_ROTATION_SIGN * np.deg2rad(angles[0]),
-        "rot2": first.rot2,
-        "rot3": first.rot3,
-        "yaw": 0.0,
-    }
-
-    gonioref = GoniometerRefinement(
-        initial_params,
-        pos_function=lambda two_theta: (two_theta,),
-        trans_function=GEOMETRY_TRANSFORMATION,
-        detector=detector,  # type: ignore[arg-type]
-        wavelength=wavelength_m,
+    assert gonioref is not None
+    logger.info(
+        "Refining %s across %d frames …", ", ".join(model.param_names), len(angles)
     )
-
-    for sg in single_geometries:
-        gonioref.single_geometries[sg.label] = sg
-
-    logger.info("Refining goniometer model across %d frames …", len(angles))
 
     # passed on to scipy, prints every iteration
     gonioref.refine2(iprint=2, disp=True)
@@ -337,9 +357,9 @@ def build_and_save_goniometer(
     for sg in single_geometries:
         gr = sg.geometry_refinement
         assert gr.data is not None
-        model = gonioref.get_ai(sg.get_position())
-        model_param = [model.dist, model.poni1, model.poni2]
-        model_param += [model.rot1, model.rot2, model.rot3]
+        model_ai = gonioref.get_ai(sg.get_position())
+        model_param = [model_ai.dist, model_ai.poni1, model_ai.poni2]
+        model_param += [model_ai.rot1, model_ai.rot2, model_ai.rot3]
         frame_rms, model_rms = np.degrees(
             np.sqrt([gr.chi2(), gr.chi2(model_param)]) / np.sqrt(len(gr.data))
         )
@@ -353,7 +373,10 @@ def build_and_save_goniometer(
         if plot_fits or show_plots:
             fits_path = output_dir / FITS_DIR_NAME / f"{sg.label}_model.png"
             _plot_fit(
-                sg, model, save_path=fits_path if plot_fits else None, show=show_plots
+                sg,
+                model_ai,
+                save_path=fits_path if plot_fits else None,
+                show=show_plots,
             )
 
     calibration_save_filepath = str(output_dir / GONIOMETER_SAVE_NAME)
@@ -397,7 +420,7 @@ def integrate_with_goniometer(
     output_xy_filepath = Path(output_xy_filepath)
     output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    gonio = _load_goniometer_dir(goniometer_filepath=Path(goniometer_filepath))
+    gonio = _load_goniometer(goniometer_filepath=Path(goniometer_filepath))
 
     frame_ais = [gonio.get_ai(float(two_theta)) for two_theta in positions]
 
