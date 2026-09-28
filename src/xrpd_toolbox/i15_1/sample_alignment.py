@@ -350,6 +350,9 @@ def sample_alignment_i15_1(
 
         xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
 
+    if (np.max(xyedata.y) - np.min(xyedata.y)) < 1:
+        raise Exception("The data looks very flat - is the shutter open?")
+
     best_model = run_sample_alignment(data=xyedata)
 
     sample_centre_result = best_model.get_sample_centre()
@@ -407,8 +410,12 @@ def fake_sample_alignment_i15_1(
     return fake_sample_centre_result.model_dump_json()
 
 
-# if __name__ == "__main__":
-#     BEAMLINE = "i15-1"
+if __name__ == "__main__":
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98790.nxs"
+
+    BEAMLINE = "i15-1"
+
+    sample_alignment_i15_1(filepath=nexus_filepath)
 
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
 
