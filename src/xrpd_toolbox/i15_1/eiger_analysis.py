@@ -263,12 +263,21 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
+def calc_wb(cal_save_path: str):
+    from pyFAI.crystallography.cell import Cell
+
+    tungsten_wb = Cell.cubic(3.165448, lattice_type="I")
+    tungsten_wb.save(str(Path(cal_save_path) / "WB"), dmin=0.1)
+
+
 if __name__ == "__main__":
+    cal_save_path = Path("/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1")
+
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calibration
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # WB for calibration
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # WB for calibration
 
     goniometer_filepath = Path(
         "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"

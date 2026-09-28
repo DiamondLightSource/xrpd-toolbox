@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 import io
 import json
 import logging
@@ -379,12 +380,22 @@ def build_and_save_goniometer(
                 show=show_plots,
             )
 
-    calibration_save_filepath = str(output_dir / GONIOMETER_SAVE_NAME)
-    metadata_output_filepath = output_dir / METADATA_SAVE_NAME
+    calibration_timestamp = datetime.datetime.now(datetime.UTC).strftime(
+        "%Y-%m-%d_%H-%M-%S"
+    )  # noqa - throws warning that is invalid
+
+    calibration_save_filepath = str(
+        output_dir / f"{nexus_path.stem}_{calibration_timestamp}_{GONIOMETER_SAVE_NAME}"
+    )
+    metadata_output_filepath = (
+        output_dir / f"{nexus_path.stem}_{calibration_timestamp}_{METADATA_SAVE_NAME}"
+    )
 
     gonioref.save(calibration_save_filepath)
 
     meta = {
+        "filenumber": str(nexus_path.stem),
+        "timestamp": str(calibration_timestamp),
         "unit": unit,
         "radial_range": list(radial_range) if radial_range is not None else None,
         "npt": npt,
