@@ -5,6 +5,7 @@ from pathlib import Path
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import detector_factory
 
+from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
     GONIOMETER_SAVE_NAME,
@@ -49,7 +50,7 @@ class CollectionType(StrEnum):
     calibrant = "Standard Sample"
 
 
-calibrant_lookup: dict[str, str] = {"Silicon": "Si"}
+calibrant_lookup: dict[str, str] = {"Silicon": "Si", "Tungsten": "W"}
 
 PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
@@ -74,10 +75,17 @@ def do_eiger_goniometer_calibration(
         calibrant_name = eiger_data.get_calibrant()
         assert calibrant_name is not None
 
-    calibrant = calibrant_lookup.get(calibrant_name) or calibrant_name
+    calibrant_name = calibrant_lookup.get(calibrant_name) or calibrant_name
 
-    if calibrant is None:
+    if calibrant_name is None:
         raise Exception(f"Calibration  {calibrant_name} is not in calibrant_lookup")
+
+    if calibrant_name == "W":
+        calibrant = load_wb_calibrant(wavelength=eiger_data.get_wavelength_in_m())
+    else:
+        calibrant = get_calibrant(
+            calibrant_name=calibrant_name, wavelength=eiger_data.get_wavelength_in_m()
+        )
 
     unique_positions = eiger_data.get_unique_tth_positions()
 
@@ -99,7 +107,7 @@ def do_eiger_goniometer_calibration(
         images=summed_and_masked_frames,
         angles=unique_positions,
         wavelength_in_angstrom=eiger_data.wavelength,
-        calibrant_name=calibrant,
+        calibrant=calibrant,
         initial_dist_m=DEFAULT_DETECTOR_DISTANCE_M,
         output_dir=output_dir,
         max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32],
@@ -112,8 +120,7 @@ def do_eiger_goniometer_calibration(
         initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
-    cal = get_calibrant(calibrant, wavelength=eiger_data.get_wavelength_in_m())
-    tth_calibrant_peaks = cal.get_peaks()
+    tth_calibrant_peaks = calibrant.get_peaks()
 
     do_eiger_data_reduction(
         nexus_filepath,
@@ -263,21 +270,14 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-def calc_wb(cal_save_path: str):
-    from pyFAI.crystallography.cell import Cell
-
-    tungsten_wb = Cell.cubic(3.165448, lattice_type="I")
-    tungsten_wb.save(str(Path(cal_save_path) / "WB"), dmin=0.1)
-
-
 if __name__ == "__main__":
     cal_save_path = Path("/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1")
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calibration
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
 
     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # WB for calibration
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
     goniometer_filepath = Path(
         "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"
@@ -303,7 +303,7 @@ if __name__ == "__main__":
     # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
 
     gionemeter_cal = do_eiger_goniometer_calibration(
-        nexus_filepath, calibrant_name="Si", plot_fits=True, show_plots=False
+        nexus_filepath, calibrant_name="W", plot_fits=True, show_plots=True
     )
 
     # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(

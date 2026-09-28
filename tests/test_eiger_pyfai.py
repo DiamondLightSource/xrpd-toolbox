@@ -18,6 +18,7 @@ from xrpd_toolbox.i15_1.eiger_500k import (
     PIXEL_SIZE,
     Eiger500K,
 )
+from xrpd_toolbox.i15_1.eiger_goniometer_models import YAW_GEOMETRY_TRANSFORMATION
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
@@ -241,10 +242,14 @@ def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
         images=images,
         angles=angles,
         wavelength_in_angstrom=0.161699,
+        calibrant=get_calibrant("Si", wavelength=0.161699e-10),
         output_dir=tmp_path,
     )
 
-    assert gonio_path == str(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME)
+    # saved as <scan>_<timestamp>_<name> so earlier calibrations aren't overwritten
+    assert Path(gonio_path).parent == tmp_path
+    assert Path(gonio_path).name.startswith("scan_")
+    assert Path(gonio_path).name.endswith(eiger_pyfai.GONIOMETER_SAVE_NAME)
     assert Path(meta_path).exists()
 
     meta = json.loads(Path(meta_path).read_text())
@@ -254,9 +259,11 @@ def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
     assert meta["radial_range"] is None
     assert meta["calib_two_theta_deg"] == angles.tolist()
     assert meta["wavelength"] == pytest.approx(0.161699e-10)
+    assert meta["filenumber"] == "scan"
 
-    fake_gonioref.refine2.assert_called_once()
-    fake_gonioref.chi2.assert_called_once()
+    # refined after each frame to seed the next, then once more with them all
+    assert fake_gonioref.refine2.call_count == len(angles)
+    assert fake_gonioref.chi2.call_count == len(angles)
     fake_gonioref.save.assert_called_once_with(gonio_path)
     assert len(fake_gonioref.single_geometries) == 3
     assert set(fake_gonioref.single_geometries) == {
@@ -279,6 +286,7 @@ def test_build_and_save_goniometer_default_output_dir_is_processed_subfolder(
         images=images,
         angles=angles,
         wavelength_in_angstrom=0.161699,
+        calibrant=get_calibrant("Si", wavelength=0.161699e-10),
     )
 
     expected_dir = nexus_filepath.parent / "processed"
@@ -295,6 +303,7 @@ def test_build_and_save_goniometer_stores_radial_range_and_npt(tmp_path, fake_go
         images=images,
         angles=angles,
         wavelength_in_angstrom=0.161699,
+        calibrant=get_calibrant("Si", wavelength=0.161699e-10),
         output_dir=tmp_path,
         radial_range=(0.0, 60.0),
         npt=500,
@@ -327,17 +336,23 @@ def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_pa
             images=images,
             angles=angles,
             wavelength_in_angstrom=0.161699,
+            calibrant=get_calibrant("Si", wavelength=0.161699e-10),
             output_dir=tmp_path,
             initial_dist_m=0.3,
         )
 
     initial_params = mock_gonioref_cls.call_args.args[0]
+    model = eiger_pyfai.GEOMETRY_TRANSFORMATION
+    assert list(initial_params) == list(model.param_names)
     assert initial_params["dist"] == pytest.approx(0.3)
-    assert initial_params["rot1_scale"] == ARM_ROTATION_SIGN
-    assert initial_params["rot1_quad"] == 0.0
-    assert initial_params["yaw"] == 0.0
     assert initial_params["rot1_offset"] == pytest.approx(0.0)
     assert initial_params["rot2"] == 0.0
+    if "rot1_scale" in initial_params:
+        assert initial_params["rot1_scale"] == ARM_ROTATION_SIGN
+    # everything that isn't seeded from the first frame is a correction from 0
+    seeded = {"dist", "poni1", "poni2", "rot1_scale", "rot1_offset", "rot2", "rot3"}
+    for name in set(initial_params) - seeded:
+        assert initial_params[name] == 0.0, name
 
 
 # ---------------------------------------------------------------------------
@@ -347,13 +362,13 @@ def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_pa
 
 @pytest.fixture
 def goniometer_filepath(tmp_path):
-    """Patches _load_goniometer_dir with a fake Goniometer and returns the
+    """Patches _load_goniometer with a fake Goniometer and returns the
     (never actually read) goniometer file path to pass in."""
     fake_gonio = MagicMock()
     fake_gonio.get_ai.side_effect = lambda tth: SimpleNamespace(tth=tth)
 
     with patch.object(
-        eiger_pyfai, "_load_goniometer_dir", lambda goniometer_filepath: fake_gonio
+        eiger_pyfai, "_load_goniometer", lambda goniometer_filepath: fake_gonio
     ):
         yield tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME
 
@@ -613,49 +628,37 @@ def test_calibrate_goniometer_recovers_input_geometry():
         resolution=0.05,
     )
 
-    eiger_pyfai.build_and_save_goniometer(
+    gonio_path, _ = eiger_pyfai.build_and_save_goniometer(
         nexus_filepath=output_dir / "fake_calibration_scan.nxs",
         images=np.array(images),
         angles=angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-        calibrant_name="Si",
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         initial_dist_m=dist_true,
         output_dir=output_dir,
         max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
     )
 
-    gonio = eiger_pyfai._load_goniometer(output_dir / eiger_pyfai.GONIOMETER_SAVE_NAME)
+    gonio = eiger_pyfai._load_goniometer(Path(gonio_path))
     fitted = dict(
         zip(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names, gonio.param, strict=True)
     )
 
     print(f"\ncalibrated at angles {angles.tolist()} deg")
     print("true vs. refined goniometer parameters:")
-    true_values = {
-        "dist": dist_true,
-        "poni1": poni1_true,
-        "poni2": poni2_true,
-        "rot1_scale": ARM_ROTATION_SIGN,
-        "rot1_quad": 0.0,
-        "rot1_offset": 0.0,
-        "rot2": 0.0,
-        "rot3": 0.0,
-        "yaw": 0.0,
-    }
+    # the simulated arm is linear and square, with the sample on its centre, so
+    # every correction any of the models has should come back as ~0
+    true_values = {"dist": dist_true, "poni1": poni1_true, "poni2": poni2_true}
+    true_values["rot1_scale"] = ARM_ROTATION_SIGN
+    tolerances = {"dist": 1e-3, "poni1": 2e-3, "poni2": 2e-3, "rot1_quad": 1e-2}
+    # the arm's zero error - a fraction of a degree
+    tolerances["rot1_offset"] = np.deg2rad(0.5)
     for name, value in fitted.items():
-        print(f"    {name:>12s}: true={true_values[name]:.6g}  refined={value:.6g}")
-
-    assert fitted["dist"] == pytest.approx(dist_true, abs=1e-3)
-    assert fitted["poni1"] == pytest.approx(poni1_true, abs=2e-3)
-    assert fitted["poni2"] == pytest.approx(poni2_true, abs=2e-3)
-    assert fitted["rot2"] == pytest.approx(0.0, abs=2e-3)
-    assert fitted["rot3"] == pytest.approx(0.0, abs=2e-3)
-    assert fitted["yaw"] == pytest.approx(0.0, abs=2e-3)
-    assert fitted["rot1_scale"] == pytest.approx(ARM_ROTATION_SIGN, abs=2e-3)
-    # the simulated arm is linear
-    assert fitted["rot1_quad"] == pytest.approx(0.0, abs=1e-2)
-    # two-theta arm's error - a fraction of a degree
-    assert fitted["rot1_offset"] == pytest.approx(0.0, abs=np.deg2rad(0.5))
+        true = true_values.get(name, 0.0)
+        print(f"    {name:>14s}: true={true:.6g}  refined={value:.6g}")
+        assert value == pytest.approx(true, abs=tolerances.get(name, 2e-3)), name
 
 
 def test_system_calibrate():
@@ -682,7 +685,9 @@ def test_system_calibrate():
         images=images,
         angles=angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-        calibrant_name="Si",
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         initial_dist_m=0.25,
         output_dir=output_dir,
         max_rings=[5, 5, 7, 9],
@@ -730,7 +735,9 @@ def test_system_integrate():
         images=np.array(calibration_images),
         angles=calibration_angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-        calibrant_name="Si",
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         initial_dist_m=0.25,
         output_dir=output_dir,
         max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
@@ -811,6 +818,9 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
         images=np.array(images),
         angles=angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         output_dir=output_dir,
         max_rings=[5, 7],
         plot_fits=True,
@@ -825,28 +835,34 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
     ]
 
 
-def test_seed_from_previous_frame_advances_rot1_by_arm_step():
-    previous = SimpleNamespace(
-        label="frame_0000",
+def test_predict_frame_advances_rot1_by_arm_step():
+    first = SimpleNamespace(
         metadata=10.0,
         geometry_refinement=SimpleNamespace(
-            dist=0.25, poni1=0.02, poni2=0.04, rot1=0.1, rot2=0.01, rot3=0.0
+            dist=0.25, poni1=0.02, poni2=0.04, rot1=0.1, rot2=0.0, rot3=0.0
         ),
     )
+    gonioref = eiger_pyfai._start_goniometer(
+        eiger_pyfai.GEOMETRY_TRANSFORMATION,
+        first,  # type: ignore[arg-type]
+        Eiger500K(),
+        wavelength_m=1e-10,
+    )
 
-    seed, fix = eiger_pyfai._seed_from(previous, 25.0)  # type: ignore[arg-type]
+    seed = eiger_pyfai._predict_frame(gonioref, 25.0)
 
+    # before any refinement the model just moves the first frame on by the arm
     assert seed["rot1"] == pytest.approx(0.1 + ARM_ROTATION_SIGN * np.deg2rad(15.0))
-    assert {k: seed[k] for k in ("dist", "poni1", "poni2", "rot2", "rot3")} == {
-        "dist": 0.25,
-        "poni1": 0.02,
-        "poni2": 0.04,
-        "rot2": 0.01,
-        "rot3": 0.0,
-    }
-    # wavelength must stay in the list: pyFAI only fixes it by default when
-    # no fix list is given at all
-    assert fix == ["wavelength", "dist", "poni1", "poni2"]
+    assert seed["dist"] == pytest.approx(0.25)
+    assert seed["poni1"] == pytest.approx(0.02)
+    assert seed["poni2"] == pytest.approx(0.04)
+    assert seed["rot2"] == pytest.approx(0.0, abs=1e-12)
+    assert seed["rot3"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_fix_between_frames_keeps_wavelength_fixed():
+    # pyFAI only fixes the wavelength by default when no fix list is given
+    assert "wavelength" in eiger_pyfai.FIX_BETWEEN_FRAMES
 
 
 def _pyfai_rotation(rot1=0.0, rot2=0.0, rot3=0.0) -> np.ndarray:
@@ -866,7 +882,7 @@ def test_geometry_transformation_is_arm_about_yawed_axis(two_theta):
         "rot3": 0.005,
         "yaw": 0.03,
     }
-    geometry = eiger_pyfai.GEOMETRY_TRANSFORMATION(
+    geometry = YAW_GEOMETRY_TRANSFORMATION(
         list(params.values()), (two_theta,)
     )._asdict()
 

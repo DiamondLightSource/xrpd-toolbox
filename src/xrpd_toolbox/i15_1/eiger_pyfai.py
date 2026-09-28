@@ -14,7 +14,7 @@ from typing import Literal
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
-from pyFAI.calibrant import Calibrant, get_calibrant
+from pyFAI.calibrant import Calibrant
 from pyFAI.detectors import Detector, detector_factory
 from pyFAI.geometry import Geometry
 from pyFAI.goniometer import (
@@ -265,7 +265,7 @@ def build_and_save_goniometer(
     images: np.ndarray,
     angles: np.ndarray,
     wavelength_in_angstrom: float,
-    calibrant_name: str = "Si",
+    calibrant: Calibrant,
     initial_dist_m: float = 0.25,
     output_dir: Path | str | None = None,
     max_rings: list[int] | int | None = None,
@@ -303,8 +303,6 @@ def build_and_save_goniometer(
 
     logger.info("Loaded %d calibration frames from %s", len(angles), nexus_path)
     wavelength_m = wavelength_in_angstrom / 1e10
-
-    calibrant = get_calibrant(calibrant_name=calibrant_name, wavelength=wavelength_m)
 
     single_geometries: list[SingleGeometry] = []
     gonioref: GoniometerRefinement | None = None
@@ -400,7 +398,7 @@ def build_and_save_goniometer(
         "radial_range": list(radial_range) if radial_range is not None else None,
         "npt": npt,
         "wavelength": wavelength_m,
-        "calibrant": calibrant_name,
+        "calibrant": calibrant.name,
         "calib_two_theta_deg": angles.tolist(),
     }
     metadata_output_filepath.write_text(json.dumps(meta, indent=2))

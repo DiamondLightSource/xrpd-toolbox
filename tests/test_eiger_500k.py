@@ -93,18 +93,18 @@ def test_load_all_data(nexus_file):
 
     data = loader.load_all_data()
 
-    # written as (frames, 4, 5); transposed to the detector orientation
-    assert data.shape == (3, 5, 4)
+    # frames come back as the Eiger wrote them, (rows, cols)
+    assert data.shape == (3, 4, 5)
 
 
 def test_get_data_with_int_and_list(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
     single = loader.get_data(0)
-    assert single.shape == (5, 4)
+    assert single.shape == (4, 5)
 
     subset = loader.get_data([0, 2])
-    assert subset.shape == (2, 5, 4)
+    assert subset.shape == (2, 4, 5)
 
 
 def test_get_data_missing_dataset_raises(tmp_path):
@@ -159,9 +159,9 @@ def test_get_pixel_mask_filepath_and_datapath_fallback(tmp_path):
     assert mask_datapath == "entry/mask"
 
 
-def test_get_data_and_mask_are_transposed_to_detector_orientation(tmp_path):
-    # the Eiger writes (512, 1028); pyFAI's Eiger500K is (1028, 512) so the
-    # two-theta arm (rot2) sweeps the rings along dim1
+def test_get_data_and_mask_keep_the_eiger_orientation(tmp_path):
+    # the Eiger writes (512, 1028), the same as pyFAI's Eiger2CdTe_500k, so
+    # nothing is transposed and the two-theta arm (rot1) sweeps along the columns
     data = np.arange(2 * 4 * 5, dtype=np.uint32).reshape(2, 4, 5)
     mask_file = tmp_path / "mask.h5"
     build_mask_file(mask_file, "entry/mask", shape=(4, 5))
@@ -170,8 +170,8 @@ def test_get_data_and_mask_are_transposed_to_detector_orientation(tmp_path):
     )
     loader = EigerDataLoader(nxs)
 
-    assert np.array_equal(loader.get_data(1), data[1].T)
-    assert np.array_equal(loader.load_all_data(), data.transpose(0, 2, 1))
+    assert np.array_equal(loader.get_data(1), data[1])
+    assert np.array_equal(loader.load_all_data(), data)
     assert loader.get_mask().shape == loader.get_data(0).shape
     assert loader.get_mask(as_nan=True).shape == loader.get_data(0).shape
 
@@ -181,8 +181,8 @@ def test_get_mask(nexus_file):
 
     mask = loader.get_mask()
 
-    # transposed to match get_data
-    assert mask.shape == (5, 4)
+    # the same orientation as get_data
+    assert mask.shape == (4, 5)
     assert mask.dtype == bool
 
 
@@ -228,9 +228,8 @@ def test_sum_unique_two_theta_positions_normalises_each_position(tmp_path):
 
     result = loader.sum_unique_two_theta_positions_and_normalise()
 
-    # one frame per position, each divided by its own i0; frames come back
-    # in the detector orientation (see to_detector_orientation)
-    assert result.shape == (3, 5, 4)
+    # one frame per position, each divided by its own i0
+    assert result.shape == (3, 4, 5)
     assert np.allclose(result[0], 10.0 / 2.0)
     assert np.allclose(result[1], 20.0 / 4.0)
     assert np.allclose(result[2], 30.0 / 5.0)
@@ -249,7 +248,7 @@ def test_sum_unique_two_theta_positions_sums_repeated_positions(tmp_path):
 
     result = loader.sum_unique_two_theta_positions_and_normalise()
 
-    assert result.shape == (2, 5, 4)
+    assert result.shape == (2, 4, 5)
     assert np.allclose(result[0], (1.0 + 2.0) / (1.0 + 4.0))
     assert np.allclose(result[1], (3.0 + 4.0) / (2.0 + 3.0))
 
@@ -271,7 +270,7 @@ def test_sum_unique_two_theta_positions_many_frames_per_position(tmp_path):
     result = loader.sum_unique_two_theta_positions_and_normalise()
 
     # every frame is 2 * i0, so every normalised frame is 2
-    assert result.shape == (1, 5, 4)
+    assert result.shape == (1, 4, 5)
     assert np.allclose(result, 2.0)
 
 
@@ -287,7 +286,7 @@ def test_sum_unique_two_theta_positions_without_normalising_ignores_i0(tmp_path)
     result = loader.sum_unique_two_theta_positions_and_normalise(normalise=False)
 
     # frames at each position averaged, with no i0 division
-    assert result.shape == (2, 5, 4)
+    assert result.shape == (2, 4, 5)
     assert np.allclose(result[0], (1.0 + 2.0) / 2)
     assert np.allclose(result[1], 5.0)
 

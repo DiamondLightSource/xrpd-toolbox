@@ -11,6 +11,7 @@ from xrpd_toolbox.i15_1.eiger_500k import (
     apply_mask,
     group_positions,
 )
+from xrpd_toolbox.i15_1.eiger_pyfai import GONIOMETER_SAVE_NAME
 
 # ---------------------------------------------------------------------------
 # group_positions
@@ -108,6 +109,7 @@ def _fake_eiger_data(**overrides):
     fake.get_summed_and_normalised_frames.return_value = np.zeros((2, 4, 5))
     fake.get_mask.return_value = None
     fake.wavelength = 1.0
+    fake.get_wavelength_in_m.return_value = 1e-10
     for key, value in overrides.items():
         setattr(fake, key, value)
     return fake
@@ -131,8 +133,12 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
 
     expected_processed_dir = str(tmp_path / "processed")
     assert mock_build.call_args.kwargs["output_dir"] == expected_processed_dir
-    # the calibration scan is reduced straight after the goniometer is built
-    mock_reduction.assert_called_once_with(nexus_filepath)
+    # the calibration scan is reduced straight after the goniometer is built,
+    # with that goniometer and the calibrant's peaks marked
+    mock_reduction.assert_called_once()
+    assert mock_reduction.call_args.args == (nexus_filepath,)
+    assert mock_reduction.call_args.kwargs["goniometer_filepath"] == "gonio.json"
+    assert len(mock_reduction.call_args.kwargs["known_peak_markers"]) > 0
     assert (tmp_path / "processed").is_dir()
     nexus_filepath.unlink(missing_ok=True)
 
@@ -142,7 +148,7 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     nexus_filepath.touch()
 
     def fake_integrate(
-        images, positions, goniometer_dir, output_xy_filepath, npt=None, mask=None
+        images, positions, goniometer_filepath, output_xy_filepath, npt=None, mask=None
     ):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
@@ -164,8 +170,8 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     # the goniometer calibration is shared across every file in the
     # directory, so it must be looked up in the flat processed/ folder, not
     # the per-file processed/scan/ subfolder used for the output xy
-    assert mock_integrate.call_args.kwargs["goniometer_dir"] == str(
-        tmp_path / "processed"
+    assert mock_integrate.call_args.kwargs["goniometer_filepath"] == (
+        tmp_path / "processed" / GONIOMETER_SAVE_NAME
     )
     nexus_filepath.unlink(missing_ok=True)
 
@@ -176,7 +182,7 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
     explicit_output = tmp_path / "elsewhere" / "custom.xy"
 
     def fake_integrate(
-        images, positions, goniometer_dir, output_xy_filepath, npt=None, mask=None
+        images, positions, goniometer_filepath, output_xy_filepath, npt=None, mask=None
     ):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
@@ -233,7 +239,9 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
 
     # only called once, for the main scan - the background was already found
     # saved in processed/ so it is not regenerated
-    mock_reduction.assert_called_once_with(nexus_filepath, None)
+    mock_reduction.assert_called_once_with(
+        nexus_filepath=nexus_filepath, output_xy_filepath=None
+    )
     assert mock_send.call_args.kwargs["background_file"] == str(existing_bg_xy)
     nexus_filepath.unlink(missing_ok=True)
 
@@ -271,6 +279,8 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
         eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
 
     assert mock_reduction.call_count == 2
-    mock_reduction.assert_any_call(str(bg_nexus_filepath), expected_bg_xy)
+    mock_reduction.assert_any_call(
+        nexus_filepath=str(bg_nexus_filepath), output_xy_filepath=expected_bg_xy
+    )
     assert mock_send.call_args.kwargs["background_file"] == str(expected_bg_xy)
     nexus_filepath.unlink(missing_ok=True)
