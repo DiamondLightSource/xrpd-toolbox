@@ -359,6 +359,7 @@ class EigerDataLoader:
         """
 
         data = self.file.get(self.dataset_path)
+        mask = self.get_mask(as_nan=True)
 
         if not isinstance(data, Dataset):
             raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
@@ -370,7 +371,7 @@ class EigerDataLoader:
         totals = np.zeros(len(frame_indices), dtype=np.float64)
 
         for n, index in enumerate(frame_indices):
-            totals[n] = np.sum(data[index], dtype=np.float64)
+            totals[n] = np.nansum(data[index] * mask, dtype=np.float64)
 
         return totals
 

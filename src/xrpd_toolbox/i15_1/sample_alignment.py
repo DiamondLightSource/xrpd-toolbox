@@ -350,6 +350,11 @@ def sample_alignment_i15_1(
 
         xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
 
+    import matplotlib.pyplot as plt
+
+    plt.plot(xyedata.x, xyedata.y)
+    plt.show()
+
     best_model = run_sample_alignment(data=xyedata)
 
     sample_centre_result = best_model.get_sample_centre()
@@ -407,10 +412,12 @@ def fake_sample_alignment_i15_1(
     return fake_sample_centre_result.model_dump_json()
 
 
-# if __name__ == "__main__":
-#     BEAMLINE = "i15-1"
+if __name__ == "__main__":
+    BEAMLINE = "i15-1"
 
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98523.nxs"
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98791.nxs"
+
+    sample_alignment_i15_1(nexus_filepath, beamline=None)
 
 #     fake_sample_alignment_i15_1(
 #         nexus_filepath, position_path="/entry/instrument/tth/data", beamline=BEAMLINE
