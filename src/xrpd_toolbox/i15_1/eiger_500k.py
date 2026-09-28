@@ -108,7 +108,6 @@ class EigerDataLoader:
         eiger_data_path: str = "/entry/instrument/fastcs_eiger/data",
     ):
         self.filepath = str(filepath)
-        self.eiger_data_path = eiger_data_path
         self._file: File | None = None
 
         self.entry = list(self.file.keys())[0]  # /entry
@@ -227,7 +226,7 @@ class EigerDataLoader:
     @cached_property
     def mask_filepath(self):
 
-        pixel_mask_path = f"{self.entry}/instrument/{self.eiger_data_path}/pixel_mask"
+        pixel_mask_path = f"{self.entry}/instrument/fastcs_eiger/pixel_mask"
 
         mask_filepath = self._read_string(pixel_mask_path)
 
