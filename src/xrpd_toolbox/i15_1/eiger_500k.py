@@ -187,6 +187,10 @@ class EigerDataLoader:
         """Returns the wavelength in angstrom"""
         return self.wavelength
 
+    def get_wavelength_in_m(self) -> float:
+        """Returns the wavelength in angstrom"""
+        return self.wavelength / 1e10
+
     def load_all_data(self) -> np.ndarray:
         """Loads every frame into memory - prefer get_data with a slice."""
         return self.get_data(frames=slice(None))

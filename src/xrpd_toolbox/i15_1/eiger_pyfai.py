@@ -15,7 +15,6 @@ from pyFAI.calibrant import Calibrant, get_calibrant
 from pyFAI.detectors import Detector, detector_factory
 from pyFAI.geometry import Geometry
 from pyFAI.goniometer import (
-    GeometryTransformation,
     Goniometer,
     GoniometerRefinement,
     MultiGeometry,
@@ -23,25 +22,14 @@ from pyFAI.goniometer import (
 )
 
 from xrpd_toolbox.i15_1.eiger_500k import ARM_ROTATION_SIGN
+from xrpd_toolbox.i15_1.eiger_goniometer_models import GEOMETRY_TRANSFORMATION
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
 
 logger = logging.getLogger(__name__)
 
-# rigid arm swinging horizontally, so only rot1 changes with two_theta
-GEOMETRY_TRANSFORMATION = GeometryTransformation(
-    param_names=["dist", "poni1", "poni2", "rot1_scale", "rot1_offset", "rot2", "rot3"],
-    pos_names=["two_theta"],
-    dist_expr="dist",
-    poni1_expr="poni1",
-    poni2_expr="poni2",
-    # numexpr has no deg2rad
-    rot1_expr="rot1_scale * (two_theta * 0.017453292519943295) + rot1_offset",
-    rot2_expr="rot2",
-    rot3_expr="rot3",
-)
 
 # once the beam centre is off the detector a frame can't separate these from rot1
-SEEDED_FRAME_FIX = ["wavelength", "dist", "poni1", "poni2"]
+FIX_BETWEEN_FRAMES = ["wavelength", "dist", "poni1", "poni2"]
 
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
 METADATA_SAVE_NAME = "calibration_metadata.json"
@@ -181,7 +169,7 @@ def _seed_from(
     assert previous.metadata is not None
     step = np.deg2rad(two_theta_deg - float(previous.metadata))
     seed["rot1"] += ARM_ROTATION_SIGN * step
-    return seed, list(SEEDED_FRAME_FIX)
+    return seed, list(FIX_BETWEEN_FRAMES)
 
 
 def _plot_fit(
@@ -263,7 +251,7 @@ def build_and_save_goniometer(
 ) -> tuple[str, str]:
     """Fit each frame, then fit GEOMETRY_TRANSFORMATION across all of them.
 
-    Angles should be ascending from a frame with the beam on the detector.
+    Angles should be sorted from a frame with the beam on the detector.
     `plot_fits` saves the fit for each frame, then with the model, and
     `show_plots` opens them.
     Returns the paths of the saved goniometer and metadata files.
@@ -322,9 +310,11 @@ def build_and_save_goniometer(
         "poni1": first.poni1,
         "poni2": first.poni2,
         "rot1_scale": ARM_ROTATION_SIGN,
+        "rot1_quad": 0.0,
         "rot1_offset": first.rot1 - ARM_ROTATION_SIGN * np.deg2rad(angles[0]),
         "rot2": first.rot2,
         "rot3": first.rot3,
+        "yaw": 0.0,
     }
 
     gonioref = GoniometerRefinement(

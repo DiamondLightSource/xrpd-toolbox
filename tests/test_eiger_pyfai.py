@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from pyFAI.calibrant import get_calibrant
+from pyFAI.geometry import Geometry
 
 from xrpd_toolbox.i15_1 import eiger_pyfai
 from xrpd_toolbox.i15_1.eiger_500k import (
@@ -333,6 +334,8 @@ def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_pa
     initial_params = mock_gonioref_cls.call_args.args[0]
     assert initial_params["dist"] == pytest.approx(0.3)
     assert initial_params["rot1_scale"] == ARM_ROTATION_SIGN
+    assert initial_params["rot1_quad"] == 0.0
+    assert initial_params["yaw"] == 0.0
     assert initial_params["rot1_offset"] == pytest.approx(0.0)
     assert initial_params["rot2"] == 0.0
 
@@ -635,9 +638,11 @@ def test_calibrate_goniometer_recovers_input_geometry():
         "poni1": poni1_true,
         "poni2": poni2_true,
         "rot1_scale": ARM_ROTATION_SIGN,
+        "rot1_quad": 0.0,
         "rot1_offset": 0.0,
         "rot2": 0.0,
         "rot3": 0.0,
+        "yaw": 0.0,
     }
     for name, value in fitted.items():
         print(f"    {name:>12s}: true={true_values[name]:.6g}  refined={value:.6g}")
@@ -647,7 +652,10 @@ def test_calibrate_goniometer_recovers_input_geometry():
     assert fitted["poni2"] == pytest.approx(poni2_true, abs=2e-3)
     assert fitted["rot2"] == pytest.approx(0.0, abs=2e-3)
     assert fitted["rot3"] == pytest.approx(0.0, abs=2e-3)
+    assert fitted["yaw"] == pytest.approx(0.0, abs=2e-3)
     assert fitted["rot1_scale"] == pytest.approx(ARM_ROTATION_SIGN, abs=2e-3)
+    # the simulated arm is linear
+    assert fitted["rot1_quad"] == pytest.approx(0.0, abs=1e-2)
     # two-theta arm's error - a fraction of a degree
     assert fitted["rot1_offset"] == pytest.approx(0.0, abs=np.deg2rad(0.5))
 
@@ -841,3 +849,38 @@ def test_seed_from_previous_frame_advances_rot1_by_arm_step():
     # wavelength must stay in the list: pyFAI only fixes it by default when
     # no fix list is given at all
     assert fix == ["wavelength", "dist", "poni1", "poni2"]
+
+
+def _pyfai_rotation(rot1=0.0, rot2=0.0, rot3=0.0) -> np.ndarray:
+    return Geometry().rotation_matrix([0, 0, 0, rot1, rot2, rot3])
+
+
+@pytest.mark.parametrize("two_theta", [-10.0, 0.0, 35.0, 80.0])
+def test_geometry_transformation_is_arm_about_yawed_axis(two_theta):
+    params = {
+        "dist": 0.25,
+        "poni1": 0.02,
+        "poni2": 0.04,
+        "rot1_scale": -0.99,
+        "rot1_quad": -0.004,
+        "rot1_offset": 0.02,
+        "rot2": 0.01,
+        "rot3": 0.005,
+        "yaw": 0.03,
+    }
+    geometry = eiger_pyfai.GEOMETRY_TRANSFORMATION(
+        list(params.values()), (two_theta,)
+    )._asdict()
+
+    t = np.deg2rad(two_theta)
+    arm = params["rot1_scale"] * t + params["rot1_quad"] * t**2 + params["rot1_offset"]
+    yaw = params["yaw"]
+    expected = (
+        _pyfai_rotation(rot3=yaw)
+        @ _pyfai_rotation(rot1=arm)
+        @ _pyfai_rotation(rot3=params["rot3"] - yaw)
+        @ _pyfai_rotation(rot2=params["rot2"])
+    )
+    actual = _pyfai_rotation(geometry["rot1"], geometry["rot2"], geometry["rot3"])
+
+    assert actual == pytest.approx(expected, abs=1e-12)

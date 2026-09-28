@@ -2,6 +2,7 @@ import logging
 from enum import StrEnum
 from pathlib import Path
 
+from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import detector_factory
 
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
@@ -10,7 +11,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
-from xrpd_toolbox.plotting import DataPlot
+from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import (
     processed_directory_and_filename,
@@ -19,6 +20,7 @@ from xrpd_toolbox.utils.utils import (
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 DEFAULT_NPT = 3000
 DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm
@@ -93,7 +95,7 @@ def do_eiger_goniometer_calibration(
         calibrant_name=calibrant,
         initial_dist_m=DEFAULT_DETECTOR_DISTANCE_M,
         output_dir=output_dir,
-        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17],
+        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32],
         pts_per_deg=1.0,
         unit="2th_deg",
         npt=DEFAULT_NPT,
@@ -103,7 +105,12 @@ def do_eiger_goniometer_calibration(
         initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
-    do_eiger_data_reduction(nexus_filepath)
+    cal = get_calibrant(calibrant, wavelength=eiger_data.get_wavelength_in_m())
+    tth_calibrant_peaks = cal.get_peaks()
+
+    print(tth_calibrant_peaks)
+
+    do_eiger_data_reduction(nexus_filepath, known_peak_markers=tth_calibrant_peaks)
 
     return goniometer_model_json, metadata_json
 
@@ -112,6 +119,7 @@ def do_eiger_data_reduction(
     nexus_filepath: str | Path,
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
+    known_peak_markers: list[float] | None = None,
 ) -> Path:
     """Reduce a scan to an .xy file with the saved goniometer."""
 
@@ -148,7 +156,15 @@ def do_eiger_data_reduction(
         data_plot = DataPlot.from_csv(output_xy_filepath)
         data_plot.x_label = "2θ (deg)"
         data_plot.data_type = "pxrd"
+
+        if known_peak_markers is not None:
+            data_plot = FittedDataPlot(**data_plot.model_dump(), calc=data_plot.y)
+            data_plot.markers = list(known_peak_markers)
+
+            print(known_peak_markers)
+
         data_plot.publish(beamline="i15-1")
+
     except Exception as e:
         logger.error(e)
 
@@ -263,9 +279,8 @@ if __name__ == "__main__":
 
     # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
 
-    logging.basicConfig(level=logging.INFO)
     gionemeter_cal = do_eiger_goniometer_calibration(
-        nexus_filepath, calibrant_name="Si", plot_fits=True, show_plots=True
+        nexus_filepath, calibrant_name="Si", plot_fits=True, show_plots=False
     )
 
     # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
