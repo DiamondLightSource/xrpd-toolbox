@@ -59,6 +59,8 @@ def do_eiger_goniometer_calibration(
     calibrant_name: str | None = None,
     plot_fits: bool = False,
     show_plots: bool = False,
+    npt: int | None = False,
+    use_frames: int | list[int] | slice | None = None,
 ):
     """Calibrate the goniometer from a calibrant scan, then reduce that scan.
 
@@ -81,6 +83,11 @@ def do_eiger_goniometer_calibration(
 
     # not normalised: a bad i0 shouldn't stop a calibration
     summed_and_masked_frames = eiger_data.get_summed_and_masked_frames()
+
+    if use_frames is not None:
+        unique_positions = unique_positions[use_frames]
+        summed_and_masked_frames = summed_and_masked_frames[use_frames]
+
     nexus_filepath = Path(nexus_filepath)
 
     output_dir, _ = processed_directory_and_filename(
@@ -98,7 +105,7 @@ def do_eiger_goniometer_calibration(
         max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32],
         pts_per_deg=1.0,
         unit="2th_deg",
-        npt=DEFAULT_NPT,
+        npt=npt or DEFAULT_NPT,
         detector=detector_factory(PYFAI_DETECTOR_NAME),
         plot_fits=plot_fits,
         show_plots=show_plots,
@@ -108,9 +115,11 @@ def do_eiger_goniometer_calibration(
     cal = get_calibrant(calibrant, wavelength=eiger_data.get_wavelength_in_m())
     tth_calibrant_peaks = cal.get_peaks()
 
-    print(tth_calibrant_peaks)
-
-    do_eiger_data_reduction(nexus_filepath, known_peak_markers=tth_calibrant_peaks)
+    do_eiger_data_reduction(
+        nexus_filepath,
+        known_peak_markers=tth_calibrant_peaks,
+        goniometer_filepath=goniometer_model_json,
+    )
 
     return goniometer_model_json, metadata_json
 
@@ -255,7 +264,12 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 
 if __name__ == "__main__":
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calibration
+
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # WB for calibration
+
     goniometer_filepath = Path(
         "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"
     )
