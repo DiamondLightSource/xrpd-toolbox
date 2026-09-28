@@ -13,7 +13,7 @@ import h5py
 import numpy as np
 
 ENTRY = "entry"
-EIGER_DATA_PATH = "fastcs_eiger"
+EIGER_DATA_PATH = "/entry/instrument/fastcs_eiger"
 
 
 def build_mask_file(path: str | Path, datapath: str, shape=(4, 5)) -> None:
@@ -77,7 +77,8 @@ def build_eiger_nexus(
 
     with h5py.File(path, "w") as f:
         entry_grp = f.create_group(entry)
-        eiger_grp = entry_grp.create_group(eiger_data_path)
+        # absolute path, so this also creates /entry/instrument
+        eiger_grp = f.create_group(eiger_data_path)
 
         if include_data:
             if data_is_group:
@@ -87,15 +88,14 @@ def build_eiger_nexus(
             else:
                 eiger_grp.create_dataset("data", data=data)
 
-        instrument_grp = entry_grp.create_group("instrument")
-        instrument_eiger_grp = instrument_grp.create_group(eiger_data_path)
+        instrument_grp = entry_grp.require_group("instrument")
 
         if include_tth:
             tth_grp = instrument_grp.create_group("tth")
             tth_grp.create_dataset("data", data=np.asarray(tth))
 
         if include_mask:
-            instrument_eiger_grp.create_dataset(
+            eiger_grp.create_dataset(
                 "pixel_mask", data=mask_ref if mask_ref is not None else "//mask"
             )
 

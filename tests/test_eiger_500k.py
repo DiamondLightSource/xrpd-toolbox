@@ -113,7 +113,7 @@ def test_data_loader_entry_and_dataset_path(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
     assert loader.entry == "entry"
-    assert loader.dataset_path == "/entry/fastcs_eiger/data"
+    assert loader.dataset_path == "/entry/instrument/fastcs_eiger/data"
 
 
 def test_data_loader_positions(nexus_file):
