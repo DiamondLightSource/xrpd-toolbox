@@ -62,7 +62,7 @@ def test_sample_alignment_saves_plot_into_processed_subfolder(tmp_path):
     csv_copy = tmp_path / "NIST_Si-95016.csv"
     shutil.copy(TEST_FILE, csv_copy)
 
-    sample_alignment_i15_1(csv_copy, save=True)
+    sample_alignment_i15_1(csv_copy, save=True, beamline=None)
 
     processed_dir = tmp_path / "processed" / "NIST_Si-95016"
     expected_plot = processed_dir / "NIST_Si-95016_alignment_fit.png"
