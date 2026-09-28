@@ -105,14 +105,15 @@ class EigerDataLoader:
     def __init__(
         self,
         filepath: str | Path,
-        eiger_data_path: str = "fastcs_eiger",
+        eiger_data_path: str = "/entry/instrument/fastcs_eiger/data",
     ):
         self.filepath = str(filepath)
         self.eiger_data_path = eiger_data_path
         self._file: File | None = None
 
         self.entry = list(self.file.keys())[0]  # /entry
-        self.dataset_path = f"/{self.entry}/{self.eiger_data_path}/data"
+
+        self.dataset_path = eiger_data_path
 
     @property
     def file(self) -> File:
