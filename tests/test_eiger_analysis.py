@@ -1,5 +1,6 @@
 """Tests for xrpd_toolbox.i15_1.eiger_analysis."""
 
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -146,18 +147,27 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
 def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
+    # no calibration in the nexus file, so the one saved in processed/ is used
+    saved_calibration = tmp_path / "processed" / GONIOMETER_SAVE_NAME
+    saved_calibration.parent.mkdir()
+    saved_calibration.touch()
+    loaded_goniometer = MagicMock()
 
     def fake_integrate(
-        images, positions, goniometer_filepath, output_xy_filepath, npt=None, mask=None
+        images, positions, goniometer, output_xy_filepath, npt=None, mask=None
     ):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
         return Path(output_xy_filepath)
 
+    fake_eiger_data = _fake_eiger_data()
+    fake_eiger_data.get_goniometer_calibration.return_value = None
+
     with (
+        patch.object(eiger_analysis, "EigerDataLoader", return_value=fake_eiger_data),
         patch.object(
-            eiger_analysis, "EigerDataLoader", return_value=_fake_eiger_data()
-        ),
+            eiger_analysis, "_load_goniometer", return_value=loaded_goniometer
+        ) as mock_load,
         patch.object(
             eiger_analysis, "integrate_with_goniometer", side_effect=fake_integrate
         ) as mock_integrate,
@@ -170,10 +180,43 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     # the goniometer calibration is shared across every file in the
     # directory, so it must be looked up in the flat processed/ folder, not
     # the per-file processed/scan/ subfolder used for the output xy
-    assert mock_integrate.call_args.kwargs["goniometer_filepath"] == (
-        tmp_path / "processed" / GONIOMETER_SAVE_NAME
-    )
+    assert mock_load.call_args.kwargs["goniometer_filepath"] == saved_calibration
+    assert mock_integrate.call_args.kwargs["goniometer"] is loaded_goniometer
     nexus_filepath.unlink(missing_ok=True)
+
+
+def test_get_goniometer_cal_filepath_finds_timestamped_calibrations(tmp_path: Path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    saved = processed / f"i15-1-98680_2026-09-29_10-00-00_{GONIOMETER_SAVE_NAME}"
+    saved.touch()
+
+    found = eiger_analysis.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
+
+    assert found == saved
+
+
+def test_get_goniometer_cal_filepath_picks_the_newest(tmp_path: Path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    # the older file's scan name sorts last, so going by name would pick it
+    older = processed / f"i15-1-98700_2026-09-28_10-00-00_{GONIOMETER_SAVE_NAME}"
+    newer = processed / f"i15-1-98680_2026-09-29_10-00-00_{GONIOMETER_SAVE_NAME}"
+    older.touch()
+    newer.touch()
+    os.utime(older, (1_000_000, 1_000_000))
+    os.utime(newer, (2_000_000, 2_000_000))
+
+    found = eiger_analysis.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
+
+    assert found == newer
+
+
+def test_get_goniometer_cal_filepath_raises_when_there_is_none(tmp_path: Path):
+    (tmp_path / "processed").mkdir()
+
+    with pytest.raises(FileNotFoundError, match="No goniometer calibration"):
+        eiger_analysis.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
 
 
 def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: Path):
@@ -182,7 +225,7 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
     explicit_output = tmp_path / "elsewhere" / "custom.xy"
 
     def fake_integrate(
-        images, positions, goniometer_filepath, output_xy_filepath, npt=None, mask=None
+        images, positions, goniometer, output_xy_filepath, npt=None, mask=None
     ):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")

@@ -149,17 +149,18 @@ def do_eiger_goniometer_calibration(
     return goniometer_model_json, metadata_json
 
 
-def get_goniometer_cal_filepath(nexus_filepath: str):
+def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
+    """The most recent goniometer calibration saved in the processed folder."""
     goniometer_dir, _ = processed_directory_and_filename(
         nexus_filepath, nest_by_filename=False
     )
 
-    goniometer_models = Path(goniometer_dir).glob(GONIOMETER_SAVE_NAME)
-    last_goniometer_model = list(goniometer_models)[-1]
+    goniometer_models = list(Path(goniometer_dir).glob(f"*{GONIOMETER_SAVE_NAME}"))
+    if not goniometer_models:
+        raise FileNotFoundError(f"No goniometer calibration found in {goniometer_dir}")
 
-    goniometer_filepath = last_goniometer_model
-
-    return goniometer_filepath
+    # gets newest file based on when it's written
+    return max(goniometer_models, key=lambda path: path.stat().st_mtime)
 
 
 def do_eiger_data_reduction(
