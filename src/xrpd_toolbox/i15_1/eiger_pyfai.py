@@ -41,6 +41,37 @@ METADATA_SAVE_NAME = "calibration_metadata.json"
 FITS_DIR_NAME = "calibration_fits"
 
 
+def mask_edges(
+    detector_shape: tuple[int, int], mask_width: tuple[int, int], as_nan: bool = False
+) -> np.ndarray:
+    """Creates a mask compatible with pyfai
+    https://pyfai.readthedocs.io/en/stable/conventions.html
+
+    'PyFAI considers masks with values equal to zero 0 as valid pixels
+    (mnemonic: non zero pixels are masked out).'
+
+    """
+
+    row_width, col_width = mask_width
+    n_rows, n_cols = detector_shape
+
+    if row_width < 0 or col_width < 0:
+        raise ValueError(f"edge_width must be a non-negative int, got {mask_width}")
+
+    mask = np.zeros(detector_shape)
+
+    mask[:row_width, :] = 1
+    mask[n_rows - row_width :, :] = 1
+
+    mask[:, :col_width] = 1
+    mask[:, n_cols - col_width :] = 1
+
+    if as_nan:
+        mask = np.where(mask == 1, np.nan, 1.0)
+
+    return mask
+
+
 def calibrate_single_geometry_from_rings(
     geometry: SingleGeometry,
     rings: list[int] = [3, 5, 5, 5, 7, 7, 9, 11, 15, 17],  # noqa

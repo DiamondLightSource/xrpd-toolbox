@@ -29,14 +29,14 @@ DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm - as defined in cad design. Actuall
 DEFAULT_BEAM_CENTRE_PX = (250.0, 470.0)
 
 
-def high_q_helper(beam_energg: float, tth_angle: float):
+def high_q_helper(beam_energy: float, tth_angle: float):
 
     from xrpd_toolbox.utils.unit_conversion import (
         beam_energy_to_wavelength,
         two_theta_to_q,
     )
 
-    wavelength = beam_energy_to_wavelength(beam_energg)
+    wavelength = beam_energy_to_wavelength(beam_energy)
     q = two_theta_to_q(tth_angle, wavelength)
     return q
 
@@ -52,6 +52,14 @@ class CollectionType(StrEnum):
 calibrant_lookup: dict[str, str] = {"Silicon": "Si", "Tungsten": "W"}
 
 PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
+
+
+def get_calibation_fit_images(goniometer_model_filepath: str | Path) -> list[Path]:
+    """This is a helper to facilitate workflows display the images as an artefact"""
+
+    calibration_fit_folder = Path(goniometer_model_filepath).parent / "calibration_fits"
+
+    return list(calibration_fit_folder.glob("*.png"))
 
 
 def do_eiger_goniometer_calibration(
@@ -132,6 +140,10 @@ def do_eiger_goniometer_calibration(
             known_peak_markers=tth_calibrant_peaks,
             goniometer_filepath=goniometer_model_json,
         )
+
+    logger.info(
+        f"Goniometer saved to: {goniometer_model_json}, metadata saved to: {metadata_json}"  # noqa
+    )
 
     return goniometer_model_json, metadata_json
 
@@ -300,13 +312,15 @@ if __name__ == "__main__":
 
     # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
 
-    gionemeter_cal = do_eiger_goniometer_calibration(
+    goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
         nexus_filepath,
         calibrant_name="W",
         plot_fits=True,
         show_plots=False,
         max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
     )
+
+    print(goniometer_cal_filepath)
 
     # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     #     nexus_filepath

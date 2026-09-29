@@ -554,29 +554,7 @@ def test_integrate_with_goniometer_writes_xye_file_when_requested(
     assert np.array_equal(error, [0.1, 0.2, 0.3])
 
 
-# ---------------------------------------------------------------------------
-# Real, unmocked calibrate / integrate cycle
-# ---------------------------------------------------------------------------
-#
-# No mocking below this point. These build synthetic Si powder-ring frames
-# with xrpd_toolbox's own Eiger500K.simulate_data() and run the actual
-# calibration / integration code paths.
-#
-# Historical note: this used to go through pyFAI's own built-in Eiger500k
-# detector (max_shape (514, 1030)) instead, as a workaround for
-# _calibrate_single_frame hardcoding that detector by name - which silently
-# overrode the correctly-shaped detector object passed alongside it (see the
-# NOTE in _calibrate_single_frame). That workaround masked a second issue:
-# with pyFAI's detector shape/aspect ratio, build_and_save_goniometer's
-# joint GoniometerRefinement.refine2() step reproducibly converged to a
-# wrong geometry - even seeded at the exact true parameters, it walked away
-# because a wrong geometry scored a much lower chi2() against the extracted
-# control points, regardless of how many frames or how wide an angular
-# spread were used. Once _calibrate_single_frame was fixed to consistently
-# use xrpd_toolbox's own (correctly-shaped) Eiger500K detector throughout,
-# that degeneracy disappeared too - see
-# test_build_and_save_goniometer_recovers_true_geometry below, which is the
-# regression test for both.
+# Real data tests
 
 SYSTEM_TEST_OUTPUT_DIR = Path(__file__).parent / "system_test_output"
 SYSTEM_TEST_WAVELENGTH_ANGSTROM = 0.161699
@@ -898,3 +876,18 @@ def test_geometry_transformation_is_arm_about_yawed_axis(two_theta):
     actual = _pyfai_rotation(geometry["rot1"], geometry["rot2"], geometry["rot3"])
 
     assert actual == pytest.approx(expected, abs=1e-12)
+
+
+def test_mask_edges():
+
+    mask = eiger_pyfai.mask_edges(detector_shape=(100, 100), mask_width=(10, 10))
+
+    n_masked_pixels = len(np.argwhere(mask.flatten() == 1).flatten())
+
+    assert n_masked_pixels == 3600
+
+    mask = eiger_pyfai.mask_edges(detector_shape=(100, 100), mask_width=(4, 10))
+
+    n_masked_pixels = len(np.argwhere(mask.flatten() == 1).flatten())
+
+    assert n_masked_pixels == 2640
