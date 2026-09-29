@@ -24,9 +24,8 @@ logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 DEFAULT_NPT = 3000
-DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm
-# (row, col) at 0° from i15-1-98680 - the detector centre is too far off for
-# the rings to be indexed correctly. Update if the detector moves.
+DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm - as defined in cad design. Actually ~0.252
+# roughly the centre of of beam in frame where beam is head on
 DEFAULT_BEAM_CENTRE_PX = (250.0, 470.0)
 
 
@@ -71,6 +70,8 @@ def do_eiger_goniometer_calibration(
     plot_fits saves the fit at each angle to processed/calibration_fits,
     show_plots opens them in interactive mode
     """
+
+    logger.info(f"Running {do_eiger_goniometer_calibration.__name__}")
 
     eiger_data = EigerDataLoader(nexus_filepath)
 
@@ -143,6 +144,8 @@ def do_eiger_data_reduction(
 ) -> Path:
     """Reduce a scan to an .xy file with the saved goniometer."""
 
+    logger.info(f"Running {do_eiger_data_reduction.__name__}")
+
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
@@ -178,10 +181,11 @@ def do_eiger_data_reduction(
         data_plot.data_type = "pxrd"
 
         if known_peak_markers is not None:
-            data_plot = FittedDataPlot(**data_plot.model_dump(), calc=data_plot.y)
-            data_plot.markers = list(known_peak_markers)
-
-            print(known_peak_markers)
+            data_plot = FittedDataPlot(
+                **data_plot.model_dump(),
+                calc=data_plot.y,
+                markers=list(known_peak_markers),
+            )
 
         data_plot.publish(beamline="i15-1")
 
@@ -221,6 +225,8 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     )
 
     try:
+        logger.info("Sending xy to pdfcurl (pdfgetx3)")
+
         response_from_pdfcurl = send_xy_to_pdfcurl(
             xy_filepath=str(output_xy_filepath),
             composition=composition,
@@ -243,31 +249,19 @@ def run_eiger_analysis(nexus_filepath: str | Path):
     eiger_data = EigerDataLoader(nexus_filepath)
     plan_name = eiger_data.get_plan_name()
     scan_type = eiger_data.get_plan_type()
+    logger.info(f"{nexus_filepath=} {plan_name=} {scan_type=}")
 
     if scan_type == CollectionType.centring:
         logger.info(f"Nothing to do for {scan_type}. HeliotrAPI is doing it")
-
     elif scan_type == CollectionType.air:
-        logger.info(f"Running {do_eiger_data_reduction.__name__} for {scan_type}")
         do_eiger_data_reduction(nexus_filepath=nexus_filepath)
-
     elif scan_type == CollectionType.empty:
-        logger.info(f"Running {do_eiger_data_reduction.__name__} for {scan_type}")
         do_eiger_data_reduction(nexus_filepath=nexus_filepath)
-
     elif scan_type == CollectionType.calibrant:
-        logger.info(
-            f"Running {do_eiger_goniometer_calibration.__name__} for {scan_type}"
-        )
         do_eiger_goniometer_calibration(nexus_filepath=nexus_filepath)
-
     elif scan_type == CollectionType.data_collection:
         # If it's actually a datacollections also send it to pdfcurl too
-        logger.info(
-            f"Running {do_eiger_data_reduction_and_send_xy_to_pdfcurl.__name__} for {scan_type}"  # noqa
-        )
         do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath=nexus_filepath)
-
     else:
         error = f"No analysis for bluesky plan: {plan_name} & scan type: {scan_type}"
         logger.error(error)

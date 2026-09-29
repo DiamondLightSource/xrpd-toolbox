@@ -346,7 +346,11 @@ def test_get_summed_and_masked_frames_is_not_normalised_by_i0(tmp_path):
 
 def test_sum_frames(tmp_path):
     data = np.arange(3 * 4 * 5, dtype=np.uint32).reshape(3, 4, 5)
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data=data, mask_ref=f"{mask_file}//entry/mask"
+    )
     loader = EigerDataLoader(nxs)
 
     totals = loader.sum_frames()
@@ -359,7 +363,11 @@ def test_sum_frames(tmp_path):
 def test_sum_frames_flattens_leading_scan_dimensions(tmp_path):
     rng = np.random.default_rng(1)
     data = rng.integers(0, 100, size=(2, 3, 4, 5)).astype(np.uint32)
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data=data, mask_ref=f"{mask_file}//entry/mask"
+    )
     loader = EigerDataLoader(nxs)
 
     totals = loader.sum_frames()
@@ -370,7 +378,11 @@ def test_sum_frames_flattens_leading_scan_dimensions(tmp_path):
 
 def test_sum_frames_single_image(tmp_path):
     data = np.ones((4, 5), dtype=np.uint32)
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data=data, mask_ref=f"{mask_file}//entry/mask"
+    )
     loader = EigerDataLoader(nxs)
 
     assert np.array_equal(loader.sum_frames(), [20.0])
@@ -379,7 +391,11 @@ def test_sum_frames_single_image(tmp_path):
 def test_sum_frames_does_not_overflow(tmp_path):
     # 4 * 5 pixels at the uint32 max would overflow a uint32 accumulator
     data = np.full((2, 4, 5), np.iinfo(np.uint32).max, dtype=np.uint32)
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data=data)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data=data, mask_ref=f"{mask_file}//entry/mask"
+    )
     loader = EigerDataLoader(nxs)
 
     expected = 20 * float(np.iinfo(np.uint32).max)
@@ -387,7 +403,11 @@ def test_sum_frames_does_not_overflow(tmp_path):
 
 
 def test_sum_frames_non_dataset_raises(tmp_path):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data_is_group=True)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data_is_group=True, mask_ref=f"{mask_file}//entry/mask"
+    )
     loader = EigerDataLoader(nxs)
 
     with pytest.raises(ValueError, match="Data is None"):
@@ -395,7 +415,11 @@ def test_sum_frames_non_dataset_raises(tmp_path):
 
 
 def test_sum_frames_scalar_dataset_raises(tmp_path):
-    nxs = build_eiger_nexus(tmp_path / "scan.nxs", data_is_scalar=True)
+    mask_file = tmp_path / "mask.h5"
+    build_mask_file(mask_file, "entry/mask", shape=(4, 5))
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs", data_is_scalar=True, mask_ref=f"{mask_file}//entry/mask"
+    )
     loader = EigerDataLoader(nxs)
 
     with pytest.raises(ValueError, match="ndim >= 2"):
