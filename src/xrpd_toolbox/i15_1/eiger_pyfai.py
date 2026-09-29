@@ -306,11 +306,14 @@ def build_and_save_goniometer(
 
     single_geometries: list[SingleGeometry] = []
     gonioref: GoniometerRefinement | None = None
+
     for i, (image, two_theta_deg) in enumerate(zip(images, angles, strict=True)):
+        #
         label = f"frame_{i:04d}_{two_theta_deg:.4f}deg"
         logger.info(
             "Calibrating frame %d / %d at %.4f°", i + 1, len(angles), two_theta_deg
         )
+        #
         seed_geometry, fix = None, None
         if seed_from_previous and gonioref is not None:
             seed_geometry = _predict_frame(gonioref, float(two_theta_deg))

@@ -58,15 +58,18 @@ PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 def do_eiger_goniometer_calibration(
     nexus_filepath: str | Path,
     calibrant_name: str | None = None,
-    plot_fits: bool = False,
+    plot_fits: bool = True,
     show_plots: bool = False,
-    npt: int | None = False,
+    npt: int | None = None,
+    initial_dist_m: float | None = None,
+    max_rings: list[int] = [3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32],  # noqa - we don't modify this within the func
+    do_reduction: bool = True,
     use_frames: int | list[int] | slice | None = None,
 ):
     """Calibrate the goniometer from a calibrant scan, then reduce that scan.
 
     plot_fits saves the fit at each angle to processed/calibration_fits,
-    show_plots opens them.
+    show_plots opens them in interactive mode
     """
 
     eiger_data = EigerDataLoader(nexus_filepath)
@@ -108,9 +111,9 @@ def do_eiger_goniometer_calibration(
         angles=unique_positions,
         wavelength_in_angstrom=eiger_data.wavelength,
         calibrant=calibrant,
-        initial_dist_m=DEFAULT_DETECTOR_DISTANCE_M,
+        initial_dist_m=initial_dist_m or DEFAULT_DETECTOR_DISTANCE_M,
         output_dir=output_dir,
-        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32],
+        max_rings=max_rings,
         pts_per_deg=1.0,
         unit="2th_deg",
         npt=npt or DEFAULT_NPT,
@@ -120,13 +123,14 @@ def do_eiger_goniometer_calibration(
         initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
-    tth_calibrant_peaks = calibrant.get_peaks()
+    if do_reduction:
+        tth_calibrant_peaks = calibrant.get_peaks()
 
-    do_eiger_data_reduction(
-        nexus_filepath,
-        known_peak_markers=tth_calibrant_peaks,
-        goniometer_filepath=goniometer_model_json,
-    )
+        do_eiger_data_reduction(
+            nexus_filepath,
+            known_peak_markers=tth_calibrant_peaks,
+            goniometer_filepath=goniometer_model_json,
+        )
 
     return goniometer_model_json, metadata_json
 
@@ -303,7 +307,11 @@ if __name__ == "__main__":
     # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
 
     gionemeter_cal = do_eiger_goniometer_calibration(
-        nexus_filepath, calibrant_name="W", plot_fits=True, show_plots=True
+        nexus_filepath,
+        calibrant_name="W",
+        plot_fits=True,
+        show_plots=False,
+        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
     )
 
     # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
