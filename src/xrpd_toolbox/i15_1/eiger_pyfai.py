@@ -374,9 +374,9 @@ def build_and_save_goniometer(
                 gonioref.refine2()
             logger.info("  model over %d frames: χ² = %.3g", i + 1, gonioref.chi2())
 
-        if plot_fits or show_plots:
+        if show_plots:
             fits_path = output_dir / FITS_DIR_NAME / f"{label}_frame.png"
-            _plot_fit(sg, save_path=fits_path if plot_fits else None, show=show_plots)
+            _plot_fit(sg, save_path=None, show=show_plots)
 
     assert gonioref is not None
     logger.info(
