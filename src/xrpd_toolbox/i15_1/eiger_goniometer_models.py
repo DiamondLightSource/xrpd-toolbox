@@ -10,7 +10,7 @@ from pyFAI.goniometer import GeometryTransformation
 TWO_THETA_RAD = "(two_theta * 0.017453292519943295)"
 
 
-# 1. Rigid arm: only rot1 changes, in proportion to two_theta.
+# 1. Rigid arm, where everything is perfectly aligned - only rot1 / two_theta changes
 
 RIGID_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     param_names=["dist", "poni1", "poni2", "rot1_scale", "rot1_offset", "rot2", "rot3"],
