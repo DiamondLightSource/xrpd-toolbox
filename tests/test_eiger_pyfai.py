@@ -397,7 +397,7 @@ def test_integrate_with_goniometer_writes_xy_file(
     result_path = eiger_pyfai.integrate_with_goniometer(
         images=images,
         positions=positions,
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
     )
 
@@ -415,7 +415,7 @@ def test_integrate_with_goniometer_creates_parent_directory(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
     )
 
@@ -430,7 +430,7 @@ def test_integrate_with_goniometer_npt_override(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
         npt=999,
     )
@@ -446,7 +446,7 @@ def test_integrate_with_goniometer_default_npt(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
     )
 
@@ -462,7 +462,7 @@ def test_integrate_with_goniometer_mask_expanded_per_frame(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
         mask=mask,
     )
@@ -480,7 +480,7 @@ def test_integrate_with_goniometer_mask_none_by_default(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
     )
 
@@ -495,7 +495,7 @@ def test_integrate_with_goniometer_default_error_model_is_azimuthal(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
     )
 
@@ -510,7 +510,7 @@ def test_integrate_with_goniometer_error_model_override(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
         error_model="poisson",
     )
@@ -526,7 +526,7 @@ def test_integrate_with_goniometer_no_xye_file_by_default(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
     )
 
@@ -541,7 +541,7 @@ def test_integrate_with_goniometer_writes_xye_file_when_requested(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
         save_xye=True,
     )
@@ -734,7 +734,7 @@ def test_system_integrate():
     result_path = eiger_pyfai.integrate_with_goniometer(
         images=measurement_images,
         positions=measurement_angles,
-        goniometer_filepath=gonio_path,
+        goniometer=gonio_path,
         output_xy_filepath=out_xy_filepath,
     )
 

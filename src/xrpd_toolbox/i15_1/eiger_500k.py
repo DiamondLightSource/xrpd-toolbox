@@ -1,4 +1,6 @@
 import logging
+import os
+import tempfile
 from collections.abc import Collection
 from copy import deepcopy
 from functools import cached_property
@@ -11,7 +13,7 @@ from h5py import Dataset, File
 from pyFAI import units
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import Detector
-from pyFAI.goniometer import MultiGeometry
+from pyFAI.goniometer import Goniometer, MultiGeometry
 from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
@@ -33,6 +35,16 @@ logger = logging.getLogger(__name__)
 # the tth readback jitters by ~6e-5 deg
 TTH_GROUP_TOLERANCE_DEG = 1e-3
 SUM_CHUNK_FRAMES = 100
+
+
+def gonio_from_json_string(json_str: str):
+    fd, path = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(json_str)
+        return Goniometer.sload(path)
+    finally:
+        os.remove(path)
 
 
 def group_positions(
@@ -407,6 +419,22 @@ class EigerDataLoader:
             raise ValueError(f"No frames to sum in {self.filepath}")
 
         return summed_frames / summed_i0[:, np.newaxis, np.newaxis]
+
+    def get_goniometer_calibration(self) -> Goniometer | None:
+
+        try:
+            # NOTE: This will be updated when Dom/Jacob put this info in the nexus
+
+            goniometer_data_path = f"/{self.entry}/plan_metadata/geometry_calibration"
+
+            goniometer_json_str = self._read_string(goniometer_data_path)
+
+            goniometer_model = gonio_from_json_string(goniometer_json_str)  # noqa
+
+            return goniometer_model
+
+        except Exception:
+            return None
 
 
 class Eiger500K(Detector):

@@ -448,7 +448,7 @@ def build_and_save_goniometer(
 def integrate_with_goniometer(
     images: np.ndarray,
     positions: np.ndarray,
-    goniometer_filepath: Path | str,
+    goniometer: Path | str | Goniometer,
     output_xy_filepath: Path | str,
     npt: int = 2000,
     polarization_factor: float = 0.99,
@@ -463,7 +463,10 @@ def integrate_with_goniometer(
     output_xy_filepath = Path(output_xy_filepath)
     output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    gonio = _load_goniometer(goniometer_filepath=Path(goniometer_filepath))
+    if isinstance(goniometer, (str, Path)):
+        gonio = _load_goniometer(goniometer_filepath=Path(goniometer))
+    else:
+        gonio = goniometer
 
     frame_ais = [gonio.get_ai(float(two_theta)) for two_theta in positions]
 

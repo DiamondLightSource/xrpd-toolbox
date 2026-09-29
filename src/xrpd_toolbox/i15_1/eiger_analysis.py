@@ -9,6 +9,7 @@ from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
     GONIOMETER_SAVE_NAME,
+    _load_goniometer,
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
@@ -148,6 +149,19 @@ def do_eiger_goniometer_calibration(
     return goniometer_model_json, metadata_json
 
 
+def get_goniometer_cal_filepath(nexus_filepath: str):
+    goniometer_dir, _ = processed_directory_and_filename(
+        nexus_filepath, nest_by_filename=False
+    )
+
+    goniometer_models = Path(goniometer_dir).glob(GONIOMETER_SAVE_NAME)
+    last_goniometer_model = list(goniometer_models)[-1]
+
+    goniometer_filepath = last_goniometer_model
+
+    return goniometer_filepath
+
+
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
     output_xy_filepath: str | Path | None = None,
@@ -168,19 +182,27 @@ def do_eiger_data_reduction(
 
     processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
 
-    if goniometer_filepath is None:
-        goniometer_dir, _ = processed_directory_and_filename(
-            nexus_filepath, nest_by_filename=False
+    if goniometer_filepath is not None:
+        goniometer_model = _load_goniometer(
+            goniometer_filepath=Path(goniometer_filepath)
         )
+    else:
+        goniometer_model = eiger_data.get_goniometer_calibration()
 
-        goniometer_filepath = Path(goniometer_dir) / GONIOMETER_SAVE_NAME
+    if goniometer_model is None:
+        goniometer_filepath = get_goniometer_cal_filepath(
+            nexus_filepath=str(nexus_filepath)
+        )
+        goniometer_model = _load_goniometer(
+            goniometer_filepath=Path(goniometer_filepath)
+        )
 
     if output_xy_filepath is None:
         output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
 
     output_xy_filepath = integrate_with_goniometer(
         images=summed_and_normalised_frames,
-        goniometer_filepath=goniometer_filepath,
+        goniometer=goniometer_model,
         positions=unique_positions,
         mask=mask,
         output_xy_filepath=output_xy_filepath,
