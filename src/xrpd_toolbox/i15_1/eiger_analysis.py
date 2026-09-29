@@ -2,14 +2,18 @@ import logging
 from enum import StrEnum
 from pathlib import Path
 
-import numpy as np
+from pyFAI.calibrant import get_calibrant
+from pyFAI.detectors import detector_factory
 
+from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
+    GONIOMETER_SAVE_NAME,
+    _load_goniometer,
     build_and_save_goniometer,
     integrate_with_goniometer,
 )
-from xrpd_toolbox.plotting import DataPlot
+from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import (
     processed_directory_and_filename,
@@ -18,9 +22,24 @@ from xrpd_toolbox.utils.utils import (
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 DEFAULT_NPT = 3000
-DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm
+DEFAULT_DETECTOR_DISTANCE_M = 0.25  # 250 mm - as defined in cad design. Actually ~0.252
+# roughly the centre of of beam in frame where beam is head on
+DEFAULT_BEAM_CENTRE_PX = (250.0, 470.0)
+
+
+def high_q_helper(beam_energy: float, tth_angle: float):
+
+    from xrpd_toolbox.utils.unit_conversion import (
+        beam_energy_to_wavelength,
+        two_theta_to_q,
+    )
+
+    wavelength = beam_energy_to_wavelength(beam_energy)
+    q = two_theta_to_q(tth_angle, wavelength)
+    return q
 
 
 class CollectionType(StrEnum):
@@ -31,28 +50,65 @@ class CollectionType(StrEnum):
     calibrant = "Standard Sample"
 
 
-calibrant_lookup: dict[str, str] = {"Silicon": "Si"}
+calibrant_lookup: dict[str, str] = {"Silicon": "Si", "Tungsten": "W"}
+
+PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
-def do_eiger_calibration(nexus_filepath: str | Path):
+def get_calibation_fit_images(goniometer_model_filepath: str | Path) -> list[Path]:
+    """This is a helper to facilitate workflows display the images as an artefact"""
+
+    calibration_fit_folder = Path(goniometer_model_filepath).parent / "calibration_fits"
+
+    return list(calibration_fit_folder.glob("*.png"))
+
+
+def do_eiger_goniometer_calibration(
+    nexus_filepath: str | Path,
+    calibrant_name: str | None = None,
+    plot_fits: bool = True,
+    show_plots: bool = False,
+    npt: int | None = None,
+    initial_dist_m: float | None = None,
+    max_rings: list[int] = [3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32],  # noqa - we don't modify this within the func
+    do_reduction: bool = True,
+    use_frames: int | list[int] | slice | None = None,
+):
+    """Calibrate the goniometer from a calibrant scan, then reduce that scan.
+
+    plot_fits saves the fit at each angle to processed/calibration_fits,
+    show_plots opens them in interactive mode
+    """
+
+    logger.info(f"Running {do_eiger_goniometer_calibration.__name__}")
 
     eiger_data = EigerDataLoader(nexus_filepath)
 
-    calibrant_name = eiger_data.get_calibrant()
+    if calibrant_name is None:
+        calibrant_name = eiger_data.get_calibrant()
+        assert calibrant_name is not None
+
+    calibrant_name = calibrant_lookup.get(calibrant_name) or calibrant_name
 
     if calibrant_name is None:
-        raise Exception("Calibration is not in Nexus file")
-
-    calibrant = calibrant_lookup.get(calibrant_name)
-
-    if calibrant is None:
         raise Exception(f"Calibration  {calibrant_name} is not in calibrant_lookup")
 
-    unique_positions = np.unique(eiger_data.positions)
+    if calibrant_name == "W":
+        calibrant = load_wb_calibrant(wavelength=eiger_data.get_wavelength_in_m())
+    else:
+        calibrant = get_calibrant(
+            calibrant_name=calibrant_name, wavelength=eiger_data.get_wavelength_in_m()
+        )
 
-    summed_normalised_and_masked_frames = (
-        eiger_data.get_summed_normalised_and_masked_frames()
-    )
+    unique_positions = eiger_data.get_unique_tth_positions()
+
+    # not normalised: a bad i0 shouldn't stop a calibration
+    summed_and_masked_frames = eiger_data.get_summed_and_masked_frames()
+
+    if use_frames is not None:
+        unique_positions = unique_positions[use_frames]
+        summed_and_masked_frames = summed_and_masked_frames[use_frames]
+
     nexus_filepath = Path(nexus_filepath)
 
     output_dir, _ = processed_directory_and_filename(
@@ -61,53 +117,93 @@ def do_eiger_calibration(nexus_filepath: str | Path):
 
     goniometer_model_json, metadata_json = build_and_save_goniometer(
         nexus_filepath=nexus_filepath,
-        images=summed_normalised_and_masked_frames,
+        images=summed_and_masked_frames,
         angles=unique_positions,
         wavelength_in_angstrom=eiger_data.wavelength,
-        calibrant_name=calibrant,
-        initial_dist_m=DEFAULT_DETECTOR_DISTANCE_M,
+        calibrant=calibrant,
+        initial_dist_m=initial_dist_m or DEFAULT_DETECTOR_DISTANCE_M,
         output_dir=output_dir,
-        max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
+        max_rings=max_rings,
         pts_per_deg=1.0,
         unit="2th_deg",
-        npt=DEFAULT_NPT,
+        npt=npt or DEFAULT_NPT,
+        detector=detector_factory(PYFAI_DETECTOR_NAME),
+        plot_fits=plot_fits,
+        show_plots=show_plots,
+        initial_beam_centre_px=DEFAULT_BEAM_CENTRE_PX,
     )
 
-    # do_eiger_data_reduction(nexus_filepath) then reduce the data we just collect
-    # - do this in workflow?
+    if do_reduction:
+        tth_calibrant_peaks = calibrant.get_peaks()
+
+        do_eiger_data_reduction(
+            nexus_filepath,
+            known_peak_markers=tth_calibrant_peaks,
+            goniometer_filepath=goniometer_model_json,
+        )
+
+    logger.info(
+        f"Goniometer saved to: {goniometer_model_json}, metadata saved to: {metadata_json}"  # noqa
+    )
 
     return goniometer_model_json, metadata_json
 
 
+def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
+    """The most recent goniometer calibration saved in the processed folder."""
+    goniometer_dir, _ = processed_directory_and_filename(
+        nexus_filepath, nest_by_filename=False
+    )
+
+    goniometer_models = list(Path(goniometer_dir).glob(f"*{GONIOMETER_SAVE_NAME}"))
+    if not goniometer_models:
+        raise FileNotFoundError(f"No goniometer calibration found in {goniometer_dir}")
+
+    # gets newest file based on when it's written
+    return max(goniometer_models, key=lambda path: path.stat().st_mtime)
+
+
 def do_eiger_data_reduction(
-    nexus_filepath: str | Path, output_xy_filepath: str | Path | None = None
+    nexus_filepath: str | Path,
+    output_xy_filepath: str | Path | None = None,
+    goniometer_filepath: str | Path | None = None,
+    known_peak_markers: list[float] | None = None,
 ) -> Path:
-    """This does the eiger data reduction at the end of scan.
+    """Reduce a scan to an .xy file with the saved goniometer."""
 
-    Assumes that the nexus file is a data_collection with N positions
-
-    returns path to xy file
-    """
+    logger.info(f"Running {do_eiger_data_reduction.__name__}")
 
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
     summed_and_normalised_frames = eiger_data.get_summed_and_normalised_frames()
 
-    unique_positions = np.unique(eiger_data.positions)
+    unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
 
     processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
-    goniometer_dir, _ = processed_directory_and_filename(
-        nexus_filepath, nest_by_filename=False
-    )
+
+    if goniometer_filepath is not None:
+        goniometer_model = _load_goniometer(
+            goniometer_filepath=Path(goniometer_filepath)
+        )
+    else:
+        goniometer_model = eiger_data.get_goniometer_calibration()
+
+    if goniometer_model is None:
+        goniometer_filepath = get_goniometer_cal_filepath(
+            nexus_filepath=str(nexus_filepath)
+        )
+        goniometer_model = _load_goniometer(
+            goniometer_filepath=Path(goniometer_filepath)
+        )
 
     if output_xy_filepath is None:
         output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
 
     output_xy_filepath = integrate_with_goniometer(
         images=summed_and_normalised_frames,
-        goniometer_dir=goniometer_dir,
+        goniometer=goniometer_model,
         positions=unique_positions,
         mask=mask,
         output_xy_filepath=output_xy_filepath,
@@ -118,7 +214,16 @@ def do_eiger_data_reduction(
         data_plot = DataPlot.from_csv(output_xy_filepath)
         data_plot.x_label = "2θ (deg)"
         data_plot.data_type = "pxrd"
+
+        if known_peak_markers is not None:
+            data_plot = FittedDataPlot(
+                **data_plot.model_dump(),
+                calc=data_plot.y,
+                markers=list(known_peak_markers),
+            )
+
         data_plot.publish(beamline="i15-1")
+
     except Exception as e:
         logger.error(e)
 
@@ -142,16 +247,21 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     if not background_file_xy.exists():
         try:
             background_file_xy = do_eiger_data_reduction(
-                sample_environment_filepath, background_file_xy
+                nexus_filepath=sample_environment_filepath,
+                output_xy_filepath=background_file_xy,
             )
         except Exception as e:
             logger.error(f"No background xy present, no background nxs present: {e}")
             logger.error("No background used for pdf conversion")
             background_file_xy = None
 
-    output_xy_filepath = do_eiger_data_reduction(nexus_filepath, output_xy_filepath)
+    output_xy_filepath = do_eiger_data_reduction(
+        nexus_filepath=nexus_filepath, output_xy_filepath=output_xy_filepath
+    )
 
     try:
+        logger.info("Sending xy to pdfcurl (pdfgetx3)")
+
         response_from_pdfcurl = send_xy_to_pdfcurl(
             xy_filepath=str(output_xy_filepath),
             composition=composition,
@@ -174,29 +284,19 @@ def run_eiger_analysis(nexus_filepath: str | Path):
     eiger_data = EigerDataLoader(nexus_filepath)
     plan_name = eiger_data.get_plan_name()
     scan_type = eiger_data.get_plan_type()
+    logger.info(f"{nexus_filepath=} {plan_name=} {scan_type=}")
 
     if scan_type == CollectionType.centring:
         logger.info(f"Nothing to do for {scan_type}. HeliotrAPI is doing it")
-
     elif scan_type == CollectionType.air:
-        logger.info(f"Running {do_eiger_data_reduction.__name__} for {scan_type}")
-        do_eiger_data_reduction(nexus_filepath)
-
+        do_eiger_data_reduction(nexus_filepath=nexus_filepath)
     elif scan_type == CollectionType.empty:
-        logger.info(f"Running {do_eiger_data_reduction.__name__} for {scan_type}")
-        do_eiger_data_reduction(nexus_filepath)
-
+        do_eiger_data_reduction(nexus_filepath=nexus_filepath)
     elif scan_type == CollectionType.calibrant:
-        logger.info(f"Running {do_eiger_calibration.__name__} for {scan_type}")
-        do_eiger_calibration(nexus_filepath)
-
+        do_eiger_goniometer_calibration(nexus_filepath=nexus_filepath)
     elif scan_type == CollectionType.data_collection:
         # If it's actually a datacollections also send it to pdfcurl too
-        logger.info(
-            f"Running {do_eiger_data_reduction_and_send_xy_to_pdfcurl.__name__} for {scan_type}"  # noqa
-        )
-        do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
-
+        do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath=nexus_filepath)
     else:
         error = f"No analysis for bluesky plan: {plan_name} & scan type: {scan_type}"
         logger.error(error)
@@ -204,18 +304,50 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 
 if __name__ == "__main__":
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"
+    cal_save_path = Path("/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1")
 
-    #     import matplotlib.pyplot as plt
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
 
-    #     eiger_data = EigerDataLoader(nexus_filepath)
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-    #     mask = eiger_data.get_mask(as_nan=True)
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
-    #     frames = eiger_data.get_summed_and_normalised_frames()
+    goniometer_filepath = Path(
+        "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"
+    )
 
-    #     for frame in frames:
-    #         plt.imshow(frame * mask, cmap="viridis")
-    #         plt.show()
+    # print(high_q_helper(40, 80))
+    # print(high_q_helper(76.76, 80))
+    # quit()
 
-    run_eiger_analysis(nexus_filepath)
+    eiger_data = EigerDataLoader(nexus_filepath)
+
+    # mask = eiger_data.get_mask(as_nan=False)
+
+    frames = eiger_data.get_summed_and_normalised_frames()
+
+    # for frame, tth in zip(frames, eiger_data.get_unique_tth_positions(), strict=True):
+    #     frame[mask] = 0
+
+    #     plt.imshow(frame * mask, cmap="viridis")
+
+    #     np.save(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth:.2f}.npy", frame) #noqa
+
+    # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
+
+    goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
+        nexus_filepath,
+        calibrant_name="W",
+        plot_fits=True,
+        show_plots=False,
+        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
+    )
+
+    print(goniometer_cal_filepath)
+
+    # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+    #     nexus_filepath
+    # )  # then reduce the data we just collected
+
+    # print(output_xy_filepath)
+    # run_eiger_analysis(nexus_filepath)

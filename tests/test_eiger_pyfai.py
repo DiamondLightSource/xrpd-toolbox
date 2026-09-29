@@ -1,16 +1,6 @@
-"""Tests for xrpd_toolbox.i15_1.eiger_pyfai.
-
-Two kinds of tests live here:
-
-- Unit tests and Two "system" tests
-
-      pytest tests/test_eiger_pyfai.py -k system -s -v
-
-  or run this file directly with python tests/test_eiger_pyfai.py
-"""
+"""Tests for xrpd_toolbox.i15_1.eiger_pyfai."""
 
 import json
-import logging
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,23 +9,25 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from pyFAI.calibrant import get_calibrant
+from pyFAI.geometry import Geometry
 
 from xrpd_toolbox.i15_1 import eiger_pyfai
-from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, PIXEL_SIZE, Eiger500K
+from xrpd_toolbox.i15_1.eiger_500k import (
+    ARM_ROTATION_SIGN,
+    DEFAULT_MAX_SHAPE,
+    PIXEL_SIZE,
+    Eiger500K,
+)
+from xrpd_toolbox.i15_1.eiger_goniometer_models import YAW_GEOMETRY_TRANSFORMATION
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
 
 
 def test_calibrate_single_geometry_from_rings_extracts_once_at_largest_ring_count():
-    # extract_cp() *replaces* rather than accumulates control points, using
-    # the geometry's current (possibly already-nudged) dist/poni/rot to
-    # decide which pixels belong to which ring - re-extracting every round
-    # from a progressively refined geometry let small errors compound round
-    # to round (verified: several degrees off on closely-spaced Si rings),
-    # so only the largest ring count is ever used, in a single extract+
-    # refine pass.
+
     geometry = MagicMock()
+    geometry.geometry_refinement.data = np.zeros((10, 3))
 
     result = eiger_pyfai.calibrate_single_geometry_from_rings(geometry, rings=[5, 7, 9])
 
@@ -44,16 +36,30 @@ def test_calibrate_single_geometry_from_rings_extracts_once_at_largest_ring_coun
 
 def test_calibrate_single_geometry_from_rings_with_fix():
     geometry = MagicMock()
+    geometry.geometry_refinement.data = np.zeros((10, 3))
 
     eiger_pyfai.calibrate_single_geometry_from_rings(geometry, rings=[5], fix=["dist"])
 
     geometry.geometry_refinement.refine2.assert_called_once_with(fix=["dist"])
 
 
+def test_calibrate_single_geometry_from_rings_no_control_points_raises():
+    # pyFAI leaves an empty 1D array when extract_cp finds nothing, which
+    # would otherwise crash inside refine2 with an unpacking error
+    geometry = MagicMock()
+    geometry.label = "frame_0000"
+    geometry.geometry_refinement.data = np.asarray([], dtype=np.float64)
+
+    with pytest.raises(ValueError, match="No control points found for frame_0000"):
+        eiger_pyfai.calibrate_single_geometry_from_rings(geometry, rings=[5])
+
+    geometry.geometry_refinement.refine2.assert_not_called()
+
+
 def test_calibrate_single_frame_without_rings():
     mock_sg_cls = MagicMock()
     mock_sg = mock_sg_cls.return_value
-    mock_sg.geometry_refinement.data = np.zeros((5, 2))
+    mock_sg.geometry_refinement.data = np.zeros((5, 3))
 
     with patch.object(eiger_pyfai, "SingleGeometry", mock_sg_cls):
         result = eiger_pyfai._calibrate_single_frame(
@@ -68,7 +74,7 @@ def test_calibrate_single_frame_without_rings():
 
     assert result is mock_sg
     mock_sg.extract_cp.assert_called_once_with(max_rings=None, pts_per_deg=1.0)
-    mock_sg.geometry_refinement.refine2.assert_called_once_with()
+    mock_sg.geometry_refinement.refine2.assert_called_once_with(fix=None)
 
     _, kwargs = mock_sg_cls.call_args
     assert kwargs["label"] == "frame_0000_3.0000deg"
@@ -84,7 +90,9 @@ def test_calibrate_single_frame_without_rings():
     # `geometry` must be the same object - only the former actually takes
     # effect, but they should never be allowed to disagree.
     assert geometry["detector"] is kwargs["detector"]
-    assert geometry["rot2"] == pytest.approx(np.deg2rad(3.0))
+    # the arm swings horizontally: rot1 tracks two-theta, rot2 starts flat
+    assert geometry["rot1"] == pytest.approx(ARM_ROTATION_SIGN * np.deg2rad(3.0))
+    assert geometry["rot2"] == 0.0
     assert geometry["wavelength"] == SI_CALIBRANT.wavelength
     # every frame needs a pos_function or GoniometerRefinement.refine2()
     # crashes later with "'NoneType' object is not callable" - see
@@ -95,7 +103,7 @@ def test_calibrate_single_frame_without_rings():
 def test_calibrate_single_frame_with_int_max_rings():
     mock_sg_cls = MagicMock()
     mock_sg = mock_sg_cls.return_value
-    mock_sg.geometry_refinement.data = np.zeros((5, 2))
+    mock_sg.geometry_refinement.data = np.zeros((5, 3))
 
     with patch.object(eiger_pyfai, "SingleGeometry", mock_sg_cls):
         eiger_pyfai._calibrate_single_frame(
@@ -108,7 +116,7 @@ def test_calibrate_single_frame_with_int_max_rings():
 def test_calibrate_single_frame_with_iterable_rings_delegates():
     mock_sg_cls = MagicMock()
     mock_sg = mock_sg_cls.return_value
-    mock_sg.geometry_refinement.data = np.zeros((5, 2))
+    mock_sg.geometry_refinement.data = np.zeros((5, 3))
 
     calls = []
     original = eiger_pyfai.calibrate_single_geometry_from_rings
@@ -147,39 +155,23 @@ def test_calibrate_single_frame_asserts_control_points_present():
 # ---------------------------------------------------------------------------
 
 
-def test_load_goniometer_dir_raises_when_both_files_missing(tmp_path):
+def test_load_goniometer_dir_raises_when_file_missing(tmp_path):
     with pytest.raises(FileNotFoundError, match=eiger_pyfai.GONIOMETER_SAVE_NAME):
-        eiger_pyfai._load_goniometer_dir(tmp_path)
-
-
-def test_load_goniometer_dir_raises_when_metadata_missing(tmp_path):
-    (tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME).write_text("{}")
-
-    with pytest.raises(FileNotFoundError, match=eiger_pyfai.METADATA_SAVE_NAME):
-        eiger_pyfai._load_goniometer_dir(tmp_path)
+        eiger_pyfai._load_goniometer(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME)
 
 
 def test_load_goniometer_dir_success(tmp_path):
-    (tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME).write_text("{}")
-    meta = {
-        "unit": "2th_deg",
-        "npt": 100,
-        "wavelength": 1e-11,
-        "calibrant": "Si",
-        "calib_two_theta_deg": [1.0, 2.0, 3.0],
-        "radial_range": None,
-    }
-    (tmp_path / eiger_pyfai.METADATA_SAVE_NAME).write_text(json.dumps(meta))
+    goniometer_filepath = tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME
+    goniometer_filepath.write_text("{}")
 
     fake_gonio = MagicMock()
     mock_sload = MagicMock(return_value=fake_gonio)
 
     with patch.object(eiger_pyfai.Goniometer, "sload", mock_sload):
-        gonio, loaded_meta = eiger_pyfai._load_goniometer_dir(tmp_path)
+        gonio = eiger_pyfai._load_goniometer(goniometer_filepath)
 
     assert gonio is fake_gonio
-    assert loaded_meta == meta
-    mock_sload.assert_called_once_with(str(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME))
+    mock_sload.assert_called_once_with(str(goniometer_filepath))
 
 
 # ---------------------------------------------------------------------------
@@ -192,18 +184,30 @@ def _fake_calibrate_single_frame_factory():
     any real peak-finding / refinement."""
 
     def fake(
-        label, image, two_theta_deg, calibrant, initial_dist_m, max_rings, pts_per_deg
+        label,
+        image,
+        two_theta_deg,
+        calibrant,
+        initial_dist_m,
+        max_rings,
+        pts_per_deg,
+        detector=None,
+        initial_beam_centre_px=None,
+        seed_geometry=None,
+        fix=None,
     ):
         sg = MagicMock()
+        sg.metadata = two_theta_deg
         sg.label = label
         sg.geometry_refinement = SimpleNamespace(
             dist=initial_dist_m,
             poni1=0.05,
             poni2=0.02,
-            rot1=0.0,
-            rot2=np.deg2rad(two_theta_deg),
+            rot1=ARM_ROTATION_SIGN * np.deg2rad(two_theta_deg),
+            rot2=0.0,
             rot3=0.0,
-            data=np.zeros((5, 2)),
+            data=np.zeros((5, 3)),
+            chi2=lambda param=None: 0.0,
         )
         return sg
 
@@ -238,10 +242,14 @@ def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
         images=images,
         angles=angles,
         wavelength_in_angstrom=0.161699,
+        calibrant=get_calibrant("Si", wavelength=0.161699e-10),
         output_dir=tmp_path,
     )
 
-    assert gonio_path == str(tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME)
+    # saved as <scan>_<timestamp>_<name> so earlier calibrations aren't overwritten
+    assert Path(gonio_path).parent == tmp_path
+    assert Path(gonio_path).name.startswith("scan_")
+    assert Path(gonio_path).name.endswith(eiger_pyfai.GONIOMETER_SAVE_NAME)
     assert Path(meta_path).exists()
 
     meta = json.loads(Path(meta_path).read_text())
@@ -251,9 +259,11 @@ def test_build_and_save_goniometer_explicit_output_dir(tmp_path, fake_gonioref):
     assert meta["radial_range"] is None
     assert meta["calib_two_theta_deg"] == angles.tolist()
     assert meta["wavelength"] == pytest.approx(0.161699e-10)
+    assert meta["filenumber"] == "scan"
 
-    fake_gonioref.refine2.assert_called_once()
-    fake_gonioref.chi2.assert_called_once()
+    # refined after each frame to seed the next, then once more with them all
+    assert fake_gonioref.refine2.call_count == len(angles)
+    assert fake_gonioref.chi2.call_count == len(angles)
     fake_gonioref.save.assert_called_once_with(gonio_path)
     assert len(fake_gonioref.single_geometries) == 3
     assert set(fake_gonioref.single_geometries) == {
@@ -276,6 +286,7 @@ def test_build_and_save_goniometer_default_output_dir_is_processed_subfolder(
         images=images,
         angles=angles,
         wavelength_in_angstrom=0.161699,
+        calibrant=get_calibrant("Si", wavelength=0.161699e-10),
     )
 
     expected_dir = nexus_filepath.parent / "processed"
@@ -292,6 +303,7 @@ def test_build_and_save_goniometer_stores_radial_range_and_npt(tmp_path, fake_go
         images=images,
         angles=angles,
         wavelength_in_angstrom=0.161699,
+        calibrant=get_calibrant("Si", wavelength=0.161699e-10),
         output_dir=tmp_path,
         radial_range=(0.0, 60.0),
         npt=500,
@@ -324,14 +336,23 @@ def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_pa
             images=images,
             angles=angles,
             wavelength_in_angstrom=0.161699,
+            calibrant=get_calibrant("Si", wavelength=0.161699e-10),
             output_dir=tmp_path,
             initial_dist_m=0.3,
         )
 
     initial_params = mock_gonioref_cls.call_args.args[0]
+    model = eiger_pyfai.GEOMETRY_TRANSFORMATION
+    assert list(initial_params) == list(model.param_names)
     assert initial_params["dist"] == pytest.approx(0.3)
-    assert initial_params["rot2_scale"] == 1.0
-    assert initial_params["rot2_offset"] == pytest.approx(0.0)
+    assert initial_params["rot1_offset"] == pytest.approx(0.0)
+    assert initial_params["rot2"] == 0.0
+    if "rot1_scale" in initial_params:
+        assert initial_params["rot1_scale"] == ARM_ROTATION_SIGN
+    # everything that isn't seeded from the first frame is a correction from 0
+    seeded = {"dist", "poni1", "poni2", "rot1_scale", "rot1_offset", "rot2", "rot3"}
+    for name in set(initial_params) - seeded:
+        assert initial_params[name] == 0.0, name
 
 
 # ---------------------------------------------------------------------------
@@ -340,22 +361,16 @@ def test_build_and_save_goniometer_initial_params_seeded_from_first_frame(tmp_pa
 
 
 @pytest.fixture
-def fake_goniometer_dir():
+def goniometer_filepath(tmp_path):
+    """Patches _load_goniometer with a fake Goniometer and returns the
+    (never actually read) goniometer file path to pass in."""
     fake_gonio = MagicMock()
     fake_gonio.get_ai.side_effect = lambda tth: SimpleNamespace(tth=tth)
-    meta = {
-        "unit": "2th_deg",
-        "npt": 50,
-        "wavelength": 1e-11,
-        "calibrant": "Si",
-        "calib_two_theta_deg": [1.0, 2.0, 3.0],
-        "radial_range": None,
-    }
 
     with patch.object(
-        eiger_pyfai, "_load_goniometer_dir", lambda d: (fake_gonio, meta)
+        eiger_pyfai, "_load_goniometer", lambda goniometer_filepath: fake_gonio
     ):
-        yield fake_gonio, meta
+        yield tmp_path / eiger_pyfai.GONIOMETER_SAVE_NAME
 
 
 @pytest.fixture
@@ -373,7 +388,7 @@ def fake_multigeometry():
 
 
 def test_integrate_with_goniometer_writes_xy_file(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     images = np.zeros((3, 4, 5))
     positions = np.array([1.0, 2.0, 3.0])
@@ -382,7 +397,7 @@ def test_integrate_with_goniometer_writes_xy_file(
     result_path = eiger_pyfai.integrate_with_goniometer(
         images=images,
         positions=positions,
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
     )
 
@@ -393,61 +408,29 @@ def test_integrate_with_goniometer_writes_xy_file(
 
 
 def test_integrate_with_goniometer_creates_parent_directory(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     out_path = tmp_path / "does" / "not" / "exist" / "result.xy"
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
     )
 
     assert out_path.parent.exists()
 
 
-def test_integrate_with_goniometer_logs_warning_when_out_of_range(
-    tmp_path, fake_goniometer_dir, fake_multigeometry, caplog
-):
-    positions = np.array([1.0, 2.0, 30.0])  # 30 deg is outside [1, 3]
-
-    with caplog.at_level(logging.WARNING, logger="xrpd_toolbox.i15_1.eiger_pyfai"):
-        eiger_pyfai.integrate_with_goniometer(
-            images=np.zeros((3, 4, 5)),
-            positions=positions,
-            goniometer_dir=tmp_path,
-            output_xy_filepath=tmp_path / "out.xy",
-        )
-
-    assert any("extrapolating" in record.message for record in caplog.records)
-
-
-def test_integrate_with_goniometer_no_warning_when_in_range(
-    tmp_path, fake_goniometer_dir, fake_multigeometry, caplog
-):
-    positions = np.array([1.0, 2.0, 3.0])
-
-    with caplog.at_level(logging.WARNING, logger="xrpd_toolbox.i15_1.eiger_pyfai"):
-        eiger_pyfai.integrate_with_goniometer(
-            images=np.zeros((3, 4, 5)),
-            positions=positions,
-            goniometer_dir=tmp_path,
-            output_xy_filepath=tmp_path / "out.xy",
-        )
-
-    assert not any("extrapolating" in record.message for record in caplog.records)
-
-
 def test_integrate_with_goniometer_npt_override(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     _, mg_instance = fake_multigeometry
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
         npt=999,
     )
@@ -455,50 +438,23 @@ def test_integrate_with_goniometer_npt_override(
     assert mg_instance.integrate1d.call_args.kwargs["npt"] == 999
 
 
-def test_integrate_with_goniometer_uses_meta_npt_by_default(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+def test_integrate_with_goniometer_default_npt(
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     _, mg_instance = fake_multigeometry
-    _, meta = fake_goniometer_dir
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
     )
 
-    assert mg_instance.integrate1d.call_args.kwargs["npt"] == meta["npt"]
-
-
-def test_integrate_with_goniometer_radial_range_from_meta(tmp_path, fake_multigeometry):
-    mock_mg_cls, _ = fake_multigeometry
-    fake_gonio = MagicMock()
-    fake_gonio.get_ai.side_effect = lambda tth: SimpleNamespace(tth=tth)
-    meta = {
-        "unit": "2th_deg",
-        "npt": 50,
-        "wavelength": 1e-11,
-        "calibrant": "Si",
-        "calib_two_theta_deg": [1.0, 2.0, 3.0],
-        "radial_range": [0.0, 45.0],
-    }
-
-    with patch.object(
-        eiger_pyfai, "_load_goniometer_dir", lambda d: (fake_gonio, meta)
-    ):
-        eiger_pyfai.integrate_with_goniometer(
-            images=np.zeros((3, 4, 5)),
-            positions=np.array([1.0, 2.0, 3.0]),
-            goniometer_dir=tmp_path,
-            output_xy_filepath=tmp_path / "out.xy",
-        )
-
-    assert mock_mg_cls.call_args.kwargs["radial_range"] == (0.0, 45.0)
+    assert mg_instance.integrate1d.call_args.kwargs["npt"] == 2000
 
 
 def test_integrate_with_goniometer_mask_expanded_per_frame(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     _, mg_instance = fake_multigeometry
     mask = np.ones((4, 5), dtype=bool)
@@ -506,7 +462,7 @@ def test_integrate_with_goniometer_mask_expanded_per_frame(
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
         mask=mask,
     )
@@ -517,63 +473,29 @@ def test_integrate_with_goniometer_mask_expanded_per_frame(
 
 
 def test_integrate_with_goniometer_mask_none_by_default(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     _, mg_instance = fake_multigeometry
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
     )
 
     assert mg_instance.integrate1d.call_args.kwargs["lst_mask"] is None
 
 
-def test_integrate_with_goniometer_header_written_when_requested(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
-):
-    out_path = tmp_path / "out.xy"
-
-    eiger_pyfai.integrate_with_goniometer(
-        images=np.zeros((3, 4, 5)),
-        positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
-        output_xy_filepath=out_path,
-        save_xy_with_header=True,
-    )
-
-    contents = out_path.read_text()
-    assert "# goniometer_dir" in contents
-    assert "# npt: 50" in contents
-
-
-def test_integrate_with_goniometer_no_header_by_default(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
-):
-    out_path = tmp_path / "out.xy"
-
-    eiger_pyfai.integrate_with_goniometer(
-        images=np.zeros((3, 4, 5)),
-        positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
-        output_xy_filepath=out_path,
-    )
-
-    contents = out_path.read_text()
-    assert "# goniometer_dir" not in contents
-
-
 def test_integrate_with_goniometer_default_error_model_is_azimuthal(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     _, mg_instance = fake_multigeometry
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
     )
 
@@ -581,14 +503,14 @@ def test_integrate_with_goniometer_default_error_model_is_azimuthal(
 
 
 def test_integrate_with_goniometer_error_model_override(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     _, mg_instance = fake_multigeometry
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=tmp_path / "out.xy",
         error_model="poisson",
     )
@@ -597,14 +519,14 @@ def test_integrate_with_goniometer_error_model_override(
 
 
 def test_integrate_with_goniometer_no_xye_file_by_default(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     out_path = tmp_path / "out.xy"
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
     )
 
@@ -612,14 +534,14 @@ def test_integrate_with_goniometer_no_xye_file_by_default(
 
 
 def test_integrate_with_goniometer_writes_xye_file_when_requested(
-    tmp_path, fake_goniometer_dir, fake_multigeometry
+    tmp_path, goniometer_filepath, fake_multigeometry
 ):
     out_path = tmp_path / "out.xy"
 
     eiger_pyfai.integrate_with_goniometer(
         images=np.zeros((3, 4, 5)),
         positions=np.array([1.0, 2.0, 3.0]),
-        goniometer_dir=tmp_path,
+        goniometer=goniometer_filepath,
         output_xy_filepath=out_path,
         save_xye=True,
     )
@@ -632,29 +554,7 @@ def test_integrate_with_goniometer_writes_xye_file_when_requested(
     assert np.array_equal(error, [0.1, 0.2, 0.3])
 
 
-# ---------------------------------------------------------------------------
-# Real, unmocked calibrate / integrate cycle
-# ---------------------------------------------------------------------------
-#
-# No mocking below this point. These build synthetic Si powder-ring frames
-# with xrpd_toolbox's own Eiger500K.simulate_data() and run the actual
-# calibration / integration code paths.
-#
-# Historical note: this used to go through pyFAI's own built-in Eiger500k
-# detector (max_shape (514, 1030)) instead, as a workaround for
-# _calibrate_single_frame hardcoding that detector by name - which silently
-# overrode the correctly-shaped detector object passed alongside it (see the
-# NOTE in _calibrate_single_frame). That workaround masked a second issue:
-# with pyFAI's detector shape/aspect ratio, build_and_save_goniometer's
-# joint GoniometerRefinement.refine2() step reproducibly converged to a
-# wrong geometry - even seeded at the exact true parameters, it walked away
-# because a wrong geometry scored a much lower chi2() against the extracted
-# control points, regardless of how many frames or how wide an angular
-# spread were used. Once _calibrate_single_frame was fixed to consistently
-# use xrpd_toolbox's own (correctly-shaped) Eiger500K detector throughout,
-# that degeneracy disappeared too - see
-# test_build_and_save_goniometer_recovers_true_geometry below, which is the
-# regression test for both.
+# Real data tests
 
 SYSTEM_TEST_OUTPUT_DIR = Path(__file__).parent / "system_test_output"
 SYSTEM_TEST_WAVELENGTH_ANGSTROM = 0.161699
@@ -706,44 +606,37 @@ def test_calibrate_goniometer_recovers_input_geometry():
         resolution=0.05,
     )
 
-    eiger_pyfai.build_and_save_goniometer(
+    gonio_path, _ = eiger_pyfai.build_and_save_goniometer(
         nexus_filepath=output_dir / "fake_calibration_scan.nxs",
         images=np.array(images),
         angles=angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-        calibrant_name="Si",
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         initial_dist_m=dist_true,
         output_dir=output_dir,
         max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
     )
 
-    gonio, _ = eiger_pyfai._load_goniometer_dir(output_dir)
+    gonio = eiger_pyfai._load_goniometer(Path(gonio_path))
     fitted = dict(
         zip(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names, gonio.param, strict=True)
     )
 
     print(f"\ncalibrated at angles {angles.tolist()} deg")
     print("true vs. refined goniometer parameters:")
-    true_values = {
-        "dist": dist_true,
-        "poni1": poni1_true,
-        "poni2": poni2_true,
-        "rot1": 0.0,
-        "rot2_scale": 1.0,
-        "rot2_offset": 0.0,
-        "rot3": 0.0,
-    }
+    # the simulated arm is linear and square, with the sample on its centre, so
+    # every correction any of the models has should come back as ~0
+    true_values = {"dist": dist_true, "poni1": poni1_true, "poni2": poni2_true}
+    true_values["rot1_scale"] = ARM_ROTATION_SIGN
+    tolerances = {"dist": 1e-3, "poni1": 2e-3, "poni2": 2e-3, "rot1_quad": 1e-2}
+    # the arm's zero error - a fraction of a degree
+    tolerances["rot1_offset"] = np.deg2rad(0.5)
     for name, value in fitted.items():
-        print(f"    {name:>12s}: true={true_values[name]:.6g}  refined={value:.6g}")
-
-    assert fitted["dist"] == pytest.approx(dist_true, abs=1e-3)
-    assert fitted["poni1"] == pytest.approx(poni1_true, abs=2e-3)
-    assert fitted["poni2"] == pytest.approx(poni2_true, abs=2e-3)
-    assert fitted["rot1"] == pytest.approx(0.0, abs=2e-3)
-    assert fitted["rot3"] == pytest.approx(0.0, abs=2e-3)
-    assert fitted["rot2_scale"] == pytest.approx(1.0, abs=2e-3)
-    # two-theta arm's error - a fraction of a degree
-    assert fitted["rot2_offset"] == pytest.approx(0.0, abs=np.deg2rad(0.5))
+        true = true_values.get(name, 0.0)
+        print(f"    {name:>14s}: true={true:.6g}  refined={value:.6g}")
+        assert value == pytest.approx(true, abs=tolerances.get(name, 2e-3)), name
 
 
 def test_system_calibrate():
@@ -770,13 +663,15 @@ def test_system_calibrate():
         images=images,
         angles=angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-        calibrant_name="Si",
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         initial_dist_m=0.25,
         output_dir=output_dir,
         max_rings=[5, 5, 7, 9],
     )
 
-    gonio, meta = eiger_pyfai._load_goniometer_dir(output_dir)
+    gonio = eiger_pyfai._load_goniometer(Path(gonio_path))
     fitted = dict(
         zip(eiger_pyfai.GEOMETRY_TRANSFORMATION.param_names, gonio.param, strict=True)
     )
@@ -813,12 +708,14 @@ def test_system_integrate():
         wavelength_in_ang=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
         resolution=0.05,
     )
-    eiger_pyfai.build_and_save_goniometer(
+    gonio_path, _ = eiger_pyfai.build_and_save_goniometer(
         nexus_filepath=output_dir / "fake_calibration_scan.nxs",
         images=np.array(calibration_images),
         angles=calibration_angles,
         wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
-        calibrant_name="Si",
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
         initial_dist_m=0.25,
         output_dir=output_dir,
         max_rings=[5, 5, 5, 7, 7, 9, 11, 15, 17],
@@ -837,9 +734,8 @@ def test_system_integrate():
     result_path = eiger_pyfai.integrate_with_goniometer(
         images=measurement_images,
         positions=measurement_angles,
-        goniometer_dir=output_dir,
+        goniometer=gonio_path,
         output_xy_filepath=out_xy_filepath,
-        save_xy_with_header=True,
     )
 
     radial, intensity = np.loadtxt(result_path, comments="#", unpack=True)
@@ -883,3 +779,113 @@ def test_system_integrate():
 if __name__ == "__main__":
     # test_system_calibrate()
     test_system_integrate()
+
+
+def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
+    output_dir = _fresh_output_dir("calibration_fits")
+    angles = np.array([5.0, 10.0])
+    images, _ = _true_eiger().simulate_data(
+        positions_in_tth=angles,
+        calibrant_name="Si",
+        wavelength_in_ang=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
+        resolution=0.05,
+    )
+
+    eiger_pyfai.build_and_save_goniometer(
+        nexus_filepath=output_dir / "fake_calibration_scan.nxs",
+        images=np.array(images),
+        angles=angles,
+        wavelength_in_angstrom=SYSTEM_TEST_WAVELENGTH_ANGSTROM,
+        calibrant=get_calibrant(
+            "Si", wavelength=SYSTEM_TEST_WAVELENGTH_ANGSTROM / 1e10
+        ),
+        output_dir=output_dir,
+        max_rings=[5, 7],
+        plot_fits=True,
+    )
+
+    fits_dir = output_dir / eiger_pyfai.FITS_DIR_NAME
+    assert sorted(p.name for p in fits_dir.iterdir()) == [
+        "frame_0000_5.0000deg_model.png",
+        "frame_0001_10.0000deg_model.png",
+    ]
+
+
+def test_predict_frame_advances_rot1_by_arm_step():
+    first = SimpleNamespace(
+        metadata=10.0,
+        geometry_refinement=SimpleNamespace(
+            dist=0.25, poni1=0.02, poni2=0.04, rot1=0.1, rot2=0.0, rot3=0.0
+        ),
+    )
+    gonioref = eiger_pyfai._start_goniometer(
+        eiger_pyfai.GEOMETRY_TRANSFORMATION,
+        first,  # type: ignore[arg-type]
+        Eiger500K(),
+        wavelength_m=1e-10,
+    )
+
+    seed = eiger_pyfai._predict_frame(gonioref, 25.0)
+
+    # before any refinement the model just moves the first frame on by the arm
+    assert seed["rot1"] == pytest.approx(0.1 + ARM_ROTATION_SIGN * np.deg2rad(15.0))
+    assert seed["dist"] == pytest.approx(0.25)
+    assert seed["poni1"] == pytest.approx(0.02)
+    assert seed["poni2"] == pytest.approx(0.04)
+    assert seed["rot2"] == pytest.approx(0.0, abs=1e-12)
+    assert seed["rot3"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_fix_between_frames_keeps_wavelength_fixed():
+    # pyFAI only fixes the wavelength by default when no fix list is given
+    assert "wavelength" in eiger_pyfai.FIX_BETWEEN_FRAMES
+
+
+def _pyfai_rotation(rot1=0.0, rot2=0.0, rot3=0.0) -> np.ndarray:
+    return Geometry().rotation_matrix([0, 0, 0, rot1, rot2, rot3])
+
+
+@pytest.mark.parametrize("two_theta", [-10.0, 0.0, 35.0, 80.0])
+def test_geometry_transformation_is_arm_about_yawed_axis(two_theta):
+    params = {
+        "dist": 0.25,
+        "poni1": 0.02,
+        "poni2": 0.04,
+        "rot1_scale": -0.99,
+        "rot1_quad": -0.004,
+        "rot1_offset": 0.02,
+        "rot2": 0.01,
+        "rot3": 0.005,
+        "yaw": 0.03,
+    }
+    geometry = YAW_GEOMETRY_TRANSFORMATION(
+        list(params.values()), (two_theta,)
+    )._asdict()
+
+    t = np.deg2rad(two_theta)
+    arm = params["rot1_scale"] * t + params["rot1_quad"] * t**2 + params["rot1_offset"]
+    yaw = params["yaw"]
+    expected = (
+        _pyfai_rotation(rot3=yaw)
+        @ _pyfai_rotation(rot1=arm)
+        @ _pyfai_rotation(rot3=params["rot3"] - yaw)
+        @ _pyfai_rotation(rot2=params["rot2"])
+    )
+    actual = _pyfai_rotation(geometry["rot1"], geometry["rot2"], geometry["rot3"])
+
+    assert actual == pytest.approx(expected, abs=1e-12)
+
+
+def test_mask_edges():
+
+    mask = eiger_pyfai.mask_edges(detector_shape=(100, 100), mask_width=(10, 10))
+
+    n_masked_pixels = len(np.argwhere(mask.flatten() == 1).flatten())
+
+    assert n_masked_pixels == 3600
+
+    mask = eiger_pyfai.mask_edges(detector_shape=(100, 100), mask_width=(4, 10))
+
+    n_masked_pixels = len(np.argwhere(mask.flatten() == 1).flatten())
+
+    assert n_masked_pixels == 2640

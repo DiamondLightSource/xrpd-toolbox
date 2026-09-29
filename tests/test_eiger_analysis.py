@@ -1,110 +1,60 @@
-"""Tests for xrpd_toolbox.i15_1.eiger_analysis.
+"""Tests for xrpd_toolbox.i15_1.eiger_analysis."""
 
-do_eiger_calibration/do_eiger_data_reduction are tested with the
-lower-level EigerDataLoader helpers mocked out so their own orchestration
-logic can be verified independently.
-"""
-
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from xrpd_toolbox.i15_1 import eiger_analysis
 from xrpd_toolbox.i15_1.eiger_500k import (
     apply_mask,
-    sum_unique_two_theta_positions_and_normalise,
-    unique_slices,
+    group_positions,
 )
+from xrpd_toolbox.i15_1.eiger_pyfai import GONIOMETER_SAVE_NAME
 
 # ---------------------------------------------------------------------------
-# unique_slices
-# ---------------------------------------------------------------------------
-
-
-def test_unique_slices_groups_runs_of_equal_values():
-    arr = np.array([1, 1, 2, 2, 2, 3])
-
-    slices = unique_slices(arr)
-
-    assert [arr[s].tolist() for s in slices] == [[1, 1], [2, 2, 2], [3]]
-
-
-def test_unique_slices_all_values_unique():
-    arr = np.array([1.0, 2.0, 3.0])
-
-    slices = unique_slices(arr)
-
-    assert slices == [slice(0, 1), slice(1, 2), slice(2, 3)]
-
-
-def test_unique_slices_single_value_repeated():
-    arr = np.array([5.0, 5.0, 5.0])
-
-    slices = unique_slices(arr)
-
-    assert len(slices) == 1
-    assert arr[slices[0]].tolist() == [5.0, 5.0, 5.0]
-
-
-def test_unique_slices_accepts_plain_list():
-    # unique_slices does np.asarray(arr) internally, so list input works too
-    slices = unique_slices([1, 1, 2])  # type: ignore[arg-type]
-
-    assert slices == [slice(0, 2), slice(2, 3)]
-
-
-# ---------------------------------------------------------------------------
-# sum_unique_two_theta_positions_and_normalise
+# group_positions
 # ---------------------------------------------------------------------------
 
 
-class FakeEigerData:
-    """Minimal stand-in for EigerDataLoader exposing just what
-    sum_unique_two_theta_positions_and_normalise needs."""
+def test_group_positions_groups_runs_of_equal_values():
+    labels, positions = group_positions([1.0, 1.0, 2.0, 2.0, 2.0, 3.0])
 
-    def __init__(self, positions, data, i0):
-        self.positions = positions
-        self._data = data
-        self._i0 = i0
-
-    def get_data(self, frames):
-        return self._data[frames]
-
-    def get_i0(self):
-        return self._i0
+    assert labels.tolist() == [0, 0, 1, 1, 1, 2]
+    assert positions.tolist() == [1.0, 2.0, 3.0]
 
 
-def test_sum_unique_two_theta_positions_groups_and_normalises_multiple_positions():
-    fake = FakeEigerData(
-        positions=np.array([1.0, 2.0, 3.0]),
-        data=np.stack([np.full((4, 5), value) for value in (10.0, 20.0, 30.0)]),
-        i0=np.array([2.0, 4.0, 5.0]),
-    )
+def test_group_positions_merges_readback_jitter():
+    # real i15-1 readbacks: 50° and 60° each read back as two values ~6e-5 apart,
+    # interleaved - exact equality made four "positions" out of two
+    tth = [50.000005, 50.000061, 50.000005, 59.999995, 60.000051, 59.999995]
 
-    result = sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
+    labels, positions = group_positions(tth)
 
-    # one frame per unique position, so summing over axis=0 is a no-op and
-    # each frame is normalised by dividing by its own i0
-    assert result.shape == (3, 4, 5)
-    assert np.allclose(result[0], 10.0 / 2.0)
-    assert np.allclose(result[1], 20.0 / 4.0)
-    assert np.allclose(result[2], 30.0 / 5.0)
+    assert labels.tolist() == [0, 0, 0, 1, 1, 1]
+    assert positions == pytest.approx([np.mean(tth[:3]), np.mean(tth[3:])])
 
 
-def test_sum_unique_two_theta_positions_single_frame_at_position_one():
-    fake = FakeEigerData(
-        positions=np.array([1.0]),
-        data=np.full((1, 4, 5), 2.0),
-        i0=np.array([3.0]),
-    )
+def test_group_positions_does_not_need_sorted_or_contiguous_frames():
+    labels, positions = group_positions([20.0, 10.0, 20.0, 10.0])
 
-    result = sum_unique_two_theta_positions_and_normalise(fake)  # type: ignore[arg-type]
+    assert labels.tolist() == [1, 0, 1, 0]
+    assert positions.tolist() == [10.0, 20.0]
 
-    # sum over the frames axis (a no-op for a single frame) then normalised
-    # by dividing by the summed i0
-    assert result.shape == (1, 4, 5)
-    assert np.allclose(result, 2.0 / 3.0)
+
+def test_group_positions_keeps_positions_further_apart_than_tolerance():
+    labels, positions = group_positions([1.0, 1.01, 1.02], tolerance=1e-3)
+
+    assert labels.tolist() == [0, 1, 2]
+    assert len(positions) == 3
+
+
+def test_group_positions_empty():
+    labels, positions = group_positions([])
+
+    assert labels.size == 0 and positions.size == 0
 
 
 # ---------------------------------------------------------------------------
@@ -112,15 +62,16 @@ def test_sum_unique_two_theta_positions_single_frame_at_position_one():
 # ---------------------------------------------------------------------------
 
 
-def test_apply_mask_multiplies_each_frame():
+def test_apply_mask_zeroes_bad_pixels_in_each_frame():
     frames = np.ones((2, 3, 3))
     mask = np.array([[1, 0, 1], [0, 1, 0], [1, 1, 1]])
 
     masked = apply_mask(frames, mask)
 
     assert masked.shape == (2, 3, 3)
-    assert np.array_equal(masked[0], mask)
-    assert np.array_equal(masked[1], mask)
+    # Eiger/pyFAI convention: nonzero in the mask = bad pixel
+    assert np.array_equal(masked[0], 1 - mask)
+    assert np.array_equal(masked[1], 1 - mask)
 
 
 def test_apply_mask_with_boolean_mask():
@@ -129,7 +80,19 @@ def test_apply_mask_with_boolean_mask():
 
     masked = apply_mask(frames, mask)
 
-    assert np.array_equal(masked[0], [[1.0, 0.0], [0.0, 4.0]])
+    assert np.array_equal(masked[0], [[0.0, 2.0], [3.0, 0.0]])
+
+
+def test_apply_mask_removes_saturated_bad_pixels():
+    # bad Eiger pixels read as the uint32 max - they must not survive masking
+    frames = np.full((1, 2, 2), 10.0)
+    frames[0, 0, 0] = np.iinfo(np.uint32).max
+    mask = np.array([[1, 0], [0, 0]], dtype=np.uint32)
+
+    masked = apply_mask(frames, mask)
+
+    assert masked.max() == 10.0
+    assert masked[0, 0, 0] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -143,9 +106,11 @@ def _fake_eiger_data(**overrides):
     fake.get_calibrant.return_value = "Silicon"
     fake.positions = np.array([1.0, 2.0])
     fake.get_summed_normalised_and_masked_frames.return_value = np.zeros((2, 4, 5))
+    fake.get_summed_and_masked_frames.return_value = np.zeros((2, 4, 5))
     fake.get_summed_and_normalised_frames.return_value = np.zeros((2, 4, 5))
     fake.get_mask.return_value = None
     fake.wavelength = 1.0
+    fake.get_wavelength_in_m.return_value = 1e-10
     for key, value in overrides.items():
         setattr(fake, key, value)
     return fake
@@ -156,17 +121,25 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
     nexus_filepath.touch()
 
     mock_build = MagicMock(return_value=("gonio.json", "meta.json"))
+    mock_reduction = MagicMock()
 
     with (
         patch.object(
             eiger_analysis, "EigerDataLoader", return_value=_fake_eiger_data()
         ),
         patch.object(eiger_analysis, "build_and_save_goniometer", mock_build),
+        patch.object(eiger_analysis, "do_eiger_data_reduction", mock_reduction),
     ):
-        eiger_analysis.do_eiger_calibration(nexus_filepath)
+        eiger_analysis.do_eiger_goniometer_calibration(nexus_filepath)
 
     expected_processed_dir = str(tmp_path / "processed")
     assert mock_build.call_args.kwargs["output_dir"] == expected_processed_dir
+    # the calibration scan is reduced straight after the goniometer is built,
+    # with that goniometer and the calibrant's peaks marked
+    mock_reduction.assert_called_once()
+    assert mock_reduction.call_args.args == (nexus_filepath,)
+    assert mock_reduction.call_args.kwargs["goniometer_filepath"] == "gonio.json"
+    assert len(mock_reduction.call_args.kwargs["known_peak_markers"]) > 0
     assert (tmp_path / "processed").is_dir()
     nexus_filepath.unlink(missing_ok=True)
 
@@ -174,18 +147,27 @@ def test_do_eiger_calibration_saves_goniometer_to_processed_dir(tmp_path: Path):
 def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     nexus_filepath = tmp_path / "scan.nxs"
     nexus_filepath.touch()
+    # no calibration in the nexus file, so the one saved in processed/ is used
+    saved_calibration = tmp_path / "processed" / GONIOMETER_SAVE_NAME
+    saved_calibration.parent.mkdir()
+    saved_calibration.touch()
+    loaded_goniometer = MagicMock()
 
     def fake_integrate(
-        images, positions, goniometer_dir, output_xy_filepath, npt=None, mask=None
+        images, positions, goniometer, output_xy_filepath, npt=None, mask=None
     ):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
         return Path(output_xy_filepath)
 
+    fake_eiger_data = _fake_eiger_data()
+    fake_eiger_data.get_goniometer_calibration.return_value = None
+
     with (
+        patch.object(eiger_analysis, "EigerDataLoader", return_value=fake_eiger_data),
         patch.object(
-            eiger_analysis, "EigerDataLoader", return_value=_fake_eiger_data()
-        ),
+            eiger_analysis, "_load_goniometer", return_value=loaded_goniometer
+        ) as mock_load,
         patch.object(
             eiger_analysis, "integrate_with_goniometer", side_effect=fake_integrate
         ) as mock_integrate,
@@ -198,10 +180,43 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     # the goniometer calibration is shared across every file in the
     # directory, so it must be looked up in the flat processed/ folder, not
     # the per-file processed/scan/ subfolder used for the output xy
-    assert mock_integrate.call_args.kwargs["goniometer_dir"] == str(
-        tmp_path / "processed"
-    )
+    assert mock_load.call_args.kwargs["goniometer_filepath"] == saved_calibration
+    assert mock_integrate.call_args.kwargs["goniometer"] is loaded_goniometer
     nexus_filepath.unlink(missing_ok=True)
+
+
+def test_get_goniometer_cal_filepath_finds_timestamped_calibrations(tmp_path: Path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    saved = processed / f"i15-1-98680_2026-09-29_10-00-00_{GONIOMETER_SAVE_NAME}"
+    saved.touch()
+
+    found = eiger_analysis.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
+
+    assert found == saved
+
+
+def test_get_goniometer_cal_filepath_picks_the_newest(tmp_path: Path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    # the older file's scan name sorts last, so going by name would pick it
+    older = processed / f"i15-1-98700_2026-09-28_10-00-00_{GONIOMETER_SAVE_NAME}"
+    newer = processed / f"i15-1-98680_2026-09-29_10-00-00_{GONIOMETER_SAVE_NAME}"
+    older.touch()
+    newer.touch()
+    os.utime(older, (1_000_000, 1_000_000))
+    os.utime(newer, (2_000_000, 2_000_000))
+
+    found = eiger_analysis.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
+
+    assert found == newer
+
+
+def test_get_goniometer_cal_filepath_raises_when_there_is_none(tmp_path: Path):
+    (tmp_path / "processed").mkdir()
+
+    with pytest.raises(FileNotFoundError, match="No goniometer calibration"):
+        eiger_analysis.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
 
 
 def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: Path):
@@ -210,7 +225,7 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
     explicit_output = tmp_path / "elsewhere" / "custom.xy"
 
     def fake_integrate(
-        images, positions, goniometer_dir, output_xy_filepath, npt=None, mask=None
+        images, positions, goniometer, output_xy_filepath, npt=None, mask=None
     ):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
@@ -267,7 +282,9 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
 
     # only called once, for the main scan - the background was already found
     # saved in processed/ so it is not regenerated
-    mock_reduction.assert_called_once_with(nexus_filepath, None)
+    mock_reduction.assert_called_once_with(
+        nexus_filepath=nexus_filepath, output_xy_filepath=None
+    )
     assert mock_send.call_args.kwargs["background_file"] == str(existing_bg_xy)
     nexus_filepath.unlink(missing_ok=True)
 
@@ -305,6 +322,8 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
         eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
 
     assert mock_reduction.call_count == 2
-    mock_reduction.assert_any_call(str(bg_nexus_filepath), expected_bg_xy)
+    mock_reduction.assert_any_call(
+        nexus_filepath=str(bg_nexus_filepath), output_xy_filepath=expected_bg_xy
+    )
     assert mock_send.call_args.kwargs["background_file"] == str(expected_bg_xy)
     nexus_filepath.unlink(missing_ok=True)

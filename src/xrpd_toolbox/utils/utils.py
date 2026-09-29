@@ -618,9 +618,11 @@ def processed_directory_and_filename(
 def wait_for_file(
     filepath: str | Path,
     timeout: int | float | None = 30,
-    poll_interval: int | float = 1,
+    poll_interval: int | float = 5,
 ) -> None:
     """Wait until filepath exists.
+
+    Logs how long it has been waiting on every poll.
 
     Raises:
         TimeoutError: if the file does not appear within timeout seconds.
@@ -630,19 +632,24 @@ def wait_for_file(
 
     while not filepath.exists():
         duration = time.monotonic() - start_time
+
         if timeout is not None and duration >= timeout:
             raise TimeoutError(f"{filepath} does not exist after {timeout} seconds")
-        logging.info(f"No file after {duration} seconds")
+
+        logger.info(f"Waited {duration:.0f} seconds for {filepath}, does not exist yet")
+
         time.sleep(poll_interval)
 
 
 def wait_for_finished_file(
     filepath: str | Path,
     timeout: int | float | None = 300,
-    poll_interval: int | float = 1.0,
+    poll_interval: int | float = 5,
     stable_for: int | float = 2.0,
 ) -> None:
     """Wait until filepath exists and its size has been stable for stable_for seconds.
+
+    Logs how long it has been waiting on every poll.
 
     Raises:
         TimeoutError: if the file does not appear
@@ -674,5 +681,8 @@ def wait_for_finished_file(
             elif stable_since is not None and now - stable_since >= stable_for:
                 # stable_since always set when last_size is
                 return
-        logging.info(f"No finished file after {duration} seconds")
+
+        state = "still being written" if filepath.exists() else "does not exist yet"
+        logger.info(f"Waited {duration:.0f} seconds for {filepath} to finish, {state}")
+
         time.sleep(poll_interval)
