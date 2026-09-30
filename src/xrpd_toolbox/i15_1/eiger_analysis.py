@@ -187,7 +187,7 @@ def do_eiger_data_reduction(
     unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
 
-    if edge_mask_width is not None:
+    if edge_mask_width is not None and mask is not None:
         edge_mask = mask_edges(
             detector_shape=summed_and_normalised_frames[0].shape,
             mask_width=edge_mask_width,
