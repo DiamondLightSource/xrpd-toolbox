@@ -247,6 +247,17 @@ def do_eiger_data_reduction(
     return output_xy_filepath
 
 
+def get_background_info(eiger_data: EigerDataLoader):
+
+    background_nexus_filepath = eiger_data.get_sample_environment_scan_filepath()
+    bg_processed_dir, bg_file_name = processed_directory_and_filename(
+        background_nexus_filepath
+    )
+    background_file_xy = Path(bg_processed_dir) / (bg_file_name + "_fastcs_eiger.xy")
+
+    return Path(background_nexus_filepath), background_file_xy
+
+
 def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     nexus_filepath: str | Path,
     output_xy_filepath: str | Path | None = None,
@@ -256,46 +267,47 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
         nexus_filepath=nexus_filepath, output_xy_filepath=output_xy_filepath
     )
 
+    eiger_data = EigerDataLoader(nexus_filepath)
+    wavelength = eiger_data.get_wavelength()
+
     try:
-        eiger_data = EigerDataLoader(nexus_filepath)
-
-        wavelength = eiger_data.get_wavelength()
-        sample_environment_filepath = eiger_data.get_sample_environment_scan_filepath()
-        bg_processed_dir, bg_file_name = processed_directory_and_filename(
-            sample_environment_filepath
+        background_nexus_filepath, background_file_xy = get_background_info(
+            eiger_data=eiger_data
         )
-        background_file_xy = Path(bg_processed_dir) / (
-            bg_file_name + "_fastcs_eiger.xy"
-        )
-
-        if not background_file_xy.exists():
-            try:
-                background_file_xy = do_eiger_data_reduction(
-                    nexus_filepath=sample_environment_filepath,
-                    output_xy_filepath=background_file_xy,
-                )
-            except Exception as e:
-                logger.error(
-                    f"No background xy present, no background nxs present: {e}"
-                )
-                logger.error("No background used for pdf conversion")
-                background_file_xy = None
-
-        logger.info("Sending xy to pdfcurl (pdfgetx3)")
-
-        composition = eiger_data.get_composition()
-
-        response_from_pdfcurl = send_xy_to_pdfcurl(
-            xy_filepath=str(output_xy_filepath),
-            composition=composition,
-            wavelength=wavelength,
-            background_file=str(background_file_xy),
-        )
-
-        logger.info(response_from_pdfcurl)
-
     except Exception as e:
         logger.error(e)
+        background_nexus_filepath, background_file_xy = None, None
+
+    if (
+        background_nexus_filepath is not None
+        and background_nexus_filepath.exists()
+        and background_file_xy is not None
+        and not background_file_xy.exists()
+    ):
+        try:
+            background_file_xy = do_eiger_data_reduction(
+                nexus_filepath=background_nexus_filepath,
+                output_xy_filepath=background_file_xy,
+            )
+        except Exception as e:
+            logger.error(f"No background xy present, no background nxs present: {e}")
+            logger.error("No background used for pdf conversion")
+            background_file_xy = None
+
+        try:
+            logger.info("Sending xy to pdfcurl (pdfgetx3)")
+            composition = eiger_data.get_composition()
+            response_from_pdfcurl = send_xy_to_pdfcurl(
+                xy_filepath=str(output_xy_filepath),
+                composition=composition,
+                wavelength=wavelength,
+                background_file=str(background_file_xy),
+            )
+
+            logger.info(response_from_pdfcurl)
+
+        except Exception as e:
+            logger.error(e)
 
     return output_xy_filepath
 
