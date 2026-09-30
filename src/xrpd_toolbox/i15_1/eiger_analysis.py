@@ -167,6 +167,7 @@ def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
     apply_absorption_correction: bool = False,
+    apply_azimuthal_mask: bool = False,
     edge_mask_width: tuple[int, int] | None = (10, 10),
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
@@ -222,6 +223,7 @@ def do_eiger_data_reduction(
         output_xy_filepath=output_xy_filepath,
         npt=DEFAULT_NPT,
         apply_absorption_correction=apply_absorption_correction,
+        apply_azimuthal_mask=apply_azimuthal_mask,
         save_xye=save_xye,
     )
 
@@ -336,6 +338,7 @@ if __name__ == "__main__":
         goniometer_filepath=goniometer_filepath,
         edge_mask_width=(10, 10),
         apply_absorption_correction=False,
+        apply_azimuthal_mask=False,
     )
 
     quit()

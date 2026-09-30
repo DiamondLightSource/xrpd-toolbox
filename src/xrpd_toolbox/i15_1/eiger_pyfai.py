@@ -75,6 +75,16 @@ def mask_edges(
     return mask
 
 
+def apply_azimuthal_mask(frame_ais: list[AzimuthalIntegrator], lst_mask):
+
+    for ai, img_mask in zip(frame_ais, lst_mask, strict=True):
+        q_array = ai.center_array(unit="q_A^-1")
+        img_mask[q_array < (np.min(q_array) + 0.5)] = 1
+        img_mask[q_array > (np.max(q_array) - 0.5)] = 1
+
+    return lst_mask
+
+
 def get_ai_absorption(ai: AzimuthalIntegrator):
     """Phil's routine for calculating aborption from ai geometry
     and the detector properties ie thickness, mu"""
@@ -538,7 +548,8 @@ def integrate_with_goniometer(
     unit: str = "2th_deg",
     save_xye: bool = False,
     wavelength: float | None = None,
-    apply_absorption_correction: bool = True,
+    apply_absorption_correction: bool = False,
+    apply_azimuthal_mask: bool = False,
     detector: str | Detector = PYFAI_DETECTOR_NAME,
 ) -> Path:
     """Integrate images with a saved goniometer and write an .xy file."""
@@ -577,14 +588,8 @@ def integrate_with_goniometer(
     n_frames = len(images)
     lst_mask = [mask.astype(bool)] * n_frames if mask is not None else None
 
-    # def apply_azimuthal_mask(frame_ais: list[AzimuthalIntegrator], lst_mask: list):
-
-    #     for ai, img_mask in zip(frame_ais, lst_mask, strict=True):
-    #         q_array = ai.center_array(unit="q_A^-1")
-    #         img_mask[q_array < (np.min(q_array) + 0.5)] = 1
-    #         img_mask[q_array > (np.max(q_array) - 0.5)] = 1
-
-    #     return lst_mask
+    if apply_azimuthal_mask:
+        lst_mask = apply_azimuthal_mask(frame_ais=frame_ais, lst_mask=lst_mask)
 
     result = mg.integrate1d(
         list(images),
@@ -620,9 +625,9 @@ def integrate_with_goniometer(
     return output_xy_filepath
 
 
-if __name__ == "__main__":
-    eiger_500x = get_eiger_detector()
+# if __name__ == "__main__":
+#     eiger_500x = get_eiger_detector()
 
-    print(eiger_500x)
+#     print(eiger_500x)
 
-    print(eiger_500x.__dict__)
+#     print(eiger_500x.__dict__)
