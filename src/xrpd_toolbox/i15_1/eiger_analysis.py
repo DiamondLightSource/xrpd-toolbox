@@ -320,57 +320,33 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-if __name__ == "__main__":
-    cal_save_path = Path("/workspaces/xrpd-toolbox/src/xrpd_toolbox/i15_1")
+# if __name__ == "__main__":
+#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
+#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+#     goniometer_filepath = Path(
+#         "/workspaces/outputs/i15-1/processed/i15-1-98779_2026-09-29_16-10-03_eiger_goniometer_calibration.json" #noqa
+#     )
 
-    goniometer_filepath = Path(
-        "/workspaces/outputs/i15-1/processed/i15-1-98779_2026-09-29_16-10-03_eiger_goniometer_calibration.json"
-    )
+#     do_eiger_data_reduction(
+#         nexus_filepath,
+#         goniometer_filepath=goniometer_filepath,
+#         edge_mask_width=(10, 10),
+#         apply_absorption_correction=False,
+#         apply_azimuthal_mask=False,
+#     )
 
-    do_eiger_data_reduction(
-        nexus_filepath,
-        goniometer_filepath=goniometer_filepath,
-        edge_mask_width=(10, 10),
-        apply_absorption_correction=False,
-        apply_azimuthal_mask=False,
-    )
+#     quit()
 
-    quit()
+# goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
+#     nexus_filepath,
+#     calibrant_name="W",
+#     plot_fits=True,
+#     show_plots=False,
+#     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
+# )
 
-    eiger_data = EigerDataLoader(nexus_filepath)
-
-    # mask = eiger_data.get_mask(as_nan=False)
-
-    frames = eiger_data.get_summed_and_normalised_frames()
-
-    # for frame, tth in zip(frames, eiger_data.get_unique_tth_positions(), strict=True):
-    #     frame[mask] = 0
-
-    #     plt.imshow(frame * mask, cmap="viridis")
-
-    #     np.save(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth:.2f}.npy", frame) #noqa
-
-    # plt.savefig(f"/workspaces/outputs/i15-1/processed/i15-1-98700_{tth}.tiff")
-
-    goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
-        nexus_filepath,
-        calibrant_name="W",
-        plot_fits=True,
-        show_plots=False,
-        max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
-    )
-
-    print(goniometer_cal_filepath)
-
-    # output_xy_filepath = do_eiger_data_reduction_and_send_xy_to_pdfcurl(
-    #     nexus_filepath
-    # )  # then reduce the data we just collected
-
-    # print(output_xy_filepath)
-    # run_eiger_analysis(nexus_filepath)
+# print(goniometer_cal_filepath)
