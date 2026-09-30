@@ -48,8 +48,8 @@ def build_eiger_nexus(
     include_background: bool = True,
     plan_name: str | None = "data_collection",
     include_plan_name: bool = True,
-    plan_type: str | None = "step_scan",
-    include_plan_type: bool = True,
+    scan_type: str | None = "step_scan",
+    include_scan_type: bool = True,
     i0: np.ndarray | None = None,
     include_i0: bool = True,
 ) -> Path:
@@ -119,8 +119,8 @@ def build_eiger_nexus(
         if include_plan_name and plan_name is not None:
             plan_metadata_grp.create_dataset("plan_name", data=plan_name)
 
-        if include_plan_type and plan_type is not None:
-            plan_metadata_grp.create_dataset("plan_type", data=plan_type)
+        if include_scan_type and scan_type is not None:
+            plan_metadata_grp.create_dataset("scan_type", data=scan_type)
 
         if include_i0:
             i0_grp = entry_grp.create_group("i0")

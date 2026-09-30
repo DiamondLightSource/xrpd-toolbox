@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
 from pyFAI.calibrant import Calibrant
-from pyFAI.detectors import Detector, detector_factory
+from pyFAI.detectors import Detector, detector_factory, sensors
 from pyFAI.geometry import Geometry
 from pyFAI.goniometer import (
     GeometryTransformation,
@@ -24,9 +24,11 @@ from pyFAI.goniometer import (
     MultiGeometry,
     SingleGeometry,
 )
+from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 from xrpd_toolbox.i15_1.eiger_500k import ARM_ROTATION_SIGN
 from xrpd_toolbox.i15_1.eiger_goniometer_models import GEOMETRY_TRANSFORMATION
+from xrpd_toolbox.utils.unit_conversion import wavelength_to_beam_energy
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,7 @@ FIX_BETWEEN_FRAMES = ["wavelength", "dist", "poni1", "poni2"]
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
 METADATA_SAVE_NAME = "calibration_metadata.json"
 FITS_DIR_NAME = "calibration_fits"
+PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
 def mask_edges(
@@ -70,6 +73,95 @@ def mask_edges(
         mask = np.where(mask == 1, np.nan, 1.0)
 
     return mask
+
+
+def apply_azimuthal_mask_to_ais(frame_ais: list[AzimuthalIntegrator], lst_mask):
+    """Applys an azimuthal mask to position where the q
+    isn't far outside bound of center array"""
+
+    for ai, img_mask in zip(frame_ais, lst_mask, strict=True):
+        q_array = ai.center_array(unit="q_A^-1")
+        img_mask[q_array < (np.min(q_array) + 0.5)] = 1
+        img_mask[q_array > (np.max(q_array) - 0.5)] = 1
+
+    return lst_mask
+
+
+def get_ai_absorption(ai: AzimuthalIntegrator):
+    """Phil's routine for calculating aborption from ai geometry
+    and the detector properties ie thickness, mu"""
+
+    assert ai.detector is not None  # this is all to make the type checker happy
+    assert isinstance(
+        ai.detector, Detector
+    )  # this is all to make the type checker happy
+    assert ai.detector.shape is not None  # this is all to make the type checker happy
+    assert ai.detector.sensor is not None  # this is all to make the type checker happy
+
+    d1, d2 = np.meshgrid(
+        np.arange(ai.detector.shape[0]) + 0.5,
+        np.arange(ai.detector.shape[1]) + 0.5,
+        indexing="ij",
+    )
+    path_length = ai.detector.sensor.thickness / ai.cos_incidence(d1, d2)
+    absorption = 1 - np.exp(-ai.detector.sensor.mu * path_length)  # type: ignore
+    return absorption
+
+
+def calc_absorption_for_cdte(
+    frame_ais: list[AzimuthalIntegrator],
+    detector: Detector,
+    wavelength_in_m: float,
+):
+    """For a list of ai's it returns images
+    containing the fractional aborption at each ai
+
+    efficiency of the sensor between 0 (no absorbance) and 1 (all photons are absorbed)
+
+    """
+
+    cdte_sensor = sensors.SensorConfig(
+        material=sensors.CdTe_MATERIAL,  # type: ignore
+        thickness=750e-6,  # type: ignore
+    )
+
+    energy_kev = wavelength_to_beam_energy(wavelength_in_m * 1e10)
+
+    absorption_at_frame = []
+
+    for ai in frame_ais:
+        d1, d2 = np.meshgrid(
+            np.arange(detector.shape[0]) + 0.5,  # type: ignore
+            np.arange(detector.shape[1]) + 0.5,  # type: ignore
+            indexing="ij",
+        )
+        path_length = cdte_sensor.thickness / ai.cos_incidence(d1, d2)
+
+        mu = cdte_sensor.material.mu(energy_kev)  # type: ignore
+
+        absorption = 1 - np.exp(-mu * path_length)
+
+        absorption_at_frame.append(absorption)
+
+    return absorption_at_frame
+
+
+def calc_and_apply_absorption_for_cdte(
+    frame_ais: list[AzimuthalIntegrator],
+    images: np.ndarray,
+    detector: Detector,
+    wavelength_in_m: float,
+):
+
+    absorption_for_frame = calc_absorption_for_cdte(
+        frame_ais=frame_ais,
+        detector=detector,
+        wavelength_in_m=wavelength_in_m,
+    )
+
+    images = [(images[n] * (1 + absorption_for_frame[n])) for n in range(len(images))]  # type: ignore - apply abs to images
+
+    return images
 
 
 def calibrate_single_geometry_from_rings(
@@ -119,15 +211,15 @@ def _load_goniometer(goniometer_filepath: Path) -> Goniometer:
     return gonio
 
 
-def _resolve_detector(detector: Detector | str | None) -> Detector:
-    """None -> the simulation Eiger500K; a name -> pyFAI's registry detector."""
-    from xrpd_toolbox.i15_1.eiger_500k import Eiger500K
+def get_eiger_detector(detector: Detector | str | None = None) -> Detector:
+    """None -> the pyfai detector ; a name -> pyFAI's registry detector."""
 
     if detector is None:
-        return Eiger500K()
+        return detector_factory(PYFAI_DETECTOR_NAME)
     if isinstance(detector, str):
         return detector_factory(detector)
-    return detector
+    else:
+        return detector
 
 
 def _calibrate_single_frame(
@@ -150,7 +242,7 @@ def _calibrate_single_frame(
     """
     # pass an instance: SingleGeometry looks up name strings in pyFAI's own
     # registry, and "eiger500k" there is a different shaped detector
-    detector = _resolve_detector(detector)
+    detector = get_eiger_detector(detector)
     assert detector.max_shape is not None
     if initial_beam_centre_px is None:
         rows, cols = detector.max_shape
@@ -319,7 +411,7 @@ def build_and_save_goniometer(
     `show_plots` opens them.
     Returns the paths of the saved goniometer and metadata files.
     """
-    detector = _resolve_detector(detector)
+    detector = get_eiger_detector(detector)
 
     nexus_path = Path(nexus_filepath)
 
@@ -458,10 +550,15 @@ def integrate_with_goniometer(
     unit: str = "2th_deg",
     save_xye: bool = False,
     wavelength: float | None = None,
+    apply_absorption_correction: bool = False,
+    apply_azimuthal_mask: bool = False,
+    detector: str | Detector = PYFAI_DETECTOR_NAME,
 ) -> Path:
     """Integrate images with a saved goniometer and write an .xy file."""
     output_xy_filepath = Path(output_xy_filepath)
     output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    detector = get_eiger_detector(detector)
 
     if isinstance(goniometer, (str, Path)):
         gonio = _load_goniometer(goniometer_filepath=Path(goniometer))
@@ -473,6 +570,17 @@ def integrate_with_goniometer(
     if wavelength is None:
         wavelength = gonio.wavelength
 
+    if "CdTe" in detector.name and apply_absorption_correction:
+        images = calc_and_apply_absorption_for_cdte(
+            frame_ais=frame_ais,
+            images=images,
+            detector=detector,
+            wavelength_in_m=wavelength,
+        )
+
+    elif "CdTe" not in detector.name and apply_absorption_correction:
+        raise Exception("No absoprtion calculation for detector: {detector}")
+
     mg = MultiGeometry(
         frame_ais,
         unit=unit,
@@ -481,6 +589,9 @@ def integrate_with_goniometer(
 
     n_frames = len(images)
     lst_mask = [mask.astype(bool)] * n_frames if mask is not None else None
+
+    if apply_azimuthal_mask:
+        lst_mask = apply_azimuthal_mask_to_ais(frame_ais=frame_ais, lst_mask=lst_mask)
 
     result = mg.integrate1d(
         list(images),
@@ -517,3 +628,8 @@ def integrate_with_goniometer(
 
 
 # if __name__ == "__main__":
+#     eiger_500x = get_eiger_detector()
+
+#     print(eiger_500x)
+
+#     print(eiger_500x.__dict__)

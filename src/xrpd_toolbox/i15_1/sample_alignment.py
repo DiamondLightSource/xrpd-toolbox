@@ -350,11 +350,6 @@ def sample_alignment_i15_1(
 
         xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
 
-    import matplotlib.pyplot as plt
-
-    plt.plot(xyedata.x, xyedata.y)
-    plt.show()
-
     best_model = run_sample_alignment(data=xyedata)
 
     sample_centre_result = best_model.get_sample_centre()

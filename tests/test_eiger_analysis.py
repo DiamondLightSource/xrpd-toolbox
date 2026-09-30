@@ -153,9 +153,7 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     saved_calibration.touch()
     loaded_goniometer = MagicMock()
 
-    def fake_integrate(
-        images, positions, goniometer, output_xy_filepath, npt=None, mask=None
-    ):
+    def fake_integrate(*args, output_xy_filepath, **kwargs):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
         return Path(output_xy_filepath)
@@ -224,9 +222,7 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
     nexus_filepath.touch()
     explicit_output = tmp_path / "elsewhere" / "custom.xy"
 
-    def fake_integrate(
-        images, positions, goniometer, output_xy_filepath, npt=None, mask=None
-    ):
+    def fake_integrate(*args, output_xy_filepath, **kwargs):
         Path(output_xy_filepath).parent.mkdir(parents=True, exist_ok=True)
         Path(output_xy_filepath).write_text("fake xy data")
         return Path(output_xy_filepath)
@@ -240,7 +236,7 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
         ),
     ):
         result_path = eiger_analysis.do_eiger_data_reduction(
-            nexus_filepath, explicit_output
+            nexus_filepath=nexus_filepath, output_xy_filepath=explicit_output
         )
 
     assert result_path == explicit_output
