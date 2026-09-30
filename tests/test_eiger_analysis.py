@@ -240,7 +240,7 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
         ),
     ):
         result_path = eiger_analysis.do_eiger_data_reduction(
-            nexus_filepath, explicit_output
+            nexus_filepath=nexus_filepath, output_xy_filepath=explicit_output
         )
 
     assert result_path == explicit_output

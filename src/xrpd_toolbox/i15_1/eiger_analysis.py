@@ -9,9 +9,11 @@ from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
     GONIOMETER_SAVE_NAME,
+    PYFAI_DETECTOR_NAME,
     _load_goniometer,
     build_and_save_goniometer,
     integrate_with_goniometer,
+    mask_edges,
 )
 from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
@@ -51,8 +53,6 @@ class CollectionType(StrEnum):
 
 
 calibrant_lookup: dict[str, str] = {"Silicon": "Si", "Tungsten": "W"}
-
-PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
 def get_calibation_fit_images(goniometer_model_filepath: str | Path) -> list[Path]:
@@ -140,6 +140,7 @@ def do_eiger_goniometer_calibration(
             nexus_filepath,
             known_peak_markers=tth_calibrant_peaks,
             goniometer_filepath=goniometer_model_json,
+            data_type="calibration",
         )
 
     logger.info(
@@ -165,9 +166,13 @@ def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
 
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
+    apply_absorption_correction: bool = False,
+    edge_mask_width: tuple[int, int] | None = (10, 10),
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
     known_peak_markers: list[float] | None = None,
+    data_type: str = "pxrd",
+    save_xye: bool = False,
 ) -> Path:
     """Reduce a scan to an .xy file with the saved goniometer."""
 
@@ -180,6 +185,14 @@ def do_eiger_data_reduction(
 
     unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
+
+    if edge_mask_width is not None:
+        edge_mask = mask_edges(
+            detector_shape=summed_and_normalised_frames[0].shape,
+            mask_width=edge_mask_width,
+        )
+
+        mask = edge_mask + mask  # masks the edges of the detector
 
     processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
 
@@ -208,12 +221,14 @@ def do_eiger_data_reduction(
         mask=mask,
         output_xy_filepath=output_xy_filepath,
         npt=DEFAULT_NPT,
+        apply_absorption_correction=apply_absorption_correction,
+        save_xye=save_xye,
     )
 
     try:
         data_plot = DataPlot.from_csv(output_xy_filepath)
         data_plot.x_label = "2θ (deg)"
-        data_plot.data_type = "pxrd"
+        data_plot.data_type = data_type
 
         if known_peak_markers is not None:
             data_plot = FittedDataPlot(
@@ -283,7 +298,7 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
     eiger_data = EigerDataLoader(nexus_filepath)
     plan_name = eiger_data.get_plan_name()
-    scan_type = eiger_data.get_plan_type()
+    scan_type = eiger_data.get_scan_type()
     logger.info(f"{nexus_filepath=} {plan_name=} {scan_type=}")
 
     if scan_type == CollectionType.centring:
@@ -313,12 +328,17 @@ if __name__ == "__main__":
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
     goniometer_filepath = Path(
-        "/workspaces/outputs/i15-1/processed/eiger_goniometer_calibration.json"
+        "/workspaces/outputs/i15-1/processed/i15-1-98779_2026-09-29_16-10-03_eiger_goniometer_calibration.json"
     )
 
-    # print(high_q_helper(40, 80))
-    # print(high_q_helper(76.76, 80))
-    # quit()
+    do_eiger_data_reduction(
+        nexus_filepath,
+        goniometer_filepath=goniometer_filepath,
+        edge_mask_width=(10, 10),
+        apply_absorption_correction=False,
+    )
+
+    quit()
 
     eiger_data = EigerDataLoader(nexus_filepath)
 

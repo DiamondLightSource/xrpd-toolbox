@@ -293,11 +293,11 @@ class EigerDataLoader:
         else:
             return mask.astype(bool)
 
-    def get_plan_type(self) -> str:
+    def get_scan_type(self) -> str:
 
-        plan_type_path = f"/{self.entry}/plan_metadata/plan_type"
+        scan_type_path = f"/{self.entry}/plan_metadata/scan_type"
 
-        return self._read_string(plan_type_path)
+        return self._read_string(scan_type_path)
 
     @cached_property
     def plan_name(self) -> str:
