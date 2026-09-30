@@ -310,10 +310,13 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
         patch.object(eiger_analysis, "do_eiger_data_reduction") as mock_reduction,
         patch.object(eiger_analysis, "send_xy_to_pdfcurl") as mock_send,
     ):
-        mock_reduction.side_effect = [
-            expected_bg_xy,
-            tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy",
-        ]
+        # return based on which file is reduced, so call order does not matter
+        def fake_reduction(nexus_filepath, output_xy_filepath):
+            if output_xy_filepath is not None:
+                return output_xy_filepath
+            return tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+
+        mock_reduction.side_effect = fake_reduction
 
         eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
 
