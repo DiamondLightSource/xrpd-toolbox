@@ -24,7 +24,7 @@ from xrpd_toolbox import __version__
 print(f"Hello xrpd_toolbox {__version__}")
 ```
 
-Here are some useful things for
+Here are some useful things for xrpd users at Diamond
 
 ```python
 from xrpd_toolbox.utils.messenger import Messenger
@@ -44,10 +44,23 @@ my_destinations = ["/topic/my_dest"]
 
 #if you want to listen on other you can use:
 
-client = Messenger("i15-1", broker="rabbitmq", username="guest", password="guest", destinations=my_destinations)
+client = Messenger("i15-1", broker="rabbitmq", username="MY USERNAME", password="PASSWORD", destinations=my_destinations)
 
 #if you want to connect to a specific message bus too:
 
-client = Messenger(host=MY_HOST, port=MY_PORT, username="guest", password="guest", destinations=my_destinations)
+client = Messenger(host=MY_HOST, port=MY_PORT, username="MY USERNAME", password="PASSWORD", destinations=my_destinations)
+
+```
+
+If you are an i11 user and want to reprocess your data from a nexus, you can use the following gui byt typing into a terminal
+
+
+```python
+
+xrpd-toolbox bad_pixel_gui
+
+and
+
+xrpd-toolbox mythen_process_gui
 
 ```
