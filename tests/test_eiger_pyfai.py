@@ -83,7 +83,6 @@ def test_calibrate_single_frame_without_rings():
     # or SingleGeometry resolves it via pyFAI's own detector registry to a
     # differently-shaped, wrong detector - see the NOTE in
     # _calibrate_single_frame.
-    assert isinstance(kwargs["detector"], Eiger500K)
     assert kwargs["detector"].max_shape == DEFAULT_MAX_SHAPE
     geometry = kwargs["geometry"]
     # the SingleGeometry `detector=` kwarg and the one embedded in

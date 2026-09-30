@@ -76,6 +76,8 @@ def mask_edges(
 
 
 def apply_azimuthal_mask_to_ais(frame_ais: list[AzimuthalIntegrator], lst_mask):
+    """Applys an azimuthal mask to position where the q
+    isn't far outside bound of center array"""
 
     for ai, img_mask in zip(frame_ais, lst_mask, strict=True):
         q_array = ai.center_array(unit="q_A^-1")
