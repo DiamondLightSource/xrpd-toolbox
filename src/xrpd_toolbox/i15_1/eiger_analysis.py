@@ -253,7 +253,6 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
 ) -> Path:
 
     eiger_data = EigerDataLoader(nexus_filepath)
-    composition = eiger_data.get_composition()
     wavelength = eiger_data.get_wavelength()
     sample_environment_filepath = eiger_data.get_sample_environment_scan_filepath()
     bg_processed_dir, bg_file_name = processed_directory_and_filename(
@@ -278,6 +277,8 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
 
     try:
         logger.info("Sending xy to pdfcurl (pdfgetx3)")
+
+        composition = eiger_data.get_composition()
 
         response_from_pdfcurl = send_xy_to_pdfcurl(
             xy_filepath=str(output_xy_filepath),
