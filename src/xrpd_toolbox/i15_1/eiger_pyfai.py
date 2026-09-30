@@ -75,7 +75,7 @@ def mask_edges(
     return mask
 
 
-def apply_azimuthal_mask(frame_ais: list[AzimuthalIntegrator], lst_mask):
+def apply_azimuthal_mask_to_ais(frame_ais: list[AzimuthalIntegrator], lst_mask):
 
     for ai, img_mask in zip(frame_ais, lst_mask, strict=True):
         q_array = ai.center_array(unit="q_A^-1")
@@ -589,7 +589,7 @@ def integrate_with_goniometer(
     lst_mask = [mask.astype(bool)] * n_frames if mask is not None else None
 
     if apply_azimuthal_mask:
-        lst_mask = apply_azimuthal_mask(frame_ais=frame_ais, lst_mask=lst_mask)
+        lst_mask = apply_azimuthal_mask_to_ais(frame_ais=frame_ais, lst_mask=lst_mask)
 
     result = mg.integrate1d(
         list(images),
