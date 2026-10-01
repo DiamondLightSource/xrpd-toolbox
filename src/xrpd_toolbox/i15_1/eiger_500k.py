@@ -151,7 +151,7 @@ class EigerDataLoader:
     def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
         # the tth readback can have more points than the detector saved frames,
         # so only group the positions that have a frame
-        number_of_detector_frames = self.get_data(0).shape[0]
+        number_of_detector_frames = self.get_number_of_frames()
         positions = self.positions[:number_of_detector_frames]
         if len(positions) != len(self.positions):
             logger.warning(
@@ -231,6 +231,16 @@ class EigerDataLoader:
             return module_frame_data
         else:
             raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
+
+    def get_number_of_frames(self) -> int:
+        """Number of detector frames, read from the shape without loading any data."""
+
+        data = self.file.get(self.dataset_path)
+
+        if not isinstance(data, Dataset):
+            raise ValueError(f"No dataset at {self.dataset_path} in {self.filepath}")
+
+        return data.shape[0]
 
     @cached_property
     def mask_filepath(self):
