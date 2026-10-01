@@ -244,6 +244,21 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
     nexus_filepath.unlink(missing_ok=True)
 
 
+def _fake_reduction_that_writes_xy(tmp_path: Path):
+    # writes an xy named after the nexus file it was given, wherever asked to
+    def fake_reduction(nexus_filepath, output_xy_filepath=None):
+        if output_xy_filepath is None:
+            output_xy_filepath = (
+                tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+            )
+        output_xy_filepath = Path(output_xy_filepath)
+        output_xy_filepath.parent.mkdir(parents=True, exist_ok=True)
+        output_xy_filepath.write_text(f"reduced {Path(nexus_filepath).name}")
+        return output_xy_filepath
+
+    return fake_reduction
+
+
 def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
     tmp_path: Path,
 ):
@@ -267,22 +282,26 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
 
     with (
         patch.object(eiger_analysis, "EigerDataLoader", return_value=fake_eiger_data),
-        patch.object(eiger_analysis, "do_eiger_data_reduction") as mock_reduction,
+        patch.object(
+            eiger_analysis,
+            "do_eiger_data_reduction",
+            side_effect=_fake_reduction_that_writes_xy(tmp_path),
+        ),
         patch.object(eiger_analysis, "send_xy_to_pdfcurl") as mock_send,
     ):
-        mock_reduction.return_value = (
-            tmp_path / "processed" / "scan" / ("scan_fastcs_eiger.xy")
+        result = eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+            nexus_filepath
         )
 
-        eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
-
-    # only called once, for the main scan - the background was already found
-    # saved in processed/ so it is not regenerated
-    mock_reduction.assert_called_once_with(
-        nexus_filepath=nexus_filepath, output_xy_filepath=None
-    )
-    assert mock_send.call_args.kwargs["background_file"] == str(existing_bg_xy)
-    nexus_filepath.unlink(missing_ok=True)
+    expected_xy = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+    assert Path(result) == expected_xy
+    # the saved background is reused as-is, not regenerated
+    assert existing_bg_xy.read_text() == "previously reduced background"
+    sent = mock_send.call_args.kwargs
+    assert Path(sent["xy_filepath"]) == expected_xy
+    assert Path(sent["background_file"]) == existing_bg_xy
+    assert sent["composition"] == "SiO2"
+    assert sent["wavelength"] == 0.5
 
 
 def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
@@ -301,28 +320,54 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
         ),
     )
 
+    with (
+        patch.object(eiger_analysis, "EigerDataLoader", return_value=fake_eiger_data),
+        patch.object(
+            eiger_analysis,
+            "do_eiger_data_reduction",
+            side_effect=_fake_reduction_that_writes_xy(tmp_path),
+        ),
+        patch.object(eiger_analysis, "send_xy_to_pdfcurl") as mock_send,
+    ):
+        result = eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+            nexus_filepath
+        )
+
+    expected_xy = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
     expected_bg_xy = (
         tmp_path / "processed" / "empty_capillary" / "empty_capillary_fastcs_eiger.xy"
+    )
+    assert Path(result) == expected_xy
+    # the background was reduced from its own nexus file into processed/
+    assert expected_bg_xy.read_text() == "reduced empty_capillary.nxs"
+    sent = mock_send.call_args.kwargs
+    assert Path(sent["xy_filepath"]) == expected_xy
+    assert Path(sent["background_file"]) == expected_bg_xy
+
+
+def test_pdfcurl_reduction_sends_no_background_when_there_is_none(tmp_path: Path):
+    nexus_filepath = tmp_path / "scan.nxs"
+    nexus_filepath.touch()
+    # the background nexus file was never collected
+    bg_nexus_filepath = tmp_path / "empty_capillary.nxs"
+
+    fake_eiger_data = _fake_eiger_data(
+        get_composition=MagicMock(return_value="SiO2"),
+        get_wavelength=MagicMock(return_value=0.5),
+        get_sample_environment_scan_filepath=MagicMock(
+            return_value=str(bg_nexus_filepath)
+        ),
     )
 
     with (
         patch.object(eiger_analysis, "EigerDataLoader", return_value=fake_eiger_data),
-        patch.object(eiger_analysis, "do_eiger_data_reduction") as mock_reduction,
+        patch.object(
+            eiger_analysis,
+            "do_eiger_data_reduction",
+            side_effect=_fake_reduction_that_writes_xy(tmp_path),
+        ),
         patch.object(eiger_analysis, "send_xy_to_pdfcurl") as mock_send,
     ):
-        # return based on which file is reduced, so call order does not matter
-        def fake_reduction(nexus_filepath, output_xy_filepath):
-            if output_xy_filepath is not None:
-                return output_xy_filepath
-            return tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-
-        mock_reduction.side_effect = fake_reduction
-
         eiger_analysis.do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath)
 
-    assert mock_reduction.call_count == 2
-    mock_reduction.assert_any_call(
-        nexus_filepath=str(bg_nexus_filepath), output_xy_filepath=expected_bg_xy
-    )
-    assert mock_send.call_args.kwargs["background_file"] == str(expected_bg_xy)
-    nexus_filepath.unlink(missing_ok=True)
+    assert mock_send.call_args.kwargs["background_file"] is None

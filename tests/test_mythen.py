@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -84,21 +85,22 @@ def test_mythen_load_fails_when_incorrect_file_extension(
         mythen_settings.save_to_toml(file_path)
 
 
-def test_mythen_data_reduction():
+def test_mythen_data_reduction(tmp_path: Path):
+    # reduction writes into the nexus file, so work on a copy - the nexus
+    # links to its mythen data file by name, so that is copied alongside it
+    nexus_filepath = tmp_path / SI_DATA_FILE.name
+    shutil.copy(SI_DATA_FILE, nexus_filepath)
+    shutil.copy(SI_DATA_FILE.parent / "mythen3_1410696.hdf5", tmp_path)
 
-    detector = MythenDetector(filepath=SI_DATA_FILE, filename_suffix="_test")
+    detector = MythenDetector(filepath=nexus_filepath, filename_suffix="_test")
 
     detector.process_step_scan(control=False)
 
-    assert str(detector.output_directory) == str(SI_DATA_FILE.parent / "processed")
+    assert str(detector.output_directory) == str(tmp_path / "processed")
     assert Path(detector.xye_filepath_out).exists()
-    assert str(Path(detector.xye_filepath_out).parent) == str(
-        SI_DATA_FILE.parent / "processed"
-    )
+    assert str(Path(detector.xye_filepath_out).parent) == str(tmp_path / "processed")
 
     _ = XYEData.from_csv(detector.xye_filepath_out)
-
-    os.remove(detector.xye_filepath_out)
 
 
 def test_data_reduction_mode_validation():
