@@ -103,7 +103,7 @@ def do_eiger_goniometer_calibration(
     unique_positions = eiger_data.get_unique_tth_positions()
 
     # not normalised: a bad i0 shouldn't stop a calibration
-    summed_and_masked_frames = eiger_data.get_summed_and_masked_frames()
+    summed_and_masked_frames = eiger_data.get_frames(mask=True, normalise=False)
 
     if use_frames is not None:
         unique_positions = unique_positions[use_frames]
@@ -164,16 +164,32 @@ def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
     return max(goniometer_models, key=lambda path: path.stat().st_mtime)
 
 
+def get_i15_1_polarisation_factor(energy_kev: float):
+    # calculated by SHADOW by John Sutter in 2017
+    if abs(energy_kev - 40) < 1:
+        # if 40kev
+        return 0.9177
+    elif abs(energy_kev - 65.3) < 1:
+        return 0.9393
+    elif abs(energy_kev - 76.6) < 1:
+        return 0.9455
+    else:
+        raise AttributeError(f"No known polarisation factor for {energy_kev=} ")
+
+
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
-    apply_absorption_correction: bool = False,
-    apply_azimuthal_mask: bool = False,
+    apply_absorption_correction: bool = True,
+    apply_azimuthal_mask: bool = True,
     edge_mask_width: tuple[int, int] | None = (10, 10),
+    polarization_factor: float | None = None,
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
     known_peak_markers: list[float] | None = None,
     data_type: str = "pxrd",
+    publish: bool = True,
     save_xye: bool = False,
+    save_in_q: bool = False,
 ) -> Path:
     """Reduce a scan to an .xy file with the saved goniometer."""
 
@@ -182,10 +198,14 @@ def do_eiger_data_reduction(
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
-    summed_and_normalised_frames = eiger_data.get_summed_and_normalised_frames()
+    summed_and_normalised_frames = eiger_data.get_frames(mask=True, normalise=True)
 
     unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
+    energy_kev = eiger_data.energy_kev
+
+    if polarization_factor is None:
+        polarization_factor = get_i15_1_polarisation_factor(energy_kev=energy_kev)
 
     if edge_mask_width is not None and mask is not None:
         edge_mask = mask_edges(
@@ -222,29 +242,61 @@ def do_eiger_data_reduction(
         mask=mask,
         output_xy_filepath=output_xy_filepath,
         npt=DEFAULT_NPT,
+        polarization_factor=polarization_factor,
         apply_absorption_correction=apply_absorption_correction,
         apply_azimuthal_mask=apply_azimuthal_mask,
         save_xye=save_xye,
+        save_in_q=save_in_q,
     )
 
-    try:
-        data_plot = DataPlot.from_csv(output_xy_filepath)
-        data_plot.x_label = "2θ (deg)"
-        data_plot.data_type = data_type
+    if publish:
+        try:
+            data_plot = DataPlot.from_csv(output_xy_filepath)
+            data_plot.x_label = "2θ (deg)"
+            data_plot.data_type = data_type
 
-        if known_peak_markers is not None:
-            data_plot = FittedDataPlot(
-                **data_plot.model_dump(),
-                calc=data_plot.y,
-                markers=list(known_peak_markers),
-            )
+            if known_peak_markers is not None:
+                data_plot = FittedDataPlot(
+                    **data_plot.model_dump(),
+                    calc=data_plot.y,
+                    markers=list(known_peak_markers),
+                )
 
-        data_plot.publish(beamline="i15-1")
+            data_plot.publish(beamline="i15-1")
 
-    except Exception as e:
-        logger.error(e)
+        except Exception as e:
+            logger.error(e)
 
     return output_xy_filepath
+
+
+def _get_background_xy_filepath(eiger_data: EigerDataLoader) -> str | None:
+    """Finds the empty capillary background xy in processed/, reducing it from
+    its nexus file if it hasn't been reduced yet. None if there's no background."""
+
+    try:
+        background_nexus_filepath = eiger_data.get_sample_environment_scan_filepath()
+        bg_processed_dir, bg_file_name = processed_directory_and_filename(
+            background_nexus_filepath
+        )
+        background_file_xy = Path(bg_processed_dir) / (
+            bg_file_name + "_fastcs_eiger.xy"
+        )
+
+        if not Path(background_nexus_filepath).exists():
+            raise FileNotFoundError(f"{background_nexus_filepath} does not exist")
+
+        if not background_file_xy.exists():
+            do_eiger_data_reduction(
+                nexus_filepath=background_nexus_filepath,
+                output_xy_filepath=background_file_xy,
+            )
+
+        return str(background_file_xy)
+
+    except Exception as e:
+        logger.error(f"No background used for pdf conversion: {e}")
+        return None
 
 
 def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
@@ -256,42 +308,17 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
         nexus_filepath=nexus_filepath, output_xy_filepath=output_xy_filepath
     )
 
+    eiger_data = EigerDataLoader(nexus_filepath)
+    background_file_xy = _get_background_xy_filepath(eiger_data)
+
     try:
-        eiger_data = EigerDataLoader(nexus_filepath)
-
-        wavelength = eiger_data.get_wavelength()
-        sample_environment_filepath = eiger_data.get_sample_environment_scan_filepath()
-        bg_processed_dir, bg_file_name = processed_directory_and_filename(
-            sample_environment_filepath
-        )
-        background_file_xy = Path(bg_processed_dir) / (
-            bg_file_name + "_fastcs_eiger.xy"
-        )
-
-        if not background_file_xy.exists():
-            try:
-                background_file_xy = do_eiger_data_reduction(
-                    nexus_filepath=sample_environment_filepath,
-                    output_xy_filepath=background_file_xy,
-                )
-            except Exception as e:
-                logger.error(
-                    f"No background xy present, no background nxs present: {e}"
-                )
-                logger.error("No background used for pdf conversion")
-                background_file_xy = None
-
         logger.info("Sending xy to pdfcurl (pdfgetx3)")
-
-        composition = eiger_data.get_composition()
-
         response_from_pdfcurl = send_xy_to_pdfcurl(
             xy_filepath=str(output_xy_filepath),
-            composition=composition,
-            wavelength=wavelength,
-            background_file=str(background_file_xy),
+            composition=eiger_data.get_composition(),
+            wavelength=eiger_data.get_wavelength(),
+            background_file=background_file_xy,
         )
-
         logger.info(response_from_pdfcurl)
 
     except Exception as e:
@@ -327,32 +354,43 @@ def run_eiger_analysis(nexus_filepath: str | Path):
 
 
 # if __name__ == "__main__":
+
+#     def plot_final_data(output_xy: str | Path, title: str = ""):
+
+#         import matplotlib.pyplot as plt
+#         import numpy as np
+
+#         x, y = np.genfromtxt(str(output_xy), unpack=True)
+
+#         plt.title(title)
+#         plt.plot(x, y)
+#         plt.show()
+
 #     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
 
 #     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+#     # cal_nexus_filepath = (
+#     #     "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+#     # )
 
-#     goniometer_filepath = Path(
-#         "/workspaces/outputs/i15-1/processed/i15-1-98779_2026-09-29_16-10-03_eiger_goniometer_calibration.json" #noqa
-#     )
+#     # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
+#     #     cal_nexus_filepath,
+#     #     calibrant_name="W",
+#     #     plot_fits=True,
+#     #     show_plots=False,
+#     #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
+#     # )
 
-#     do_eiger_data_reduction(
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+
+#     output_xy = do_eiger_data_reduction(
 #         nexus_filepath,
-#         goniometer_filepath=goniometer_filepath,
 #         edge_mask_width=(10, 10),
-#         apply_absorption_correction=False,
-#         apply_azimuthal_mask=False,
+#         apply_absorption_correction=True,
+#         apply_azimuthal_mask=True,
+#         polarization_factor=0.95,
+#         publish=False,
 #     )
 
-#     quit()
-
-# goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
-#     nexus_filepath,
-#     calibrant_name="W",
-#     plot_fits=True,
-#     show_plots=False,
-#     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
-# )
-
-# print(goniometer_cal_filepath)
+#     plot_final_data(output_xy, title="polarisation: 0.95")

@@ -18,7 +18,10 @@ from xrpd_toolbox.i15_1.eiger_500k import (
     PIXEL_SIZE,
     Eiger500K,
 )
-from xrpd_toolbox.i15_1.eiger_goniometer_models import YAW_GEOMETRY_TRANSFORMATION
+from xrpd_toolbox.i15_1.eiger_goniometer_models import (
+    VERTICAL_SWING_ROT3,
+    YAW_GEOMETRY_TRANSFORMATION,
+)
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
@@ -814,7 +817,12 @@ def test_predict_frame_advances_rot1_by_arm_step():
     first = SimpleNamespace(
         metadata=10.0,
         geometry_refinement=SimpleNamespace(
-            dist=0.25, poni1=0.02, poni2=0.04, rot1=0.1, rot2=0.0, rot3=0.0
+            dist=0.25,
+            poni1=0.02,
+            poni2=0.04,
+            rot1=0.1,
+            rot2=0.0,
+            rot3=VERTICAL_SWING_ROT3,
         ),
     )
     gonioref = eiger_pyfai._start_goniometer(
@@ -832,7 +840,7 @@ def test_predict_frame_advances_rot1_by_arm_step():
     assert seed["poni1"] == pytest.approx(0.02)
     assert seed["poni2"] == pytest.approx(0.04)
     assert seed["rot2"] == pytest.approx(0.0, abs=1e-12)
-    assert seed["rot3"] == pytest.approx(0.0, abs=1e-12)
+    assert seed["rot3"] == pytest.approx(VERTICAL_SWING_ROT3, abs=1e-12)
 
 
 def test_fix_between_frames_keeps_wavelength_fixed():
@@ -865,7 +873,8 @@ def test_geometry_transformation_is_arm_about_yawed_axis(two_theta):
     arm = params["rot1_scale"] * t + params["rot1_quad"] * t**2 + params["rot1_offset"]
     yaw = params["yaw"]
     expected = (
-        _pyfai_rotation(rot3=yaw)
+        _pyfai_rotation(rot3=VERTICAL_SWING_ROT3)
+        @ _pyfai_rotation(rot3=yaw)
         @ _pyfai_rotation(rot1=arm)
         @ _pyfai_rotation(rot3=params["rot3"] - yaw)
         @ _pyfai_rotation(rot2=params["rot2"])
