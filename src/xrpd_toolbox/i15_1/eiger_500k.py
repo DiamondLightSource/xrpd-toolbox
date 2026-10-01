@@ -97,6 +97,11 @@ class EigerDataLoader:
 
         self.dataset_path = eiger_data_path
 
+        if len(self.positions) != self.get_data(0).shape[0]:
+            logger.warning(
+                f"{len(self.positions)} tth but {self.get_data(0).shape[0]} frames!"
+            )
+
     @property
     def file(self) -> File:
         if self._file is None:
@@ -150,7 +155,18 @@ class EigerDataLoader:
 
     @cached_property
     def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
-        labels, group_tth = group_positions(self.positions)
+        # the tth readback can have more points than the detector saved frames,
+        # so only group the positions that have a frame
+        number_of_detector_frames = self.file[self.dataset_path].shape[0]
+        positions = self.positions[:number_of_detector_frames]
+        if len(positions) != len(self.positions):
+            logger.warning(
+                "%d tth positions but only %d detector frames, ignoring the extras",
+                len(self.positions),
+                number_of_detector_frames,
+            )
+
+        labels, group_tth = group_positions(positions)
         counts = np.bincount(labels, minlength=len(group_tth))
         logger.info(
             "Grouped %d frames into %d two-theta positions", labels.size, counts.size

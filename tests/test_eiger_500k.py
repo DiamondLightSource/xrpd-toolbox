@@ -234,6 +234,22 @@ def test_sum_frames_at_each_two_theta_position_only_sums(tmp_path):
     assert np.allclose(result[1], 5.0)
 
 
+def test_get_frames_ignores_tth_positions_without_a_frame(tmp_path):
+    # the tth readback can log more points than the detector saved frames
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(6.0),
+        tth=np.array([1.0, 1.0]),
+        i0=np.array([2.0, 2.0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.get_frames(mask=False, normalise=True)
+
+    assert result.shape == (1, 4, 5)
+    assert np.allclose(result[0], 6.0 / 2.0)
+
+
 def test_get_frames_normalises_each_position(tmp_path):
     nxs = build_eiger_nexus(
         tmp_path / "scan.nxs",
