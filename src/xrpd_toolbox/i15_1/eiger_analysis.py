@@ -372,11 +372,9 @@ if __name__ == "__main__":
 
     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
 
-    # cal_nexus_filepath = (
-    #     "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
-    # )
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
     # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
     #     cal_nexus_filepath,
@@ -393,8 +391,7 @@ if __name__ == "__main__":
         edge_mask_width=(10, 10),
         apply_absorption_correction=True,
         apply_azimuthal_mask=True,
-        polarization_factor=0.95,
         publish=False,
     )
 
-#     plot_final_data(output_xy, title="polarisation: 0.95")
+    plot_final_data(output_xy, title="polarisation: 0.95")

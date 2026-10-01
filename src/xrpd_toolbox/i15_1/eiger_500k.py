@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 
 # the tth readback jitters by ~6e-5 deg
 TTH_GROUP_TOLERANCE_DEG = 1e-3
-SUM_CHUNK_FRAMES = 100
 
 
 def gonio_from_json_string(json_str: str):
@@ -97,11 +96,6 @@ class EigerDataLoader:
 
         self.dataset_path = eiger_data_path
 
-        if len(self.positions) != self.get_data(0).shape[0]:
-            logger.warning(
-                f"{len(self.positions)} tth but {self.get_data(0).shape[0]} frames!"
-            )
-
     @property
     def file(self) -> File:
         if self._file is None:
@@ -157,7 +151,7 @@ class EigerDataLoader:
     def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
         # the tth readback can have more points than the detector saved frames,
         # so only group the positions that have a frame
-        number_of_detector_frames = self.file[self.dataset_path].shape[0]
+        number_of_detector_frames = self.get_data(0).shape[0]
         positions = self.positions[:number_of_detector_frames]
         if len(positions) != len(self.positions):
             logger.warning(
@@ -356,15 +350,11 @@ class EigerDataLoader:
         image_shape = self.get_data(0).shape
         summed_frames = np.zeros((number_of_positions, *image_shape), dtype=np.float64)
 
-        # read a chunk of frames at a time so a large scan doesn't all load at once
-        for chunk_start in range(0, number_of_frames, SUM_CHUNK_FRAMES):
-            chunk_end = min(chunk_start + SUM_CHUNK_FRAMES, number_of_frames)
-            frames_in_chunk = np.asarray(self.get_data(slice(chunk_start, chunk_end)))
-
-            for frame_index in range(chunk_start, chunk_end):
-                frame = frames_in_chunk[frame_index - chunk_start]
-                position_index = position_index_of_each_frame[frame_index]
-                summed_frames[position_index] += frame
+        # read one frame at a time so a large scan doesn't all load at once
+        for frame_index in range(number_of_frames):
+            frame = self.get_data(frame_index)
+            position_index = position_index_of_each_frame[frame_index]
+            summed_frames[position_index] += frame
 
         return summed_frames
 
