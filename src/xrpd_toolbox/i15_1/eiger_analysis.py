@@ -247,15 +247,33 @@ def do_eiger_data_reduction(
     return output_xy_filepath
 
 
-def _get_background_info(eiger_data: EigerDataLoader):
+def _get_background_xy_filepath(eiger_data: EigerDataLoader) -> str | None:
+    """Finds the empty capillary background xy in processed/, reducing it from
+    its nexus file if it hasn't been reduced yet. None if there's no background."""
 
-    background_nexus_filepath = eiger_data.get_sample_environment_scan_filepath()
-    bg_processed_dir, bg_file_name = processed_directory_and_filename(
-        background_nexus_filepath
-    )
-    background_file_xy = Path(bg_processed_dir) / (bg_file_name + "_fastcs_eiger.xy")
+    try:
+        background_nexus_filepath = eiger_data.get_sample_environment_scan_filepath()
+        bg_processed_dir, bg_file_name = processed_directory_and_filename(
+            background_nexus_filepath
+        )
+        background_file_xy = Path(bg_processed_dir) / (
+            bg_file_name + "_fastcs_eiger.xy"
+        )
 
-    return Path(background_nexus_filepath), background_file_xy
+        if not Path(background_nexus_filepath).exists():
+            raise FileNotFoundError(f"{background_nexus_filepath} does not exist")
+
+        if not background_file_xy.exists():
+            do_eiger_data_reduction(
+                nexus_filepath=background_nexus_filepath,
+                output_xy_filepath=background_file_xy,
+            )
+
+        return str(background_file_xy)
+
+    except Exception as e:
+        logger.error(f"No background used for pdf conversion: {e}")
+        return None
 
 
 def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
@@ -268,49 +286,16 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     )
 
     eiger_data = EigerDataLoader(nexus_filepath)
-    wavelength = eiger_data.get_wavelength()
-
-    try:
-        background_nexus_filepath, background_file_xy = _get_background_info(
-            eiger_data=eiger_data
-        )
-    except Exception as e:
-        logger.error(e)
-        background_nexus_filepath = None
-        background_file_xy = None
-
-    if (
-        background_nexus_filepath is not None
-        and background_nexus_filepath.exists()
-        and background_file_xy is not None
-        and not background_file_xy.exists()
-    ):
-        try:
-            background_file_xy = do_eiger_data_reduction(
-                nexus_filepath=background_nexus_filepath,
-                output_xy_filepath=background_file_xy,
-            )
-        except Exception as e:
-            logger.error(f"No background xy present, no background nxs present: {e}")
-            logger.error("No background used for pdf conversion")
-            background_file_xy = None
-
-    # pdfcurl wants a filepath string, or None for no background
-    if background_file_xy is not None and Path(background_file_xy).exists():
-        background_file_xy = str(background_file_xy)
-    else:
-        background_file_xy = None
+    background_file_xy = _get_background_xy_filepath(eiger_data)
 
     try:
         logger.info("Sending xy to pdfcurl (pdfgetx3)")
-        composition = eiger_data.get_composition()
         response_from_pdfcurl = send_xy_to_pdfcurl(
             xy_filepath=str(output_xy_filepath),
-            composition=composition,
-            wavelength=wavelength,
+            composition=eiger_data.get_composition(),
+            wavelength=eiger_data.get_wavelength(),
             background_file=background_file_xy,
         )
-
         logger.info(response_from_pdfcurl)
 
     except Exception as e:
@@ -345,24 +330,34 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-# if __name__ == "__main__":
-#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
+def plot_final_data(output_xy: str | Path):
 
-#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+    import matplotlib.pyplot as plt
+    import numpy as np
 
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+    x, y = np.genfromtxt(str(output_xy), unpack=True)
 
-#     goniometer_filepath = Path(
-#         "/workspaces/outputs/i15-1/processed/i15-1-98779_2026-09-29_16-10-03_eiger_goniometer_calibration.json" #noqa
-#     )
+    plt.plot(x, y)
+    plt.show()
 
-#     do_eiger_data_reduction(
-#         nexus_filepath,
-#         goniometer_filepath=goniometer_filepath,
-#         edge_mask_width=(10, 10),
-#         apply_absorption_correction=False,
-#         apply_azimuthal_mask=False,
-#     )
+
+if __name__ == "__main__":
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
+
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+
+    output_xy = do_eiger_data_reduction(
+        nexus_filepath,
+        edge_mask_width=(0, 0),
+        apply_absorption_correction=False,
+        apply_azimuthal_mask=False,
+    )
+
+    plot_final_data(output_xy)
 
 #     quit()
 
