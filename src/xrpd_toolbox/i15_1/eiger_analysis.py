@@ -164,12 +164,25 @@ def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
     return max(goniometer_models, key=lambda path: path.stat().st_mtime)
 
 
+def get_i15_1_polarisation_factor(energy_kev: float):
+    # calculated by SHADOW by John Sutter in 2017
+    if abs(energy_kev - 40) < 1:
+        # if 40kev
+        return 0.9177
+    elif abs(energy_kev - 65.3) < 1:
+        return 0.9393
+    elif abs(energy_kev - 76.6) < 1:
+        return 0.9455
+    else:
+        raise AttributeError(f"No known polarisation factor for {energy_kev=} ")
+
+
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
     apply_absorption_correction: bool = True,
     apply_azimuthal_mask: bool = False,
     edge_mask_width: tuple[int, int] | None = (0, 0),
-    polarization_factor: float = 0.9455,  # calculated by SHADOW by John Sutter in 2017
+    polarization_factor: float | None = None,
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
     known_peak_markers: list[float] | None = None,
@@ -189,6 +202,10 @@ def do_eiger_data_reduction(
 
     unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
+    energy_kev = eiger_data.energy_kev
+
+    if polarization_factor is None:
+        polarization_factor = get_i15_1_polarisation_factor(energy_kev=energy_kev)
 
     if edge_mask_width is not None and mask is not None:
         edge_mask = mask_edges(
