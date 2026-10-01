@@ -176,6 +176,7 @@ def do_eiger_data_reduction(
     data_type: str = "pxrd",
     publish: bool = True,
     save_xye: bool = False,
+    save_in_q: bool = False,
 ) -> Path:
     """Reduce a scan to an .xy file with the saved goniometer."""
 
@@ -228,6 +229,7 @@ def do_eiger_data_reduction(
         apply_absorption_correction=apply_absorption_correction,
         apply_azimuthal_mask=apply_azimuthal_mask,
         save_xye=save_xye,
+        save_in_q=save_in_q,
     )
 
     if publish:

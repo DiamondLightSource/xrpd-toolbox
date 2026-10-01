@@ -31,7 +31,7 @@ from xrpd_toolbox.i15_1.eiger_goniometer_models import (
     GEOMETRY_TRANSFORMATION,
     VERTICAL_SWING_ROT3,
 )
-from xrpd_toolbox.utils.unit_conversion import wavelength_to_beam_energy
+from xrpd_toolbox.utils.unit_conversion import two_theta_to_q, wavelength_to_beam_energy
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
 
 logger = logging.getLogger(__name__)
@@ -555,6 +555,7 @@ def integrate_with_goniometer(
     error_model: Literal["poisson", "azimuthal"] = "azimuthal",
     unit: str = "2th_deg",
     save_xye: bool = False,
+    save_in_q: bool = False,
     wavelength: float | None = None,
     apply_absorption_correction: bool = False,
     apply_azimuthal_mask: bool = False,
@@ -628,6 +629,16 @@ def integrate_with_goniometer(
         comments="",
         fmt="%.8g",
     )
+
+    if save_in_q:
+        q_space = two_theta_to_q(tth=tth, wavelength=wavelength * 1e10)
+
+        np.savetxt(
+            str(output_xy_filepath),
+            np.column_stack([q_space, intensity]),
+            comments="",
+            fmt="%.8g",
+        )
 
     if save_xye:
         np.savetxt(
