@@ -355,43 +355,43 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    def plot_final_data(output_xy: str | Path, title: str = ""):
+#     def plot_final_data(output_xy: str | Path, title: str = ""):
 
-        import matplotlib.pyplot as plt
-        import numpy as np
+#         import matplotlib.pyplot as plt
+#         import numpy as np
 
-        x, y = np.genfromtxt(str(output_xy), unpack=True)
+#         x, y = np.genfromtxt(str(output_xy), unpack=True)
 
-        plt.title(title)
-        plt.plot(x, y)
-        plt.show()
+#         plt.title(title)
+#         plt.plot(x, y)
+#         plt.show()
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
+#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
+#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
-    # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
-    #     cal_nexus_filepath,
-    #     calibrant_name="W",
-    #     plot_fits=True,
-    #     show_plots=False,
-    #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
-    # )
+#     # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
+#     #     cal_nexus_filepath,
+#     #     calibrant_name="W",
+#     #     plot_fits=True,
+#     #     show_plots=False,
+#     #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
+#     # )
 
-    #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+#     #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
 
-    output_xy = do_eiger_data_reduction(
-        nexus_filepath,
-        edge_mask_width=(10, 10),
-        apply_absorption_correction=True,
-        apply_azimuthal_mask=True,
-        publish=False,
-    )
+#     output_xy = do_eiger_data_reduction(
+#         nexus_filepath,
+#         edge_mask_width=(10, 10),
+#         apply_absorption_correction=True,
+#         apply_azimuthal_mask=True,
+#         publish=False,
+#     )
 
-    plot_final_data(output_xy, title="polarisation: 0.95")
+#     plot_final_data(output_xy, title="polarisation: 0.95")
