@@ -131,6 +131,22 @@ def test_get_data_non_dataset_raises(tmp_path):
         loader.get_data(slice(None))
 
 
+def test_get_number_of_frames(tmp_path):
+    # frame count differs from rows so it can't be confused with the image shape
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", n_frames=7, rows=4, cols=5)
+    loader = EigerDataLoader(nxs)
+
+    assert loader.get_number_of_frames() == 7
+
+
+def test_get_number_of_frames_missing_dataset_raises(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs", include_data=False)
+    loader = EigerDataLoader(nxs)
+
+    with pytest.raises(ValueError, match="No dataset"):
+        loader.get_number_of_frames()
+
+
 def test_get_pixel_mask_filepath_and_datapath_direct(nexus_file):
     loader = EigerDataLoader(nexus_file)
 
