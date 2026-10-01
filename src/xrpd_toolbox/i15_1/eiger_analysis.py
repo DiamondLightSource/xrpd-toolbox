@@ -103,7 +103,7 @@ def do_eiger_goniometer_calibration(
     unique_positions = eiger_data.get_unique_tth_positions()
 
     # not normalised: a bad i0 shouldn't stop a calibration
-    summed_and_masked_frames = eiger_data.get_summed_and_masked_frames()
+    summed_and_masked_frames = eiger_data.get_frames(mask=True, normalise=False)
 
     if use_frames is not None:
         unique_positions = unique_positions[use_frames]
@@ -182,7 +182,7 @@ def do_eiger_data_reduction(
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
-    summed_and_normalised_frames = eiger_data.get_summed_and_normalised_frames()
+    summed_and_normalised_frames = eiger_data.get_frames(mask=True, normalise=True)
 
     unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()

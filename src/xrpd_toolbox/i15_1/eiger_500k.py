@@ -71,13 +71,6 @@ def group_positions(
     return labels, means
 
 
-def _contiguous_runs(labels: np.ndarray) -> list[slice]:
-    """Slices over which `labels` doesn't change."""
-    starts = np.flatnonzero(np.diff(labels)) + 1
-    bounds = np.concatenate([[0], starts, [labels.size]])
-    return [slice(a, b) for a, b in zip(bounds[:-1], bounds[1:], strict=True)]
-
-
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """Zero the masked (nonzero) pixels in every frame."""
 
@@ -329,32 +322,68 @@ class EigerDataLoader:
 
         return self._read_string(composition_path)
 
-    def get_summed_and_normalised_frames(self) -> np.ndarray:
-        summed_and_normalised_frames = (
-            self.sum_unique_two_theta_positions_and_normalise()
-        )
+    def sum_frames_at_each_two_theta_position(self) -> np.ndarray:
+        """Adds up every frame taken at the same two-theta position.
 
-        return summed_and_normalised_frames
+        Returns one image per position, in ascending two-theta order.
+        """
 
-    def get_summed_and_masked_frames(self) -> np.ndarray:
-        """Summed and masked but not normalised, for calibration."""
+        position_index_of_each_frame, unique_positions = self.tth_groups
 
-        summed_frames = self.sum_unique_two_theta_positions_and_normalise(
-            normalise=False
-        )
+        number_of_frames = len(position_index_of_each_frame)
+        number_of_positions = len(unique_positions)
 
-        return apply_mask(image_frames=summed_frames, mask=self.get_mask())
+        if number_of_frames == 0:
+            raise ValueError(f"No frames to sum in {self.filepath}")
 
-    def get_summed_normalised_and_masked_frames(self) -> np.ndarray:
+        image_shape = self.file[self.dataset_path].shape[1:]
+        summed_frames = np.zeros((number_of_positions, *image_shape), dtype=np.float64)
 
-        summed_and_normalised_frames = self.get_summed_and_normalised_frames()
-        mask = self.get_mask()
+        # read a chunk of frames at a time so a large scan doesn't all load at once
+        for chunk_start in range(0, number_of_frames, SUM_CHUNK_FRAMES):
+            chunk_end = min(chunk_start + SUM_CHUNK_FRAMES, number_of_frames)
+            frames_in_chunk = np.asarray(self.get_data(slice(chunk_start, chunk_end)))
 
-        summed_normalised_and_masked_frames = apply_mask(
-            image_frames=summed_and_normalised_frames, mask=mask
-        )
+            for frame_index in range(chunk_start, chunk_end):
+                frame = frames_in_chunk[frame_index - chunk_start]
+                position_index = position_index_of_each_frame[frame_index]
+                summed_frames[position_index] += frame
 
-        return summed_normalised_and_masked_frames
+        return summed_frames
+
+    def i0_at_tth_position(self) -> np.ndarray:
+        """Total i0 of all the frames at each two-theta position."""
+
+        position_index_of_each_frame, unique_positions = self.tth_groups
+        i0_of_each_frame = self.get_i0(abs=True)
+
+        total_i0_at_each_position = np.zeros(len(unique_positions))
+        for frame_index, position_index in enumerate(position_index_of_each_frame):
+            i0 = i0_of_each_frame[frame_index]
+            total_i0_at_each_position[position_index] += i0
+
+        return total_i0_at_each_position
+
+    def get_frames(self, mask: bool, normalise: bool):
+        """One summed image per two-theta position.
+
+        With normalise, each image is divided by the total i0 at that position.
+        """
+
+        summed_frames = self.sum_frames_at_each_two_theta_position()
+
+        if mask:
+            summed_frames = apply_mask(image_frames=summed_frames, mask=self.get_mask())
+
+        if normalise:
+            i0_at_each_position = self.i0_at_tth_position()
+        else:
+            i0_at_each_position = np.ones(len(summed_frames))
+
+        # one i0 value per image, so each whole image is divided by its own i0
+        i0_per_image = i0_at_each_position.reshape(-1, 1, 1)
+
+        return summed_frames / i0_per_image
 
     @property
     def i0(self) -> np.ndarray:
@@ -388,38 +417,6 @@ class EigerDataLoader:
             totals[n] = np.nansum(data[index] * mask, dtype=np.float64)
 
         return totals
-
-    def sum_unique_two_theta_positions_and_normalise(
-        self, normalise: bool = True
-    ) -> np.ndarray:
-        """One summed image per two-theta position, divided by its total i0.
-
-        Without normalise that's the mean frame at each position.
-        """
-
-        labels, group_tth = self.tth_groups
-        i0 = self.get_i0(abs=True) if normalise else np.ones(labels.size)
-
-        summed_frames: np.ndarray | None = None
-        summed_i0 = np.zeros(len(group_tth))
-
-        # chunked so a position with ~1000 frames doesn't all load at once
-        for run in _contiguous_runs(labels):
-            group = labels[run.start]
-            for start in range(run.start, run.stop, SUM_CHUNK_FRAMES):
-                chunk = slice(start, min(start + SUM_CHUNK_FRAMES, run.stop))
-                frames = np.asarray(self.get_data(chunk))
-                if summed_frames is None:
-                    summed_frames = np.zeros(
-                        (len(group_tth), *frames.shape[1:]), dtype=np.float64
-                    )
-                summed_frames[group] += frames.sum(axis=0, dtype=np.float64)
-                summed_i0[group] += i0[chunk].sum()
-
-        if summed_frames is None:
-            raise ValueError(f"No frames to sum in {self.filepath}")
-
-        return summed_frames / summed_i0[:, np.newaxis, np.newaxis]
 
     def get_goniometer_calibration(self) -> Goniometer | None:
 
