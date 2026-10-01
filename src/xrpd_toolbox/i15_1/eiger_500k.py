@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 
 # the tth readback jitters by ~6e-5 deg
 TTH_GROUP_TOLERANCE_DEG = 1e-3
-SUM_CHUNK_FRAMES = 100
 
 
 def gonio_from_json_string(json_str: str):
@@ -150,7 +149,18 @@ class EigerDataLoader:
 
     @cached_property
     def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
-        labels, group_tth = group_positions(self.positions)
+        # the tth readback can have more points than the detector saved frames,
+        # so only group the positions that have a frame
+        number_of_detector_frames = self.get_number_of_frames()
+        positions = self.positions[:number_of_detector_frames]
+        if len(positions) != len(self.positions):
+            logger.warning(
+                "%d tth positions but only %d detector frames, ignoring the extras",
+                len(self.positions),
+                number_of_detector_frames,
+            )
+
+        labels, group_tth = group_positions(positions)
         counts = np.bincount(labels, minlength=len(group_tth))
         logger.info(
             "Grouped %d frames into %d two-theta positions", labels.size, counts.size
@@ -221,6 +231,16 @@ class EigerDataLoader:
             return module_frame_data
         else:
             raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
+
+    def get_number_of_frames(self) -> int:
+        """Number of detector frames, read from the shape without loading any data."""
+
+        data = self.file.get(self.dataset_path)
+
+        if not isinstance(data, Dataset):
+            raise ValueError(f"No dataset at {self.dataset_path} in {self.filepath}")
+
+        return data.shape[0]
 
     @cached_property
     def mask_filepath(self):
@@ -340,15 +360,11 @@ class EigerDataLoader:
         image_shape = self.get_data(0).shape
         summed_frames = np.zeros((number_of_positions, *image_shape), dtype=np.float64)
 
-        # read a chunk of frames at a time so a large scan doesn't all load at once
-        for chunk_start in range(0, number_of_frames, SUM_CHUNK_FRAMES):
-            chunk_end = min(chunk_start + SUM_CHUNK_FRAMES, number_of_frames)
-            frames_in_chunk = np.asarray(self.get_data(slice(chunk_start, chunk_end)))
-
-            for frame_index in range(chunk_start, chunk_end):
-                frame = frames_in_chunk[frame_index - chunk_start]
-                position_index = position_index_of_each_frame[frame_index]
-                summed_frames[position_index] += frame
+        # read one frame at a time so a large scan doesn't all load at once
+        for frame_index in range(number_of_frames):
+            frame = self.get_data(frame_index)
+            position_index = position_index_of_each_frame[frame_index]
+            summed_frames[position_index] += frame
 
         return summed_frames
 
