@@ -166,7 +166,7 @@ def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
 
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
-    apply_absorption_correction: bool = False,
+    apply_absorption_correction: bool = True,
     apply_azimuthal_mask: bool = False,
     edge_mask_width: tuple[int, int] | None = (0, 0),
     polarization_factor: float = 0.9455,  # calculated by SHADOW by John Sutter in 2017
