@@ -110,6 +110,7 @@ def _fake_eiger_data(**overrides):
     fake.get_summed_and_normalised_frames.return_value = np.zeros((2, 4, 5))
     fake.get_mask.return_value = None
     fake.wavelength = 1.0
+    fake.energy_kev = 40.0
     fake.get_wavelength_in_m.return_value = 1e-10
     for key, value in overrides.items():
         setattr(fake, key, value)
