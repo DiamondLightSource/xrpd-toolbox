@@ -336,7 +336,7 @@ class EigerDataLoader:
         if number_of_frames == 0:
             raise ValueError(f"No frames to sum in {self.filepath}")
 
-        image_shape = self.file[self.dataset_path].shape[1:]
+        image_shape = self.get_data(0).shape
         summed_frames = np.zeros((number_of_positions, *image_shape), dtype=np.float64)
 
         # read a chunk of frames at a time so a large scan doesn't all load at once
@@ -358,9 +358,12 @@ class EigerDataLoader:
         i0_of_each_frame = self.get_i0(abs=True)
 
         total_i0_at_each_position = np.zeros(len(unique_positions))
-        for frame_index, position_index in enumerate(position_index_of_each_frame):
-            i0 = i0_of_each_frame[frame_index]
-            total_i0_at_each_position[position_index] += i0
+        for position_index in range(len(unique_positions)):
+            frames_at_position = np.where(
+                position_index_of_each_frame == position_index
+            )
+            i0_at_position = i0_of_each_frame[frames_at_position]
+            total_i0_at_each_position[position_index] = np.sum(i0_at_position)
 
         return total_i0_at_each_position
 
