@@ -2,12 +2,27 @@
 
 Each model turns the arm's motor position (two_theta, in degrees) into the six
 pyFAI parameters for that frame. GEOMETRY_VERSION picks the one that's used.
+
+The arm moves along the detector's long axis, which pyFAI fits as rot1 (a turn
+about pyFAI's axis 1). In the lab the arm swings vertically, so every model adds
+VERTICAL_SWING_ROT3 to rot3.
 """
+
+import math
 
 from pyFAI.goniometer import GeometryTransformation
 
 # numexpr can't call np.deg2rad
 TWO_THETA_RAD = "(two_theta * 0.017453292519943295)"
+
+# pyFAI applies rot3 last, as a turn of the whole geometry about the beam, so 90°
+# on rot3 turns the arm's swing from horizontal to vertical. The rings are the same
+# either way, only chi changes - which is what the polarization correction uses.
+
+# we could just fix this to 90deg in radians, but if we do refine rot3, then this works
+# better
+
+VERTICAL_SWING_ROT3 = math.pi / 2
 
 
 # 1. Rigid arm, where everything is perfectly aligned - only rot1 / two_theta changes
@@ -20,7 +35,7 @@ RIGID_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni2_expr="poni2",
     rot1_expr=f"rot1_scale * {TWO_THETA_RAD} + rot1_offset",
     rot2_expr="rot2",
-    rot3_expr="rot3",
+    rot3_expr=f"rot3 + {VERTICAL_SWING_ROT3}",
 )
 
 
@@ -44,7 +59,7 @@ NON_LINEAR_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     rot1_expr=f"rot1_scale * {TWO_THETA_RAD}"
     f" + rot1_quad * {TWO_THETA_RAD} ** 2 + rot1_offset",
     rot2_expr="rot2",
-    rot3_expr="rot3",
+    rot3_expr=f"rot3 + {VERTICAL_SWING_ROT3}",
 )
 
 
@@ -116,7 +131,7 @@ YAW_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni2_expr="poni2",
     rot1_expr=f"arctan2(-{detector_32}, {detector_33})",
     rot2_expr=f"arcsin({detector_31})",
-    rot3_expr=f"arctan2({detector_21}, {detector_11})",
+    rot3_expr=f"arctan2({detector_21}, {detector_11}) + {VERTICAL_SWING_ROT3}",
 )
 
 
@@ -137,7 +152,7 @@ mount_23 = "(-sin(roll) * sin(pitch))"
 mount_31 = "sin(pitch)"
 mount_33 = "cos(pitch)"
 
-# the arm turns about the vertical axis, so the first row of the mount is unchanged
+# the arm turns about pyFAI's axis 1, so the first row of the mount is unchanged
 detector_11 = mount_11
 detector_12 = mount_12
 detector_13 = mount_13
@@ -149,7 +164,7 @@ detector_32 = f"(-{sin_arm} * {mount_22})"
 detector_33 = f"(-{sin_arm} * {mount_23} + {cos_arm} * {mount_33})"
 
 # the sample offset as the detector sees it (its orientation transposed x offset),
-# with pyFAI's axis 1 up, 2 across the beam and 3 along it
+# with pyFAI's axis 1 along the arm's axis, 2 across the beam and 3 along it
 offset_1 = (
     f"({detector_11} * sample_y + {detector_21} * sample_x + {detector_31} * sample_z)"
 )
@@ -179,7 +194,7 @@ DISPLACED_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni2_expr=f"poni2 + {offset_2}",
     rot1_expr=f"arctan2(-{detector_32}, {detector_33})",
     rot2_expr=f"arcsin({detector_31})",
-    rot3_expr=f"arctan2({detector_21}, {detector_11})",
+    rot3_expr=f"arctan2({detector_21}, {detector_11}) + {VERTICAL_SWING_ROT3}",
 )
 
 
@@ -238,7 +253,7 @@ TILTED_AXIS_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni2_expr="poni2",
     rot1_expr=f"arctan2(-{detector_32}, {detector_33})",
     rot2_expr=f"arcsin({detector_31})",
-    rot3_expr=f"arctan2({detector_21}, {detector_11})",
+    rot3_expr=f"arctan2({detector_21}, {detector_11}) + {VERTICAL_SWING_ROT3}",
 )
 
 
@@ -285,7 +300,7 @@ detector_32 = f"({arm_31} * {mount_12} + {arm_32} * {mount_22})"
 detector_33 = f"({arm_31} * {mount_13} + {arm_32} * {mount_23} + {arm_33} * {mount_33})"
 
 # the sample offset as the detector sees it (its orientation transposed x offset),
-# with pyFAI's axis 1 up, 2 across the beam and 3 along it
+# with pyFAI's axis 1 along the arm's axis, 2 across the beam and 3 along it
 offset_1 = (
     f"({detector_11} * sample_y + {detector_21} * sample_x + {detector_31} * sample_z)"
 )
@@ -318,15 +333,15 @@ FULL_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni2_expr=f"poni2 + {offset_2}",
     rot1_expr=f"arctan2(-{detector_32}, {detector_33})",
     rot2_expr=f"arcsin({detector_31})",
-    rot3_expr=f"arctan2({detector_21}, {detector_11})",
+    rot3_expr=f"arctan2({detector_21}, {detector_11}) + {VERTICAL_SWING_ROT3}",
 )
 
 
 # 7. Model 6 cut down to what the i15-1-98680 calibration could pin down. With the
 # sample offset modelled the motor's scale comes out exact, so it's fixed at -1 (the
-# arm turns the opposite way to pyFAI's rot1). The arm's axis is taken as vertical,
-# as its lean fitted to 0, and sample_y is left out because along that axis it
-# can't be told apart from poni1.
+# arm turns the opposite way to pyFAI's rot1). The arm's axis is taken as pyFAI's
+# axis 1, as its lean fitted to 0, and sample_y is left out because along that axis
+# it can't be told apart from poni1.
 
 arm = f"(rot1_offset - {TWO_THETA_RAD})"
 cos_arm = f"cos({arm})"
@@ -341,7 +356,7 @@ mount_23 = "(-sin(rot3) * sin(rot2))"
 mount_31 = "sin(rot2)"
 mount_33 = "cos(rot2)"
 
-# the arm turns about the vertical axis, so the first row of the mount is unchanged
+# the arm turns about pyFAI's axis 1, so the first row of the mount is unchanged
 detector_11 = mount_11
 detector_12 = mount_12
 detector_13 = mount_13
@@ -374,7 +389,7 @@ SIMPLIFIED_GEOMETRY_TRANSFORMATION = GeometryTransformation(
     poni2_expr=f"poni2 + {offset_2}",
     rot1_expr=f"arctan2(-{detector_32}, {detector_33})",
     rot2_expr=f"arcsin({detector_31})",
-    rot3_expr=f"arctan2({detector_21}, {detector_11})",
+    rot3_expr=f"arctan2({detector_21}, {detector_11}) + {VERTICAL_SWING_ROT3}",
 )
 
 

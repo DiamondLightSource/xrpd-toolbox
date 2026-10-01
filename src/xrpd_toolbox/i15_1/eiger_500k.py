@@ -26,8 +26,9 @@ INITIAL_DISTNACE = 250  # mm
 
 DEFAULT_MAX_SHAPE = (512, 1028)
 
-# the arm swings horizontally so it drives pyFAI's rot1, and on i15-1 the beam
-# centre moves to higher columns as two-theta increases, hence the sign
+# the arm moves along the detector's long axis so it drives pyFAI's rot1 (the
+# swing is vertical in the lab, see eiger_goniometer_models), and on i15-1 the
+# beam centre moves to higher columns as two-theta increases, hence the sign
 ARM_ROTATION_SIGN = -1.0
 logger = logging.getLogger(__name__)
 

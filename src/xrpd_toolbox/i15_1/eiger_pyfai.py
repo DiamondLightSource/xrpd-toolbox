@@ -27,7 +27,10 @@ from pyFAI.goniometer import (
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 from xrpd_toolbox.i15_1.eiger_500k import ARM_ROTATION_SIGN
-from xrpd_toolbox.i15_1.eiger_goniometer_models import GEOMETRY_TRANSFORMATION
+from xrpd_toolbox.i15_1.eiger_goniometer_models import (
+    GEOMETRY_TRANSFORMATION,
+    VERTICAL_SWING_ROT3,
+)
 from xrpd_toolbox.utils.unit_conversion import wavelength_to_beam_energy
 from xrpd_toolbox.utils.utils import processed_directory_and_filename
 
@@ -159,7 +162,8 @@ def calc_and_apply_absorption_for_cdte(
         wavelength_in_m=wavelength_in_m,
     )
 
-    images = [(images[n] * (1 + absorption_for_frame[n])) for n in range(len(images))]  # type: ignore - apply abs to images
+    # absorption is the fraction of photons the sensor detects, so divide it out
+    images = [(images[n] / absorption_for_frame[n]) for n in range(len(images))]  # type: ignore - apply abs to images
 
     return images
 
@@ -256,7 +260,8 @@ def _calibrate_single_frame(
         "poni2": centre_col * detector.pixel2,
         "rot1": ARM_ROTATION_SIGN * np.deg2rad(two_theta_deg),
         "rot2": 0.0,
-        "rot3": 0.0,
+        # the arm swings vertically, see eiger_goniometer_models
+        "rot3": VERTICAL_SWING_ROT3,
         "wavelength": calibrant.wavelength,
         "detector": detector,
     }
@@ -303,9 +308,10 @@ def _start_goniometer(
         "rot1_scale": ARM_ROTATION_SIGN,
         "rot1_offset": gr.rot1 - ARM_ROTATION_SIGN * np.deg2rad(first.metadata),
         "rot2": gr.rot2,
-        "rot3": gr.rot3,
+        # the models add VERTICAL_SWING_ROT3 themselves
+        "rot3": gr.rot3 - VERTICAL_SWING_ROT3,
         "pitch": gr.rot2,
-        "roll": gr.rot3,
+        "roll": gr.rot3 - VERTICAL_SWING_ROT3,
     }
     # anything else (quadratic terms, yaw, sample offsets) is a correction from 0
     params = {name: seeds.get(name, 0.0) for name in model.param_names}
@@ -543,7 +549,7 @@ def integrate_with_goniometer(
     goniometer: Path | str | Goniometer,
     output_xy_filepath: Path | str,
     npt: int = 2000,
-    polarization_factor: float = 0.99,
+    polarization_factor: float = 0.9,
     correct_solid_angle: bool = True,
     mask: np.ndarray | None = None,
     error_model: Literal["poisson", "azimuthal"] = "azimuthal",
@@ -588,9 +594,17 @@ def integrate_with_goniometer(
     )
 
     n_frames = len(images)
-    lst_mask = [mask.astype(bool)] * n_frames if mask is not None else None
+    # a separate copy for each frame, so the azimuthal mask of one frame
+    # isn't applied to all the others
+    if mask is not None:
+        lst_mask = [mask.astype(bool) for _ in range(n_frames)]
+    else:
+        lst_mask = None
 
     if apply_azimuthal_mask:
+        if lst_mask is None:
+            lst_mask = [np.zeros(images[0].shape, dtype=bool) for _ in range(n_frames)]
+
         lst_mask = apply_azimuthal_mask_to_ais(frame_ais=frame_ais, lst_mask=lst_mask)
 
     result = mg.integrate1d(
