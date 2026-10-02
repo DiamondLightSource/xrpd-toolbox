@@ -9,7 +9,9 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from pyFAI.calibrant import get_calibrant
+from pyFAI.detectors import detector_factory
 from pyFAI.geometry import Geometry
+from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 from xrpd_toolbox.i15_1 import eiger_pyfai
 from xrpd_toolbox.i15_1.eiger_500k import (
@@ -22,6 +24,7 @@ from xrpd_toolbox.i15_1.eiger_goniometer_models import (
     VERTICAL_SWING_ROT3,
     YAW_GEOMETRY_TRANSFORMATION,
 )
+from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
@@ -897,3 +900,29 @@ def test_mask_edges():
     n_masked_pixels = len(np.argwhere(mask.flatten() == 1).flatten())
 
     assert n_masked_pixels == 2640
+
+
+def test_calc_absorption_for_cdte_uses_mu_in_metres():
+    wavelength_m = beam_energy_to_wavelength(76.6) * 1e-10
+    detector = detector_factory(eiger_pyfai.PYFAI_DETECTOR_NAME)
+    rows, cols = DEFAULT_MAX_SHAPE
+    ai = AzimuthalIntegrator(
+        dist=0.25,
+        poni1=rows / 2 * PIXEL_SIZE,
+        poni2=cols / 2 * PIXEL_SIZE,
+        wavelength=wavelength_m,
+        detector=detector,
+    )
+
+    (absorption,) = eiger_pyfai.calc_absorption_for_cdte(
+        frame_ais=[ai], detector=detector, wavelength_in_m=wavelength_m
+    )
+
+    # 750 µm of CdTe absorbs ~80% at 76.6 keV head on
+    assert absorption.min() == pytest.approx(0.796, abs=0.005)
+
+    # the sensor is nearly saturated, so the edges gain much less than 1/cos
+    d1, d2 = np.meshgrid(np.arange(rows) + 0.5, np.arange(cols) + 0.5, indexing="ij")
+    one_over_cos = 1 / ai.cos_incidence(d1, d2)
+    edge_gain = absorption.max() / absorption.min()
+    assert 1 < edge_gain < 1 + (one_over_cos.max() - 1) / 2

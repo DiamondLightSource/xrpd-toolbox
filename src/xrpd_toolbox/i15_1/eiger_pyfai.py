@@ -107,7 +107,9 @@ def get_ai_absorption(ai: AzimuthalIntegrator):
         indexing="ij",
     )
     path_length = ai.detector.sensor.thickness / ai.cos_incidence(d1, d2)
-    absorption = 1 - np.exp(-ai.detector.sensor.mu * path_length)  # type: ignore
+    # pyFAI gives mu in cm^-1 unless asked, and the thickness is in m
+    mu = ai.detector.sensor.material.mu(ai.energy, unit="m")  # type: ignore
+    absorption = 1 - np.exp(-mu * path_length)
     return absorption
 
 
@@ -140,7 +142,8 @@ def calc_absorption_for_cdte(
         )
         path_length = cdte_sensor.thickness / ai.cos_incidence(d1, d2)
 
-        mu = cdte_sensor.material.mu(energy_kev)  # type: ignore
+        # pyFAI gives mu in cm^-1 unless asked, and the thickness is in m
+        mu = cdte_sensor.material.mu(energy_kev, unit="m")  # type: ignore
 
         absorption = 1 - np.exp(-mu * path_length)
 
