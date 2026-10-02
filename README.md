@@ -52,7 +52,7 @@ client = Messenger(host=MY_HOST, port=MY_PORT, username="MY USERNAME", password=
 
 ```
 
-If you are an i11 user and want to reprocess your data from a nexus, you can use the following gui by typing into a terminal
+If you are an i11 user and want to reprocess your data from a nexus, you can use the following gui by typing into a terminal (after installation). 
 
 
 ```bash
