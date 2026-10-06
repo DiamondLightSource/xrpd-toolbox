@@ -341,14 +341,19 @@ def run_eiger_analysis(nexus_filepath: str | Path):
     if scan_type == CollectionType.centring:
         logger.info(f"Nothing to do for {scan_type}. HeliotrAPI is doing it")
     elif scan_type == CollectionType.air:
-        do_eiger_data_reduction(nexus_filepath=nexus_filepath)
+        return do_eiger_data_reduction(nexus_filepath=nexus_filepath)
     elif scan_type == CollectionType.empty:
-        do_eiger_data_reduction(nexus_filepath=nexus_filepath)
+        return do_eiger_data_reduction(nexus_filepath=nexus_filepath)
     elif scan_type == CollectionType.calibrant:
-        do_eiger_goniometer_calibration(nexus_filepath=nexus_filepath)
+        goniometer_model_json, _ = do_eiger_goniometer_calibration(
+            nexus_filepath=nexus_filepath
+        )
+        return goniometer_model_json
     elif scan_type == CollectionType.data_collection:
         # If it's actually a datacollections also send it to pdfcurl too
-        do_eiger_data_reduction_and_send_xy_to_pdfcurl(nexus_filepath=nexus_filepath)
+        return do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+            nexus_filepath=nexus_filepath
+        )
     else:
         error = f"No analysis for bluesky plan: {plan_name} & scan type: {scan_type}"
         logger.error(error)
