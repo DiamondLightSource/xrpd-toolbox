@@ -80,6 +80,55 @@ def mask_edges(
     return mask
 
 
+def mask_module_edges(
+    detector_shape: tuple[int, int],
+    mask_width: tuple[int, int],
+    module_grid: tuple[int, int] = (2, 4),
+    as_nan: bool = False,
+) -> np.ndarray:
+    """Creates a pyfai compatible mask that masks the edges of every module
+
+    The Eiger 500k is a 2x4 grid of 256x256 modules. The full frame is (512, 1028)
+    so the module boundaries are found by splitting the frame evenly into the grid
+    rather than assuming exactly 256 pixels per module.
+
+    mask_width is (row_width, col_width), as in mask_edges
+
+    PyFAI considers masks with values equal to zero 0 as valid pixels
+
+    """
+
+    row_width, col_width = mask_width
+    n_rows, n_cols = detector_shape
+    n_module_rows, n_module_cols = module_grid
+
+    if row_width < 0 or col_width < 0:
+        raise ValueError(f"edge_width must be a non-negative int, got {mask_width}")
+
+    # pixel index where each module starts/ends, e.g. [0, 256, 512] for the rows
+    row_boundaries = np.linspace(0, n_rows, n_module_rows + 1).round().astype(int)
+    col_boundaries = np.linspace(0, n_cols, n_module_cols + 1).round().astype(int)
+
+    mask = np.zeros(detector_shape)
+
+    for module_row in range(n_module_rows):
+        row_start = row_boundaries[module_row]
+        row_end = row_boundaries[module_row + 1]
+        mask[row_start : row_start + row_width, :] = 1
+        mask[row_end - row_width : row_end, :] = 1
+
+    for module_col in range(n_module_cols):
+        col_start = col_boundaries[module_col]
+        col_end = col_boundaries[module_col + 1]
+        mask[:, col_start : col_start + col_width] = 1
+        mask[:, col_end - col_width : col_end] = 1
+
+    if as_nan:
+        mask = np.where(mask == 1, np.nan, 1.0)
+
+    return mask
+
+
 def apply_azimuthal_mask_to_ais(frame_ais: list[AzimuthalIntegrator], lst_mask):
     """Applys an azimuthal mask to position where the q
     isn't far outside bound of center array"""

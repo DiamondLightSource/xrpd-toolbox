@@ -13,7 +13,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     _load_goniometer,
     build_and_save_goniometer,
     integrate_with_goniometer,
-    mask_edges,
+    mask_module_edges,
 )
 from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
@@ -181,7 +181,7 @@ def do_eiger_data_reduction(
     nexus_filepath: str | Path,
     apply_absorption_correction: bool = True,
     apply_azimuthal_mask: bool = True,
-    edge_mask_width: tuple[int, int] | None = (10, 10),
+    edge_mask_width: tuple[int, int] | None = (5, 3),
     polarization_factor: float | None = None,
     output_xy_filepath: str | Path | None = None,
     goniometer_filepath: str | Path | None = None,
@@ -208,7 +208,7 @@ def do_eiger_data_reduction(
         polarization_factor = get_i15_1_polarisation_factor(energy_kev=energy_kev)
 
     if edge_mask_width is not None and mask is not None:
-        edge_mask = mask_edges(
+        edge_mask = mask_module_edges(
             detector_shape=summed_and_normalised_frames[0].shape,
             mask_width=edge_mask_width,
         )
@@ -360,43 +360,52 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         raise RuntimeError(error)
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
-#     def plot_final_data(output_xy: str | Path, title: str = ""):
+    def plot_final_data(output_xy: str | Path, title: str = ""):
 
-#         import matplotlib.pyplot as plt
-#         import numpy as np
+        import matplotlib.pyplot as plt
+        import numpy as np
 
-#         x, y = np.genfromtxt(str(output_xy), unpack=True)
+        x, y = np.genfromtxt(str(output_xy), unpack=True)
 
-#         plt.title(title)
-#         plt.plot(x, y)
-#         plt.show()
+        plt.title(title)
+        plt.plot(x, y)
+        plt.show()
 
-#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
+    # print(DEFAULT_MAX_SHAPE)
 
-#     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
+    # mask = mask_module_edges(detector_shape=DEFAULT_MAX_SHAPE, mask_width=(10, 10))
 
-#     #     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
+    # import matplotlib.pyplot as plt
 
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+    # plt.imshow(mask)
+    # plt.show()
 
-#     goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
-#      cal_nexus_filepath,
-#      calibrant_name="W",
-#       plot_fits=True,
-#       show_plots=False,
-#         max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
-#     )
+    #     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
 
-#  nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+    #     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
 
-#     output_xy = do_eiger_data_reduction(
-#         nexus_filepath,
-#         edge_mask_width=(10, 10),
-#         apply_absorption_correction=True,
-#         apply_azimuthal_mask=True,
-#         publish=False,
-#     )
+    #     #     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
 
-#     plot_final_data(output_xy, title="polarisation: 0.95")
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
+
+    # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
+    #     cal_nexus_filepath,
+    #     calibrant_name="W",
+    #     plot_fits=True,
+    #     show_plots=False,
+    #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
+    # )
+
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+
+    output_xy = do_eiger_data_reduction(
+        nexus_filepath,
+        edge_mask_width=(5, 3),
+        apply_absorption_correction=True,
+        apply_azimuthal_mask=True,
+        publish=False,
+    )
+
+    plot_final_data(output_xy, title="polarisation: 0.95")
