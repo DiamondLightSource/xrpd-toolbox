@@ -53,8 +53,10 @@ def mask_edges(
     """Creates a mask compatible with pyfai
     https://pyfai.readthedocs.io/en/stable/conventions.html
 
-    'PyFAI considers masks with values equal to zero 0 as valid pixels
-    (mnemonic: non zero pixels are masked out).'
+    (20,0) is maskking 20/512 the long edge only
+    (0,20) is masking 20/1280 the short edge only
+
+    PyFAI considers masks with values equal to zero 0 as valid pixels
 
     """
 
