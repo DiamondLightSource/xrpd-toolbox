@@ -10,9 +10,9 @@ from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
-    GONIOMETER_SAVE_NAME,
     PYFAI_DETECTOR_NAME,
     _load_goniometer,
+    _load_goniometer_from_relative_path,
     build_and_save_goniometer,
     integrate_with_goniometer,
     mask_module_edges,
@@ -28,6 +28,10 @@ from xrpd_toolbox.utils.utils import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
+
+GEOMETRY_CAL_FILEPATH = Path(
+    "/dls_sw/i15-1/software/daq_configuration/geometrygeometry_calibration.json"
+)
 
 
 CORRECTION_h5 = (
@@ -159,20 +163,6 @@ def do_eiger_goniometer_calibration(
     return goniometer_model_json, metadata_json
 
 
-def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
-    """The most recent goniometer calibration saved in the processed folder."""
-    goniometer_dir, _ = processed_directory_and_filename(
-        nexus_filepath, nest_by_filename=False
-    )
-
-    goniometer_models = list(Path(goniometer_dir).glob(f"*{GONIOMETER_SAVE_NAME}"))
-    if not goniometer_models:
-        raise FileNotFoundError(f"No goniometer calibration found in {goniometer_dir}")
-
-    # gets newest file based on when it's written
-    return max(goniometer_models, key=lambda path: path.stat().st_mtime)
-
-
 def get_i15_1_polarisation_factor(energy_kev: float):
     # calculated by SHADOW by John Sutter in 2017
     if abs(energy_kev - 40) < 1:
@@ -243,11 +233,9 @@ def do_eiger_data_reduction(
             mask_width=edge_mask_width,
         )
 
-        mask = edge_mask + mask  # masks the edges of the detector
+        mask = edge_mask | mask  #  add masks the edges of the detector
 
-        mask = mask + get_outlier_mask()  # combine with outlier mask
-
-        mask = mask.astype(bool)
+        mask = mask | get_outlier_mask()  # combine with outlier mask
 
     assert np.amax(mask) <= 1, "Mask should be boolean"
 
@@ -263,15 +251,19 @@ def do_eiger_data_reduction(
             goniometer_filepath=Path(goniometer_filepath)
         )
     else:
-        goniometer_model = eiger_data.get_goniometer_calibration()
-
-    if goniometer_model is None:
-        goniometer_filepath = get_goniometer_cal_filepath(
-            nexus_filepath=str(nexus_filepath)
-        )
-        goniometer_model = _load_goniometer(
-            goniometer_filepath=Path(goniometer_filepath)
-        )
+        try:
+            goniometer_model = eiger_data.get_goniometer_calibration()
+            logger.info(f"Loaded goniometer from nexus file: {goniometer_model}")
+        except Exception as e:
+            if GEOMETRY_CAL_FILEPATH.exists():
+                goniometer_model = _load_goniometer(GEOMETRY_CAL_FILEPATH)
+                logger.info(f"Loaded goniometer from file: {GEOMETRY_CAL_FILEPATH}")
+            else:
+                logger.warning(
+                    f"Could not load goniometer from nexus file: {e}, "
+                    "looking for geometry calibration in relative path"
+                )
+                goniometer_model = _load_goniometer_from_relative_path(nexus_filepath)
 
     if output_xy_filepath is None:
         output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
@@ -434,12 +426,13 @@ def plot_final_data(
     plt.show()
 
 
-if __name__ == "__main__":
+# fmt: off
+# if __name__ == "__main__":
     # print(DEFAULT_MAX_SHAPE)
 
-    from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
+    # from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
 
-    mask = mask_module_edges(detector_shape=DEFAULT_MAX_SHAPE, mask_width=(5, 2))
+    # mask = mask_module_edges(detector_shape=DEFAULT_MAX_SHAPE, mask_width=(5, 2))
     # outlier_mask = get_outlier_mask()
 
     # import matplotlib.pyplot as plt
@@ -468,26 +461,33 @@ if __name__ == "__main__":
 
     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
 
-    folder = Path("/workspaces/outputs/i15-1/")
-    files = list(folder.glob("*.nxs"))
-    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-
-    # nexus_filepath = (
-    #     "/workspaces/outputs/i15-1/i15-1-99878.nxs"  # test example every 4 deg steps
+    # do_eiger_data_reduction_and_send_xy_to_pdfcurl(
+    #     nexus_filepath="/workspaces/outputs/i15-1/i15-1-99878.nxs",
+    #     composition="GaIn",
     # )
 
-    for file in files:
-        output_xy = do_eiger_data_reduction(
-            str(file),
-            edge_mask_width=(5, 3),
-            apply_intensity_correction=True,
-            apply_absorption_correction=True,
-            apply_azimuthal_mask=False,
-            correct_solid_angle=True,
-            publish=False,
-        )
+    # quit()
 
-        # ref = "/workspaces/outputs/i15-1/i15-1-99878_processed_with_saved_corrections.xy" #noqa
-        plot_final_data(
-            output_xy, reference_xy=None, title=str(output_xy.stem), normalise_data=True
-        )
+    # folder = Path("/workspaces/outputs/i15-1/")
+    # files = list(folder.glob("*.nxs"))
+    # files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+
+    # # nexus_filepath = (
+    # #     "/workspaces/outputs/i15-1/i15-1-99878.nxs"  # test example every 4 deg steps #noqa
+    # # )
+
+    # for file in files:
+    #     output_xy = do_eiger_data_reduction(
+    #         str(file),
+    #         edge_mask_width=(5, 3),
+    #         apply_intensity_correction=True,
+    #         apply_absorption_correction=True,
+    #         apply_azimuthal_mask=False,
+    #         correct_solid_angle=True,
+    #         publish=False,
+    #     )
+
+    #     # ref = "/workspaces/outputs/i15-1/i15-1-99878_processed_with_saved_corrections.xy" #noqa
+    #     plot_final_data(
+    #         output_xy, reference_xy=None, title=str(output_xy.stem), normalise_data=True #noqa
+    #     )

@@ -274,6 +274,31 @@ def _load_goniometer(goniometer_filepath: Path) -> Goniometer:
     return gonio
 
 
+def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
+    """The most recent goniometer calibration saved in the processed folder."""
+    goniometer_dir, _ = processed_directory_and_filename(
+        nexus_filepath, nest_by_filename=False
+    )
+
+    goniometer_models = list(Path(goniometer_dir).glob(f"*{GONIOMETER_SAVE_NAME}"))
+    if not goniometer_models:
+        raise FileNotFoundError(f"No goniometer calibration found in {goniometer_dir}")
+
+    # gets newest file based on when it's written
+    return max(goniometer_models, key=lambda path: path.stat().st_mtime)
+
+
+def _load_goniometer_from_relative_path(nexus_filepath: str | Path) -> Goniometer:
+    """Load a goniometer calibration from a relative path to the nexus file."""
+
+    goniometer_filepath = get_goniometer_cal_filepath(
+        nexus_filepath=str(nexus_filepath)
+    )
+    goniometer_model = _load_goniometer(goniometer_filepath=Path(goniometer_filepath))
+
+    return goniometer_model
+
+
 def get_eiger_detector(detector: Detector | str | None = None) -> Detector:
     """None -> the pyfai detector ; a name -> pyFAI's registry detector."""
 

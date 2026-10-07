@@ -438,7 +438,7 @@ class EigerDataLoader:
 
         return totals
 
-    def get_goniometer_calibration(self) -> Goniometer | None:
+    def get_goniometer_calibration(self) -> Goniometer:
 
         # NOTE: This will be updated when Dom/Jacob put this info in the nexus
 
