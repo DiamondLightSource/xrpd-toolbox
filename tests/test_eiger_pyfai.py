@@ -7,7 +7,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import h5py
 import numpy as np
 import pytest
 from pyFAI.calibrant import get_calibrant
@@ -28,6 +27,7 @@ from xrpd_toolbox.i15_1.eiger_goniometer_models import (
     YAW_GEOMETRY_TRANSFORMATION,
 )
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
+from xrpd_toolbox.utils.utils import h5_to_array
 
 SI_CALIBRANT = get_calibrant("Si")
 SI_CALIBRANT.wavelength = 1e-10
@@ -1008,8 +1008,7 @@ def test_mask_module_edges_covers_every_chip_gap_in_the_detector_corrections():
     # the widths used in the reduction must mask all of those rows/columns
     from xrpd_toolbox.i15_1.eiger_analysis import CORRECTION_h5
 
-    with h5py.File(CORRECTION_h5, "r") as f:
-        base_mask = f["corrections/base_mask"][()].astype(bool)
+    base_mask = h5_to_array(CORRECTION_h5, "corrections/base_mask").astype(bool)
 
     mask = eiger_pyfai.mask_module_edges(
         detector_shape=I15_1_DETECTOR_SHAPE, mask_width=(5, 3)

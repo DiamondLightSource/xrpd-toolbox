@@ -164,7 +164,7 @@ def build_i15_1_scan(
     )
 
     with h5py.File(nexus_filepath, "a") as f:
-        plan_metadata = f[f"/{ENTRY}/plan_metadata"]
+        plan_metadata = f.require_group(f"/{ENTRY}/plan_metadata")
         if composition is not None:
             plan_metadata.create_dataset(
                 "sample_info/data/composition", data=composition
@@ -182,12 +182,9 @@ def write_i15_1_goniometer_json(path: str | Path) -> Path:
     """Save the real i15-1 goniometer calibration (kept alongside the detector
     corrections in the package) as a pyFAI goniometer json file."""
     from xrpd_toolbox.i15_1.eiger_analysis import CORRECTION_h5
+    from xrpd_toolbox.utils.utils import h5_to_string
 
-    with h5py.File(CORRECTION_h5, "r") as f:
-        geometry_json = f["geometry_json"][()]
-
-    if isinstance(geometry_json, bytes):
-        geometry_json = geometry_json.decode()
+    geometry_json = h5_to_string(CORRECTION_h5, "geometry_json")
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
