@@ -1,6 +1,7 @@
 """Tests for xrpd_toolbox.i15_1.eiger_pyfai."""
 
 import json
+import os
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -177,6 +178,49 @@ def test_load_goniometer_dir_success(tmp_path):
 
     assert gonio is fake_gonio
     mock_sload.assert_called_once_with(str(goniometer_filepath))
+
+
+# ---------------------------------------------------------------------------
+# get_goniometer_cal_filepath
+# ---------------------------------------------------------------------------
+
+
+def test_get_goniometer_cal_filepath_finds_timestamped_calibrations(tmp_path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    saved = (
+        processed
+        / f"i15-1-98680_2026-09-29_10-00-00_{eiger_pyfai.GONIOMETER_SAVE_NAME}"
+    )
+    saved.touch()
+
+    found = eiger_pyfai.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
+
+    assert found == saved
+
+
+def test_get_goniometer_cal_filepath_picks_the_newest(tmp_path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    name = eiger_pyfai.GONIOMETER_SAVE_NAME
+    # the older file's scan name sorts last, so going by name would pick it
+    older = processed / f"i15-1-98700_2026-09-28_10-00-00_{name}"
+    newer = processed / f"i15-1-98680_2026-09-29_10-00-00_{name}"
+    older.touch()
+    newer.touch()
+    os.utime(older, (1_000_000, 1_000_000))
+    os.utime(newer, (2_000_000, 2_000_000))
+
+    found = eiger_pyfai.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
+
+    assert found == newer
+
+
+def test_get_goniometer_cal_filepath_raises_when_there_is_none(tmp_path):
+    (tmp_path / "processed").mkdir()
+
+    with pytest.raises(FileNotFoundError, match="No goniometer calibration"):
+        eiger_pyfai.get_goniometer_cal_filepath(str(tmp_path / "scan.nxs"))
 
 
 # ---------------------------------------------------------------------------

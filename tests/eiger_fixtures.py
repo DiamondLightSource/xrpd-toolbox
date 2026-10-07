@@ -127,3 +127,69 @@ def build_eiger_nexus(
             i0_grp.create_dataset("data", data=np.asarray(i0))
 
     return path
+
+
+# the real i15-1 Eiger frame shape - the saved detector corrections are this shape
+I15_1_DETECTOR_SHAPE = (512, 1028)
+I15_1_ENERGY_KEV = 76.69
+
+
+def build_i15_1_scan(
+    directory: str | Path,
+    name: str = "scan",
+    *,
+    tth: tuple[float, ...] = (10.0, 14.0),
+    counts: int = 100,
+    composition: str | None = None,
+    empty_capillary_filename: str | None = None,
+) -> Path:
+    """Write a small but full-size i15-1 Eiger scan (nexus + pixel mask file)
+    that do_eiger_data_reduction can reduce for real.
+
+    Every pixel reads `counts`, with one frame per two-theta position in `tth`.
+    """
+    directory = Path(directory)
+    n_frames = len(tth)
+
+    mask_filepath = directory / f"{name}_pixel_mask.h5"
+    build_mask_file(mask_filepath, "mask", shape=I15_1_DETECTOR_SHAPE)
+
+    nexus_filepath = build_eiger_nexus(
+        directory / f"{name}.nxs",
+        n_frames=n_frames,
+        data=np.full((n_frames, *I15_1_DETECTOR_SHAPE), counts, dtype=np.uint32),
+        tth=np.asarray(tth, dtype=float),
+        energy_kev=I15_1_ENERGY_KEV,
+        mask_ref=f"{mask_filepath}//mask",
+    )
+
+    with h5py.File(nexus_filepath, "a") as f:
+        plan_metadata = f[f"/{ENTRY}/plan_metadata"]
+        if composition is not None:
+            plan_metadata.create_dataset(
+                "sample_info/data/composition", data=composition
+            )
+        if empty_capillary_filename is not None:
+            plan_metadata.create_dataset(
+                "auxiliary_scans/Empty Capillary/filename",
+                data=empty_capillary_filename,
+            )
+
+    return nexus_filepath
+
+
+def write_i15_1_goniometer_json(path: str | Path) -> Path:
+    """Save the real i15-1 goniometer calibration (kept alongside the detector
+    corrections in the package) as a pyFAI goniometer json file."""
+    from xrpd_toolbox.i15_1.eiger_analysis import CORRECTION_h5
+
+    with h5py.File(CORRECTION_h5, "r") as f:
+        geometry_json = f["geometry_json"][()]
+
+    if isinstance(geometry_json, bytes):
+        geometry_json = geometry_json.decode()
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(geometry_json)
+    return path
