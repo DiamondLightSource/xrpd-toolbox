@@ -12,7 +12,11 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from eiger_fixtures import build_i15_1_scan, write_i15_1_goniometer_json
+from eiger_fixtures import (
+    I15_1_DETECTOR_SHAPE,
+    build_i15_1_scan,
+    write_i15_1_goniometer_json,
+)
 from xrpd_toolbox.i15_1 import eiger_analysis
 from xrpd_toolbox.i15_1.eiger_pyfai import GONIOMETER_SAVE_NAME
 
@@ -214,3 +218,98 @@ def test_pdfcurl_reduction_sends_no_background_when_there_is_none(tmp_path: Path
 
     _assert_is_reduced_xy(Path(result))
     assert mock_send.call_args.kwargs["background_file"] is None
+
+
+# ---------------------------------------------------------------------------
+# get_outlier_mask / _apply_intensity_corrections
+# ---------------------------------------------------------------------------
+
+
+def test_get_outlier_mask_is_a_sparse_boolean_detector_mask():
+    mask = eiger_analysis.get_outlier_mask()
+
+    assert mask.shape == I15_1_DETECTOR_SHAPE
+    assert mask.dtype == bool
+    # a handful of misbehaving pixels, not whole regions of the detector
+    assert 0 < mask.sum() < 0.01 * mask.size
+
+
+def test_apply_intensity_corrections_keeps_shape_and_is_near_unity():
+    frames = np.ones((3, *I15_1_DETECTOR_SHAPE))
+
+    corrected = eiger_analysis._apply_intensity_corrections(frames)
+
+    assert corrected.shape == frames.shape
+    assert np.all(np.isfinite(corrected))
+    # per-pixel gains are a few percent about 1, so flat stays nearly flat
+    assert corrected.min() > 0.8 and corrected.max() < 1.25
+    assert np.mean(corrected) == pytest.approx(1.0, abs=0.02)
+    assert not np.allclose(corrected, 1.0)
+
+
+def test_apply_intensity_corrections_is_the_same_linear_correction_for_each_frame():
+    rng = np.random.default_rng(0)
+    first, second = rng.uniform(10, 1000, size=(2, *I15_1_DETECTOR_SHAPE))
+
+    corrected = eiger_analysis._apply_intensity_corrections(np.stack([first, second]))
+    corrected_first = eiger_analysis._apply_intensity_corrections(first[None])[0]
+    corrected_doubled = eiger_analysis._apply_intensity_corrections(2 * first[None])[0]
+
+    # each frame is corrected on its own, by a gain that doesn't depend on counts
+    assert np.allclose(corrected[0], corrected_first)
+    assert np.allclose(corrected_doubled, 2 * corrected_first)
+    # the correction comes from pixel position, so both frames see the same gains
+    assert np.allclose(corrected[1] / second, corrected[0] / first)
+
+
+# ---------------------------------------------------------------------------
+# plot_final_data
+# ---------------------------------------------------------------------------
+
+
+def _write_xy(path: Path, x: np.ndarray, y: np.ndarray) -> Path:
+    np.savetxt(path, np.column_stack([x, y]))
+    return path
+
+
+@pytest.fixture
+def shown_figure():
+    import matplotlib.pyplot as plt
+
+    shown = []
+    # plt.show warns (an error under filterwarnings) with the Agg backend
+    with patch.object(plt, "show", lambda *a, **k: shown.append(plt.gcf())):
+        yield shown
+    plt.close("all")
+
+
+def test_plot_final_data_plots_the_xy(tmp_path: Path, shown_figure):
+    x, y = np.linspace(1, 10, 50), np.linspace(5, 50, 50)
+    xy = _write_xy(tmp_path / "data.xy", x, y)
+
+    eiger_analysis.plot_final_data(xy, title="my scan")
+
+    (figure,) = shown_figure
+    ax = figure.axes[0]
+    assert ax.get_title() == "my scan"
+    assert ax.get_xlabel() == "2θ (deg)"
+    (line,) = ax.lines
+    assert np.allclose(line.get_xdata(), x)
+    assert np.allclose(line.get_ydata(), y)
+
+
+def test_plot_final_data_overlays_normalised_reference(tmp_path: Path, shown_figure):
+    x = np.linspace(1, 10, 50)
+    xy = _write_xy(tmp_path / "data.xy", x, np.linspace(5, 50, 50))
+    ref = _write_xy(tmp_path / "ref.xy", x, np.linspace(1000, 3000, 50))
+
+    eiger_analysis.plot_final_data(xy, reference_xy=ref, normalise_data=True)
+
+    (figure,) = shown_figure
+    lines = figure.axes[0].lines
+    assert len(lines) == 2
+    assert [line.get_label() for line in lines].count("Reference") == 1
+    # very different scales, but both normalised onto 0 - 1 so they overlay
+    for line in lines:
+        assert np.max(line.get_ydata()) == pytest.approx(1.0)
+        assert np.min(line.get_ydata()) == pytest.approx(0.0, abs=1e-6)

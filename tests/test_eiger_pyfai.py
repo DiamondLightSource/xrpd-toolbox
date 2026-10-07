@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import h5py
 import numpy as np
 import pytest
 from pyFAI.calibrant import get_calibrant
@@ -14,6 +15,7 @@ from pyFAI.detectors import detector_factory
 from pyFAI.geometry import Geometry
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
+from eiger_fixtures import I15_1_DETECTOR_SHAPE, write_i15_1_goniometer_json
 from xrpd_toolbox.i15_1 import eiger_pyfai
 from xrpd_toolbox.i15_1.eiger_500k import (
     ARM_ROTATION_SIGN,
@@ -970,3 +972,115 @@ def test_calc_absorption_for_cdte_uses_mu_in_metres():
     one_over_cos = 1 / ai.cos_incidence(d1, d2)
     edge_gain = absorption.max() / absorption.min()
     assert 1 < edge_gain < 1 + (one_over_cos.max() - 1) / 2
+
+
+# ---------------------------------------------------------------------------
+# mask_module_edges
+# ---------------------------------------------------------------------------
+
+
+def _fully_masked(mask: np.ndarray, axis: int) -> list[int]:
+    # indices of the rows (axis=1) or columns (axis=0) that are masked end to end
+    return np.flatnonzero(mask.all(axis=axis)).tolist()
+
+
+def test_mask_module_edges_masks_both_sides_of_every_module_boundary():
+    mask = eiger_pyfai.mask_module_edges(
+        detector_shape=I15_1_DETECTOR_SHAPE, mask_width=(2, 2)
+    )
+
+    assert mask.shape == I15_1_DETECTOR_SHAPE
+    assert mask.dtype == bool
+    # 2 x 4 grid: outer edges plus 2 pixels either side of each module boundary
+    assert _fully_masked(mask, axis=1) == [0, 1, 254, 255, 256, 257, 510, 511]
+    assert _fully_masked(mask, axis=0) == [
+        0, 1,
+        255, 256, 257, 258,
+        512, 513, 514, 515,
+        769, 770, 771, 772,
+        1026, 1027,
+    ]  # fmt: skip
+
+
+def test_mask_module_edges_covers_every_chip_gap_in_the_detector_corrections():
+    # the saved detector corrections exclude the 2 px outer border and the
+    # inter-chip gaps (whole rows/columns, alongside some isolated bad pixels) -
+    # the widths used in the reduction must mask all of those rows/columns
+    from xrpd_toolbox.i15_1.eiger_analysis import CORRECTION_h5
+
+    with h5py.File(CORRECTION_h5, "r") as f:
+        base_mask = f["corrections/base_mask"][()].astype(bool)
+
+    mask = eiger_pyfai.mask_module_edges(
+        detector_shape=I15_1_DETECTOR_SHAPE, mask_width=(5, 3)
+    )
+
+    gap_rows = _fully_masked(base_mask, axis=1)
+    gap_cols = _fully_masked(base_mask, axis=0)
+    assert len(gap_rows) == 8 and len(gap_cols) == 18
+    assert set(gap_rows) <= set(_fully_masked(mask, axis=1))
+    assert set(gap_cols) <= set(_fully_masked(mask, axis=0))
+
+
+def test_mask_module_edges_zero_width_masks_nothing():
+    mask = eiger_pyfai.mask_module_edges(detector_shape=(512, 1028), mask_width=(0, 0))
+
+    assert not mask.any()
+
+
+def test_mask_module_edges_single_module_matches_mask_edges():
+    module_mask = eiger_pyfai.mask_module_edges(
+        detector_shape=(100, 100), mask_width=(4, 10), module_grid=(1, 1)
+    )
+    edge_mask = eiger_pyfai.mask_edges(detector_shape=(100, 100), mask_width=(4, 10))
+
+    assert np.array_equal(module_mask, edge_mask.astype(bool))
+
+
+def test_mask_module_edges_as_nan():
+    mask = eiger_pyfai.mask_module_edges(
+        detector_shape=(512, 1028), mask_width=(2, 2), as_nan=True
+    )
+    bool_mask = eiger_pyfai.mask_module_edges(
+        detector_shape=(512, 1028), mask_width=(2, 2)
+    )
+
+    # NaN where masked, 1 elsewhere, so it can be multiplied into an image
+    assert np.array_equal(np.isnan(mask), bool_mask)
+    assert np.all(mask[~bool_mask] == 1.0)
+
+
+@pytest.mark.parametrize("mask_width", [(-1, 2), (2, -1)])
+def test_mask_module_edges_negative_width_raises(mask_width):
+    with pytest.raises(ValueError, match="non-negative"):
+        eiger_pyfai.mask_module_edges(detector_shape=(512, 1028), mask_width=mask_width)
+
+
+# ---------------------------------------------------------------------------
+# _load_goniometer_from_relative_path
+# ---------------------------------------------------------------------------
+
+
+def test_load_goniometer_from_relative_path_loads_newest_in_processed(tmp_path):
+    name = eiger_pyfai.GONIOMETER_SAVE_NAME
+    older = tmp_path / "processed" / f"old_2026-09-28_10-00-00_{name}"
+    newer = tmp_path / "processed" / f"new_2026-09-29_10-00-00_{name}"
+    write_i15_1_goniometer_json(older)
+    write_i15_1_goniometer_json(newer)
+    # the older calibration is unreadable, so loading it would fail
+    older.write_text("not a goniometer")
+    os.utime(older, (1_000_000, 1_000_000))
+    os.utime(newer, (2_000_000, 2_000_000))
+
+    gonio = eiger_pyfai._load_goniometer_from_relative_path(tmp_path / "scan.nxs")
+
+    expected = eiger_pyfai._load_goniometer(newer)
+    assert gonio.wavelength == expected.wavelength
+    assert gonio.get_ai(20.0).get_config() == expected.get_ai(20.0).get_config()
+
+
+def test_load_goniometer_from_relative_path_raises_without_calibration(tmp_path):
+    (tmp_path / "processed").mkdir()
+
+    with pytest.raises(FileNotFoundError, match="No goniometer calibration"):
+        eiger_pyfai._load_goniometer_from_relative_path(tmp_path / "scan.nxs")
