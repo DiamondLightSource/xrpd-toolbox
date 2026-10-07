@@ -15,6 +15,8 @@ from xrpd_toolbox.i15_1.eiger_500k import (
     PIXEL_SIZE,
     Eiger500K,
     EigerDataLoader,
+    apply_mask,
+    group_positions,
 )
 
 WAVELENGTH_ANGSTROM = 0.161699
@@ -676,3 +678,84 @@ def test_eiger500k_test_method_runs_without_display(eiger):
         eiger.test()
 
     plt.close("all")
+
+
+# ---------------------------------------------------------------------------
+# group_positions
+# ---------------------------------------------------------------------------
+
+
+def test_group_positions_groups_runs_of_equal_values():
+    labels, positions = group_positions([1.0, 1.0, 2.0, 2.0, 2.0, 3.0])
+
+    assert labels.tolist() == [0, 0, 1, 1, 1, 2]
+    assert positions.tolist() == [1.0, 2.0, 3.0]
+
+
+def test_group_positions_merges_readback_jitter():
+    # real i15-1 readbacks: 50° and 60° each read back as two values ~6e-5 apart,
+    # interleaved - exact equality made four "positions" out of two
+    tth = [50.000005, 50.000061, 50.000005, 59.999995, 60.000051, 59.999995]
+
+    labels, positions = group_positions(tth)
+
+    assert labels.tolist() == [0, 0, 0, 1, 1, 1]
+    assert positions == pytest.approx([np.mean(tth[:3]), np.mean(tth[3:])])
+
+
+def test_group_positions_does_not_need_sorted_or_contiguous_frames():
+    labels, positions = group_positions([20.0, 10.0, 20.0, 10.0])
+
+    assert labels.tolist() == [1, 0, 1, 0]
+    assert positions.tolist() == [10.0, 20.0]
+
+
+def test_group_positions_keeps_positions_further_apart_than_tolerance():
+    labels, positions = group_positions([1.0, 1.01, 1.02], tolerance=1e-3)
+
+    assert labels.tolist() == [0, 1, 2]
+    assert len(positions) == 3
+
+
+def test_group_positions_empty():
+    labels, positions = group_positions([])
+
+    assert labels.size == 0 and positions.size == 0
+
+
+# ---------------------------------------------------------------------------
+# apply_mask
+# ---------------------------------------------------------------------------
+
+
+def test_apply_mask_zeroes_bad_pixels_in_each_frame():
+    frames = np.ones((2, 3, 3))
+    mask = np.array([[1, 0, 1], [0, 1, 0], [1, 1, 1]])
+
+    masked = apply_mask(frames, mask)
+
+    assert masked.shape == (2, 3, 3)
+    # Eiger/pyFAI convention: nonzero in the mask = bad pixel
+    assert np.array_equal(masked[0], 1 - mask)
+    assert np.array_equal(masked[1], 1 - mask)
+
+
+def test_apply_mask_with_boolean_mask():
+    frames = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+    mask = np.array([[True, False], [False, True]])
+
+    masked = apply_mask(frames, mask)
+
+    assert np.array_equal(masked[0], [[0.0, 2.0], [3.0, 0.0]])
+
+
+def test_apply_mask_removes_saturated_bad_pixels():
+    # bad Eiger pixels read as the uint32 max - they must not survive masking
+    frames = np.full((1, 2, 2), 10.0)
+    frames[0, 0, 0] = np.iinfo(np.uint32).max
+    mask = np.array([[1, 0], [0, 0]], dtype=np.uint32)
+
+    masked = apply_mask(frames, mask)
+
+    assert masked.max() == 10.0
+    assert masked[0, 0, 0] == 0

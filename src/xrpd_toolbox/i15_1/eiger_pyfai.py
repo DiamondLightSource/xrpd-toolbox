@@ -76,6 +76,60 @@ def mask_edges(
 
     if as_nan:
         mask = np.where(mask == 1, np.nan, 1.0)
+    else:
+        mask = mask.astype(bool)
+
+    return mask
+
+
+def mask_module_edges(
+    detector_shape: tuple[int, int],
+    mask_width: tuple[int, int],
+    module_grid: tuple[int, int] = (2, 4),
+    as_nan: bool = False,
+) -> np.ndarray:
+    """Creates a pyfai compatible mask that masks the edges of every module
+
+    The Eiger 500k is a 2x4 grid of 256x256 modules. The full frame (detector_shape)
+    is (512, 1028)
+    the module boundaries are found by splitting the frame evenly into the grid
+    rather than assuming exactly 256 pixels per module.
+
+    mask_width is (row_width, col_width), as in mask_edges
+
+    PyFAI considers masks with values equal to zero 0 as valid pixels
+
+    """
+
+    row_width, col_width = mask_width
+    n_rows, n_cols = detector_shape
+    n_module_rows, n_module_cols = module_grid
+
+    if row_width < 0 or col_width < 0:
+        raise ValueError(f"edge_width must be a non-negative int, got {mask_width}")
+
+    # pixel index where each module starts/ends, e.g. [0, 256, 512] for the rows
+    row_boundaries = np.linspace(0, n_rows, n_module_rows + 1).round().astype(int)
+    col_boundaries = np.linspace(0, n_cols, n_module_cols + 1).round().astype(int)
+
+    mask = np.zeros(detector_shape)
+
+    for module_row in range(n_module_rows):
+        row_start = row_boundaries[module_row]
+        row_end = row_boundaries[module_row + 1]
+        mask[row_start : row_start + row_width, :] = 1
+        mask[row_end - row_width : row_end, :] = 1
+
+    for module_col in range(n_module_cols):
+        col_start = col_boundaries[module_col]
+        col_end = col_boundaries[module_col + 1]
+        mask[:, col_start : col_start + col_width] = 1
+        mask[:, col_end - col_width : col_end] = 1
+
+    if as_nan:
+        mask = np.where(mask == 1, np.nan, 1.0)
+    else:
+        mask = mask.astype(bool)
 
     return mask
 
@@ -218,6 +272,31 @@ def _load_goniometer(goniometer_filepath: Path) -> Goniometer:
     gonio = Goniometer.sload(str(goniometer_filepath))
     logger.info("Loaded goniometer from %s", goniometer_filepath.parent)
     return gonio
+
+
+def get_goniometer_cal_filepath(nexus_filepath: str) -> Path:
+    """The most recent goniometer calibration saved in the processed folder."""
+    goniometer_dir, _ = processed_directory_and_filename(
+        nexus_filepath, nest_by_filename=False
+    )
+
+    goniometer_models = list(Path(goniometer_dir).glob(f"*{GONIOMETER_SAVE_NAME}"))
+    if not goniometer_models:
+        raise FileNotFoundError(f"No goniometer calibration found in {goniometer_dir}")
+
+    # gets newest file based on when it's written
+    return max(goniometer_models, key=lambda path: path.stat().st_mtime)
+
+
+def _load_goniometer_from_relative_path(nexus_filepath: str | Path) -> Goniometer:
+    """Load a goniometer calibration from a relative path to the nexus file."""
+
+    goniometer_filepath = get_goniometer_cal_filepath(
+        nexus_filepath=str(nexus_filepath)
+    )
+    goniometer_model = _load_goniometer(goniometer_filepath=Path(goniometer_filepath))
+
+    return goniometer_model
 
 
 def get_eiger_detector(detector: Detector | str | None = None) -> Detector:

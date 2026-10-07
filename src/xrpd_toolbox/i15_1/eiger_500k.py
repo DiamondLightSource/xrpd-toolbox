@@ -438,21 +438,17 @@ class EigerDataLoader:
 
         return totals
 
-    def get_goniometer_calibration(self) -> Goniometer | None:
+    def get_goniometer_calibration(self) -> Goniometer:
 
-        try:
-            # NOTE: This will be updated when Dom/Jacob put this info in the nexus
+        # NOTE: This will be updated when Dom/Jacob put this info in the nexus
 
-            goniometer_data_path = f"/{self.entry}/plan_metadata/geometry_calibration"
+        goniometer_data_path = f"/{self.entry}/plan_metadata/geometry_calibration"
 
-            goniometer_json_str = self._read_string(goniometer_data_path)
+        goniometer_json_str = self._read_string(goniometer_data_path)
 
-            goniometer_model = gonio_from_json_string(goniometer_json_str)  # noqa
+        goniometer_model = gonio_from_json_string(goniometer_json_str)  # noqa
 
-            return goniometer_model
-
-        except Exception:
-            return None
+        return goniometer_model
 
 
 class Eiger500K(Detector):
