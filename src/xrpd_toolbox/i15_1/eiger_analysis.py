@@ -487,7 +487,7 @@ if __name__ == "__main__":
             publish=False,
         )
 
-        # ref = "/workspaces/outputs/i15-1/i15-1-99878_processed_with_saved_corrections.xy"
+        # ref = "/workspaces/outputs/i15-1/i15-1-99878_processed_with_saved_corrections.xy" #noqa
         plot_final_data(
             output_xy, reference_xy=None, title=str(output_xy.stem), normalise_data=True
         )
