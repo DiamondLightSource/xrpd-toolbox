@@ -76,6 +76,8 @@ def mask_edges(
 
     if as_nan:
         mask = np.where(mask == 1, np.nan, 1.0)
+    else:
+        mask = mask.astype(bool)
 
     return mask
 
@@ -88,8 +90,9 @@ def mask_module_edges(
 ) -> np.ndarray:
     """Creates a pyfai compatible mask that masks the edges of every module
 
-    The Eiger 500k is a 2x4 grid of 256x256 modules. The full frame is (512, 1028)
-    so the module boundaries are found by splitting the frame evenly into the grid
+    The Eiger 500k is a 2x4 grid of 256x256 modules. The full frame (detector_shape)
+    is (512, 1028)
+    the module boundaries are found by splitting the frame evenly into the grid
     rather than assuming exactly 256 pixels per module.
 
     mask_width is (row_width, col_width), as in mask_edges
@@ -125,6 +128,8 @@ def mask_module_edges(
 
     if as_nan:
         mask = np.where(mask == 1, np.nan, 1.0)
+    else:
+        mask = mask.astype(bool)
 
     return mask
 
