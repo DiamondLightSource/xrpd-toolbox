@@ -270,7 +270,7 @@ def _load_goniometer(goniometer_filepath: Path) -> Goniometer:
         )
 
     gonio = Goniometer.sload(str(goniometer_filepath))
-    logger.info("Loaded goniometer from %s", goniometer_filepath.parent)
+    logger.info("Loaded goniometer from %s", goniometer_filepath)
     return gonio
 
 
