@@ -172,8 +172,8 @@ class SampleAligner(Model[XYEData]):
         The plot shows the observed intensities, the current fitted profile,
         the background model, and the residual (observed minus calculated).
         """
-        if self.data.source is not None:
-            title = os.path.basename(self.data.source)
+        if self.data.filepath is not None:
+            title = os.path.basename(self.data.filepath)
         else:
             title = ""
 

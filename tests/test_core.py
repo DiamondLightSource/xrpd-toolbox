@@ -208,7 +208,7 @@ def test_xyedata_from_csv(tmp_path: Path):
     assert np.array_equal(data.x, np.array([1.0, 2.0]))
     assert np.array_equal(data.y, np.array([2.0, 3.0]))
     assert np.array_equal(data.e, np.array([0.1, 0.2]))
-    assert data.source == str(csv_file)
+    assert data.filepath == str(csv_file)
 
 
 def test_scattering_data_from_xye_and_fullprof(tmp_path: Path):
