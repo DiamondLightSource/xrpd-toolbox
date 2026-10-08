@@ -358,7 +358,7 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
         logger.info(response_from_pdfcurl)
 
     except Exception as e:
-        logger.error(e)
+        logger.error(f"{e} \n therefore no pdf generated for {output_xy_filepath=}")
 
     return output_xy_filepath
 
