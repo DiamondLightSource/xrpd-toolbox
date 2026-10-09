@@ -1,11 +1,13 @@
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from xrpd_toolbox.fit_engine.background import ConstantBackground
 from xrpd_toolbox.i15_1.sample_alignment import (
     SampleAligner,
+    is_flat,
     run_sample_alignment,
     sample_alignment_i15_1,
     sample_alignment_model_builder,
@@ -25,6 +27,31 @@ EXPECTED_SAMPLE_ALIGNMENT_CENTRES = {
     "carbon_black-94519.csv": 36.77,
     "water-94520.csv": 55.23,
 }
+
+
+def test_is_flat_returns_false_for_non_flat_array():
+    array = np.array([1, 2, 3, 4, 5])
+    assert not is_flat(array)
+
+
+def test_is_flat_returns_true_for_flat_array():
+    array = np.array([1, 1, 1, 1, 1])
+    assert is_flat(array)
+
+
+def test_is_flat_returns_false_for_gaussian_array():
+    rng = np.random.default_rng(0)
+    x = np.linspace(-5, 5, 201)
+
+    flat = 2.0 + rng.normal(0, 0.02, x.size)
+    tilted = 2.0 + 0.5 * x
+    peak = 2.0 + np.exp(-(x**2))
+    dip = 2.0 - np.exp(-(x**2))
+
+    assert is_flat(flat)
+    assert not is_flat(tilted)
+    assert not is_flat(peak)
+    assert not is_flat(dip)
 
 
 def test_sample_alignment_builder_from_csv():
