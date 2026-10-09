@@ -627,6 +627,14 @@ def build_and_save_goniometer(
     return calibration_save_filepath, metadata_output_filepath
 
 
+def _trim_edge_zeros(
+    x: np.ndarray, y: np.ndarray, e: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    start = len(y) - len(np.trim_zeros(y, "f"))  # number of leading zeros
+    end = len(np.trim_zeros(y, "b"))  # index just past the last non-zero
+    return x[start:end], y[start:end], e[start:end]
+
+
 def integrate_with_goniometer(
     images: np.ndarray,
     positions: np.ndarray,
@@ -644,6 +652,7 @@ def integrate_with_goniometer(
     apply_absorption_correction: bool = False,
     apply_azimuthal_mask: bool = False,
     detector: str | Detector = PYFAI_DETECTOR_NAME,
+    trim_edge_zeros: bool = True,
 ) -> Path:
     """Integrate images with a saved goniometer and write an .xy file."""
     output_xy_filepath = Path(output_xy_filepath)
@@ -704,6 +713,9 @@ def integrate_with_goniometer(
     tth = np.array(result.radial)
     intensity = np.array(result.intensity)
     error = np.array(result.sigma)
+
+    if trim_edge_zeros:
+        tth, intensity, error = _trim_edge_zeros(tth, intensity, error)
 
     assert len(tth) == len(intensity) == len(error)
 
