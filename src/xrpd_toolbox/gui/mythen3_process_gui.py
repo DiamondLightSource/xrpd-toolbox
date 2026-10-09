@@ -119,7 +119,7 @@ class PlotWindow(QWidget):
 
     def __init__(self, data: XYEData, title: str = "") -> None:
         super().__init__()
-        self.setWindowTitle(title or (data.source or "Diffraction Pattern"))
+        self.setWindowTitle(title or (data.filepath or "Diffraction Pattern"))
         self.resize(700, 550)
 
         layout = QVBoxLayout(self)
@@ -140,8 +140,8 @@ class PlotWindow(QWidget):
 
         ax.set_xlabel("tth (deg)")
         ax.set_ylabel("Intensity (Arb. Units)")
-        if data.source:
-            ax.set_title(Path(data.source).name)
+        if data.filepath:
+            ax.set_title(Path(data.filepath).name)
 
         self.figure.tight_layout()
         self.canvas.draw()
