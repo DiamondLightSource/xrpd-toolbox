@@ -581,7 +581,7 @@ class XYEData(XRPDBaseModel):
     x: SerialisableNDArray = Field(repr=False)
     y: SerialisableNDArray = Field(repr=False)
     e: SerialisableNDArray | None = Field(default=None, repr=False)
-    source: str | None = None  # for tracking where the data came from
+    filepath: str | None = None  # for tracking where the data came from
 
     @model_validator(mode="after")
     def validate_data(self):
@@ -599,7 +599,7 @@ class XYEData(XRPDBaseModel):
             x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
             e = None
 
-        return cls(title=Path(filepath).stem, x=x, y=y, e=e, source=str(filepath))
+        return cls(title=Path(filepath).stem, x=x, y=y, e=e, filepath=str(filepath))
 
     def save_to_xye(self, filepath):
         if self.e is None:
@@ -672,7 +672,7 @@ class ScatteringData(XYEData):
             x_unit=x_unit,
             data_type=data_type,
             wavelength=wavelength,
-            source=str(filepath),
+            filepath=str(filepath),
         )
 
     @classmethod
@@ -708,7 +708,7 @@ class ScatteringData(XYEData):
             x_unit=x_unit,
             data_type=data_type,
             wavelength=wavelength,
-            source=str(filepath),
+            filepath=str(filepath),
         )
 
 
