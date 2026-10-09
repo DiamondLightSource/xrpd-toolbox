@@ -27,7 +27,6 @@ class DataPlot(XYEData):
     just the numbers.
     """
 
-    filepath: str | None = None
     # explicit override for get_filenumber() - usually left unset and derived
     # from filepath instead
     filenumber: int | None = None
