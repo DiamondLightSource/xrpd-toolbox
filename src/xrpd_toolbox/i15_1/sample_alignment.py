@@ -25,13 +25,34 @@ from xrpd_toolbox.fit_engine.peaks import (
     peak_factory,
 )
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
-from xrpd_toolbox.plotting import FittedDataPlot
+from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
     h5_to_array,
     processed_directory_and_filename,
     wait_for_finished_file,
 )
+
+
+def is_flat(array: np.ndarray, threshold: float = 0.05) -> bool:
+    """Check if the array is flat within a given threshold."""
+
+    array = np.asarray(array, dtype=float)
+    if array.ndim == 2 and array.shape[1] == 2:
+        y = array[:, 1]
+    elif array.ndim == 1:
+        y = array
+    else:
+        raise ValueError("data must be a 1D array of y values or an (N, 2) array.")
+    if y.size < 2:
+        raise ValueError("Need at least two points.")
+
+    median = np.median(y)
+    tol = threshold * abs(median)
+
+    above = y.max() - median
+    below = median - y.min()
+    return bool(above <= tol and below <= tol)
 
 
 class SampleCenteringResult(RefinementBaseModel):
@@ -349,6 +370,19 @@ def sample_alignment_i15_1(
         positions = h5_to_array(filepath, position_path)
 
         xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
+
+    if is_flat(xyedata.y):
+        flat_data = DataPlot(
+            title="Sample_Alignment",
+            x=xyedata.x,
+            y=xyedata.y,
+        )
+        flat_data.publish(beamline=beamline)
+
+        raise ValueError(
+            "The data appears to be flat. Is the shutter closed?"
+            "Sample alignment cannot be performed."
+        )
 
     best_model = run_sample_alignment(data=xyedata)
 
