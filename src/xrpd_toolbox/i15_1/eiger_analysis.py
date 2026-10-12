@@ -194,6 +194,77 @@ def get_outlier_mask() -> np.ndarray:
     return outlier_mask.astype(bool)
 
 
+def _get_temperature_slices(
+    eiger_data: EigerDataLoader,
+) -> list[tuple[slice, str]]:
+    """The frames of each temperature, with a label for its .xy filename.
+
+    Scans without a collection specification are one slice over every frame."""
+
+    try:
+        collection_specification = eiger_data.get_collection_specification()
+        slices = eiger_data.get_reshaped_data_slices()
+    except ValueError as e:
+        logger.warning(f"No collection specification, reducing all frames: {e}")
+        return [(slice(0, eiger_data.get_number_of_frames()), "")]
+
+    labels = []
+    for temperature_spec in collection_specification:
+        temperature = temperature_spec.get("temperature_celsius")
+        unit = temperature_spec.get("temperature_unit") or ""
+        labels.append(f"{temperature}{unit}")
+
+    return list(zip(slices, labels, strict=True))
+
+
+def _load_goniometer_for_reduction(
+    eiger_data: EigerDataLoader,
+    nexus_filepath: Path,
+    goniometer_filepath: str | Path | None,
+):
+    if goniometer_filepath is not None:
+        return _load_goniometer(goniometer_filepath=Path(goniometer_filepath))
+
+    try:
+        goniometer_model = eiger_data.get_goniometer_calibration()
+        logger.info(f"Loaded goniometer from nexus file: {goniometer_model}")
+    except Exception as e:
+        if GEOMETRY_CAL_FILEPATH.exists():
+            goniometer_model = _load_goniometer(GEOMETRY_CAL_FILEPATH)
+            logger.info(f"Loaded goniometer from file: {GEOMETRY_CAL_FILEPATH}")
+        else:
+            logger.warning(
+                f"Could not load goniometer from nexus file: {e}, "
+                "looking for geometry calibration in relative path"
+            )
+            goniometer_model = _load_goniometer_from_relative_path(nexus_filepath)
+
+    return goniometer_model
+
+
+def _publish_xy(
+    output_xy_filepath: Path,
+    data_type: str,
+    known_peak_markers: list[float] | None,
+):
+    try:
+        data_plot = DataPlot.from_csv(output_xy_filepath)
+        data_plot.x_label = "2θ (deg)"
+        data_plot.data_type = data_type
+
+        if known_peak_markers is not None:
+            data_plot = FittedDataPlot(
+                **data_plot.model_dump(),
+                calc=data_plot.y,
+                markers=list(known_peak_markers),
+            )
+
+        data_plot.publish(beamline="i15-1")
+
+    except Exception as e:
+        logger.error(e)
+
+
 def do_eiger_data_reduction(
     nexus_filepath: str | Path,
     edge_mask_width: tuple[int, int] | None = (5, 3),
@@ -209,17 +280,18 @@ def do_eiger_data_reduction(
     publish: bool = True,
     save_xye: bool = False,
     save_in_q: bool = False,
-) -> Path:
-    """Reduce a scan to an .xy file with the saved goniometer."""
+) -> Path | list[Path]:
+    """Reduce a scan to .xy files with the saved goniometer.
+
+    One .xy per temperature in the collection specification: a single Path if
+    there is one temperature, otherwise a list in collection order.
+    """
 
     logger.info(f"Running {do_eiger_data_reduction.__name__}")
 
     eiger_data = EigerDataLoader(nexus_filepath)
     nexus_filepath = Path(nexus_filepath)
 
-    summed_and_normalised_frames = eiger_data.get_frames(mask=True, normalise=True)
-
-    unique_positions = eiger_data.get_unique_tth_positions()
     mask = eiger_data.get_mask()
 
     if polarization_factor is None:
@@ -229,7 +301,7 @@ def do_eiger_data_reduction(
 
     if edge_mask_width is not None and mask is not None:
         edge_mask = mask_module_edges(
-            detector_shape=summed_and_normalised_frames[0].shape,
+            detector_shape=mask.shape,
             mask_width=edge_mask_width,
         )
 
@@ -239,70 +311,66 @@ def do_eiger_data_reduction(
 
     assert np.amax(mask) <= 1, "Mask should be boolean"
 
-    if apply_intensity_correction:
-        summed_and_normalised_frames = _apply_intensity_corrections(
-            summed_and_normalised_frames
-        )
-
-    processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
-
-    if goniometer_filepath is not None:
-        goniometer_model = _load_goniometer(
-            goniometer_filepath=Path(goniometer_filepath)
-        )
-    else:
-        try:
-            goniometer_model = eiger_data.get_goniometer_calibration()
-            logger.info(f"Loaded goniometer from nexus file: {goniometer_model}")
-        except Exception as e:
-            if GEOMETRY_CAL_FILEPATH.exists():
-                goniometer_model = _load_goniometer(GEOMETRY_CAL_FILEPATH)
-                logger.info(f"Loaded goniometer from file: {GEOMETRY_CAL_FILEPATH}")
-            else:
-                logger.warning(
-                    f"Could not load goniometer from nexus file: {e}, "
-                    "looking for geometry calibration in relative path"
-                )
-                goniometer_model = _load_goniometer_from_relative_path(nexus_filepath)
-
-    if output_xy_filepath is None:
-        output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
-
-    output_xy_filepath = integrate_with_goniometer(
-        images=summed_and_normalised_frames,
-        goniometer=goniometer_model,
-        positions=unique_positions,
-        mask=mask,
-        output_xy_filepath=output_xy_filepath,
-        npt=DEFAULT_NPT,
-        polarization_factor=polarization_factor,
-        correct_solid_angle=correct_solid_angle,
-        apply_absorption_correction=apply_absorption_correction,
-        apply_azimuthal_mask=apply_azimuthal_mask,
-        save_xye=save_xye,
-        save_in_q=save_in_q,
-        wavelength=eiger_data.get_wavelength_in_m(),
+    goniometer_model = _load_goniometer_for_reduction(
+        eiger_data, nexus_filepath, goniometer_filepath
     )
 
-    if publish:
-        try:
-            data_plot = DataPlot.from_csv(output_xy_filepath)
-            data_plot.x_label = "2θ (deg)"
-            data_plot.data_type = data_type
+    temperature_slices = _get_temperature_slices(eiger_data)
+    is_single_temperature = len(temperature_slices) == 1
 
-            if known_peak_markers is not None:
-                data_plot = FittedDataPlot(
-                    **data_plot.model_dump(),
-                    calc=data_plot.y,
-                    markers=list(known_peak_markers),
-                )
+    if output_xy_filepath is None:
+        processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
+        output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
+    output_xy_filepath = Path(output_xy_filepath)
 
-            data_plot.publish(beamline="i15-1")
+    output_xy_filepaths: list[Path] = []
 
-        except Exception as e:
-            logger.error(e)
+    for index, (frames, temperature_label) in enumerate(temperature_slices):
+        logger.info(f"Reducing frames {frames} at temperature {temperature_label}")
 
-    return output_xy_filepath
+        summed_and_normalised_frames = eiger_data.get_frames(
+            mask=True, normalise=True, frames=frames
+        )
+        unique_positions = eiger_data.get_unique_tth_positions(frames=frames)
+
+        if apply_intensity_correction:
+            summed_and_normalised_frames = _apply_intensity_corrections(
+                summed_and_normalised_frames
+            )
+
+        if is_single_temperature:
+            temperature_xy_filepath = output_xy_filepath
+        else:
+            temperature_xy_filepath = output_xy_filepath.with_name(
+                f"{output_xy_filepath.stem}_{index:03d}_{temperature_label}"
+                f"{output_xy_filepath.suffix}"
+            )
+
+        temperature_xy_filepath = integrate_with_goniometer(
+            images=summed_and_normalised_frames,
+            goniometer=goniometer_model,
+            positions=unique_positions,
+            mask=mask,
+            output_xy_filepath=temperature_xy_filepath,
+            npt=DEFAULT_NPT,
+            polarization_factor=polarization_factor,
+            correct_solid_angle=correct_solid_angle,
+            apply_absorption_correction=apply_absorption_correction,
+            apply_azimuthal_mask=apply_azimuthal_mask,
+            save_xye=save_xye,
+            save_in_q=save_in_q,
+            wavelength=eiger_data.get_wavelength_in_m(),
+        )
+
+        if publish:
+            _publish_xy(temperature_xy_filepath, data_type, known_peak_markers)
+
+        output_xy_filepaths.append(temperature_xy_filepath)
+
+    if is_single_temperature:
+        return output_xy_filepaths[0]
+    else:
+        return output_xy_filepaths
 
 
 def _get_background_xy_filepath(eiger_data: EigerDataLoader) -> str | None:
@@ -338,29 +406,36 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     nexus_filepath: str | Path,
     output_xy_filepath: str | Path | None = None,
     composition: str | None = None,
-) -> Path:
+) -> Path | list[Path]:
 
-    output_xy_filepath = do_eiger_data_reduction(
+    output_xy_filepaths = do_eiger_data_reduction(
         nexus_filepath=nexus_filepath, output_xy_filepath=output_xy_filepath
     )
 
     eiger_data = EigerDataLoader(nexus_filepath)
     background_file_xy = _get_background_xy_filepath(eiger_data)
 
-    try:
-        logger.info("Sending xy to pdfcurl (pdfgetx3)")
-        response_from_pdfcurl = send_xy_to_pdfcurl(
-            xy_filepath=str(output_xy_filepath),
-            composition=composition or eiger_data.get_composition(),
-            wavelength=eiger_data.get_wavelength(),
-            background_file=background_file_xy,
-        )
-        logger.info(response_from_pdfcurl)
+    xy_filepaths = (
+        output_xy_filepaths
+        if isinstance(output_xy_filepaths, list)
+        else [output_xy_filepaths]
+    )
 
-    except Exception as e:
-        logger.error(f"{e} \n therefore no pdf generated for {output_xy_filepath=}")
+    for xy_filepath in xy_filepaths:
+        try:
+            logger.info(f"Sending {xy_filepath} to pdfcurl (pdfgetx3)")
+            response_from_pdfcurl = send_xy_to_pdfcurl(
+                xy_filepath=str(xy_filepath),
+                composition=composition or eiger_data.get_composition(),
+                wavelength=eiger_data.get_wavelength(),
+                background_file=background_file_xy,
+            )
+            logger.info(response_from_pdfcurl)
 
-    return output_xy_filepath
+        except Exception as e:
+            logger.error(f"{e} \n therefore no pdf generated for {xy_filepath=}")
+
+    return output_xy_filepaths
 
 
 def run_eiger_analysis(nexus_filepath: str | Path) -> Path | list[Path] | None:
@@ -429,38 +504,6 @@ def plot_final_data(
 
 # fmt: off
 if __name__ == "__main__":
-    # print(DEFAULT_MAX_SHAPE)
-
-    # from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
-
-    # mask = mask_module_edges(detector_shape=DEFAULT_MAX_SHAPE, mask_width=(5, 2))
-    # outlier_mask = get_outlier_mask()
-
-    # import matplotlib.pyplot as plt
-
-    # fig1, (ax1, ax2) = plt.subplots(2, 1)
-    # ax1.imshow(mask)
-
-    # ax2.imshow(outlier_mask)
-    # plt.show()
-
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98680.nxs"  # first si calib
-
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98784.nxs"  # longer si calib
-
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99380.nxs"
-
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
-
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
-
-    # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
-    #     cal_nexus_filepath,
-    #     calibrant_name="W",
-    #     plot_fits=True,
-    #     show_plots=False,
-    #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
-    # )
 
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example

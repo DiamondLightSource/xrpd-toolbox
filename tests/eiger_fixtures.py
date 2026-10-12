@@ -7,6 +7,7 @@ Not a test module itself - nothing in here is named test_*.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import h5py
@@ -142,11 +143,13 @@ def build_i15_1_scan(
     counts: int = 100,
     composition: str | None = None,
     empty_capillary_filename: str | None = None,
+    collection_specification: list[dict] | None = None,
 ) -> Path:
     """Write a small but full-size i15-1 Eiger scan (nexus + pixel mask file)
     that do_eiger_data_reduction can reduce for real.
 
     Every pixel reads `counts`, with one frame per two-theta position in `tth`.
+    `collection_specification` is saved as json, as the plan writes it.
     """
     directory = Path(directory)
     n_frames = len(tth)
@@ -173,6 +176,11 @@ def build_i15_1_scan(
             plan_metadata.create_dataset(
                 "auxiliary_scans/Empty Capillary/filename",
                 data=empty_capillary_filename,
+            )
+        if collection_specification is not None:
+            plan_metadata.create_dataset(
+                "collection_specification",
+                data=json.dumps(collection_specification),
             )
 
     return nexus_filepath

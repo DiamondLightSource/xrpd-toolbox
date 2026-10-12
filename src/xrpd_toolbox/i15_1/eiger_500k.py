@@ -170,9 +170,20 @@ class EigerDataLoader:
             logger.debug("  2θ=%.5f°: %d frames", tth, count)
         return labels, group_tth
 
-    def get_unique_tth_positions(self) -> np.ndarray:
+    def get_tth_groups(
+        self, frames: slice | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """tth_groups for only the frames in `frames`, eg. one temperature."""
+        if frames is None:
+            return self.tth_groups
+
+        number_of_detector_frames = self.get_number_of_frames()
+        positions = self.positions[:number_of_detector_frames][frames]
+        return group_positions(positions)
+
+    def get_unique_tth_positions(self, frames: slice | None = None) -> np.ndarray:
         """Ascending, in the same order as the summed frames."""
-        return self.tth_groups[1]
+        return self.get_tth_groups(frames)[1]
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -394,36 +405,43 @@ class EigerDataLoader:
 
         return self._read_string(composition_path)
 
-    def sum_frames_at_each_two_theta_position(self) -> np.ndarray:
+    def sum_frames_at_each_two_theta_position(
+        self, frames: slice | None = None
+    ) -> np.ndarray:
         """Adds up every frame taken at the same two-theta position.
 
         Returns one image per position, in ascending two-theta order.
+        `frames` restricts it to a range of frames, eg. one temperature.
         """
 
-        position_index_of_each_frame, unique_positions = self.tth_groups
+        position_index_of_each_frame, unique_positions = self.get_tth_groups(frames)
 
-        number_of_frames = len(position_index_of_each_frame)
+        frame_indices = range(self.get_number_of_frames())[frames or slice(None)]
         number_of_positions = len(unique_positions)
 
-        if number_of_frames == 0:
+        if len(frame_indices) == 0:
             raise ValueError(f"No frames to sum in {self.filepath}")
 
         image_shape = self.get_data(0).shape
         summed_frames = np.zeros((number_of_positions, *image_shape), dtype=np.float64)
 
         # read one frame at a time so a large scan doesn't all load at once
-        for frame_index in range(number_of_frames):
-            frame = self.get_data(frame_index)
-            position_index = position_index_of_each_frame[frame_index]
-            summed_frames[position_index] += frame
+        for position_index, frame_index in zip(
+            position_index_of_each_frame, frame_indices, strict=True
+        ):
+            summed_frames[position_index] += self.get_data(frame_index)
 
         return summed_frames
 
-    def i0_at_tth_position(self) -> np.ndarray:
+    def i0_at_tth_position(self, frames: slice | None = None) -> np.ndarray:
         """Total i0 of all the frames at each two-theta position."""
 
-        position_index_of_each_frame, unique_positions = self.tth_groups
+        position_index_of_each_frame, unique_positions = self.get_tth_groups(frames)
         i0_of_each_frame = self.get_i0(abs=True)
+
+        if frames is not None:
+            number_of_detector_frames = self.get_number_of_frames()
+            i0_of_each_frame = i0_of_each_frame[:number_of_detector_frames][frames]
 
         total_i0_at_each_position = np.zeros(len(unique_positions))
         for position_index in range(len(unique_positions)):
@@ -435,19 +453,20 @@ class EigerDataLoader:
 
         return total_i0_at_each_position
 
-    def get_frames(self, mask: bool, normalise: bool):
+    def get_frames(self, mask: bool, normalise: bool, frames: slice | None = None):
         """One summed image per two-theta position.
 
         With normalise, each image is divided by the total i0 at that position.
+        `frames` restricts it to a range of frames, eg. one temperature.
         """
 
-        summed_frames = self.sum_frames_at_each_two_theta_position()
+        summed_frames = self.sum_frames_at_each_two_theta_position(frames)
 
         if mask:
             summed_frames = apply_mask(image_frames=summed_frames, mask=self.get_mask())
 
         if normalise:
-            i0_at_each_position = self.i0_at_tth_position()
+            i0_at_each_position = self.i0_at_tth_position(frames)
         else:
             i0_at_each_position = np.ones(len(summed_frames))
 

@@ -67,7 +67,8 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     )
 
     expected_path = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-    assert Path(result) == expected_path
+    assert isinstance(result, Path)
+    assert result == expected_path
     _assert_is_reduced_xy(expected_path)
 
 
@@ -83,7 +84,8 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
         publish=False,
     )
 
-    assert Path(result) == explicit_output
+    assert isinstance(result, Path)
+    assert result == explicit_output
     _assert_is_reduced_xy(explicit_output)
 
 
@@ -97,8 +99,9 @@ def test_do_eiger_data_reduction_uses_calibration_saved_in_processed_dir(
 
     result = eiger_analysis.do_eiger_data_reduction(nexus_filepath, publish=False)
 
-    assert Path(result) == tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-    _assert_is_reduced_xy(Path(result))
+    assert isinstance(result, Path)
+    assert result == tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+    _assert_is_reduced_xy(result)
 
 
 def test_do_eiger_data_reduction_raises_without_any_calibration(tmp_path: Path):
@@ -173,7 +176,8 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
         )
 
     expected_xy = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-    assert Path(result) == expected_xy
+    assert isinstance(result, Path)
+    assert result == expected_xy
     _assert_is_reduced_xy(expected_xy)
     # the saved background is reused as-is, not regenerated
     assert existing_bg_xy.read_text() == "previously reduced background"
@@ -199,7 +203,8 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
     expected_bg_xy = (
         tmp_path / "processed" / "empty_capillary" / "empty_capillary_fastcs_eiger.xy"
     )
-    assert Path(result) == expected_xy
+    assert isinstance(result, Path)
+    assert result == expected_xy
     # the background was reduced from its own nexus file into processed/
     _assert_is_reduced_xy(expected_bg_xy)
     sent = mock_send.call_args.kwargs
@@ -216,7 +221,8 @@ def test_pdfcurl_reduction_sends_no_background_when_there_is_none(tmp_path: Path
             nexus_filepath
         )
 
-    _assert_is_reduced_xy(Path(result))
+    assert isinstance(result, Path)
+    _assert_is_reduced_xy(result)
     assert mock_send.call_args.kwargs["background_file"] is None
 
 
@@ -315,29 +321,112 @@ def test_plot_final_data_overlays_normalised_reference(tmp_path: Path, shown_fig
         assert np.min(line.get_ydata()) == pytest.approx(0.0, abs=1e-6)
 
 
-SINGLE_TEMP_DATA_FILE = Path("/Users/akz63626/projects/outputs/i15-1/i15-1-99878.nxs")
+def _temperature_spec(temperature, unit: str | None) -> dict:
+    return {
+        "temperature_celsius": temperature,
+        "temperature_unit": unit,
+        "collection_specification": [
+            {"tth": tth, "frames": 1, "slow_attenuator_position": "100%"}
+            for tth in SCAN_TTH
+        ],
+    }
 
-VT_DATA_FILE = Path("/Users/akz63626/projects/outputs/i15-1/i15-1-100225.nxs")
+
+def test_do_eiger_data_reduction_single_temperature_returns_one_path(
+    tmp_path: Path,
+):
+    nexus_filepath = build_i15_1_scan(
+        tmp_path,
+        "scan",
+        tth=SCAN_TTH,
+        collection_specification=[_temperature_spec("RT", None)],
+    )
+    goniometer_filepath = write_i15_1_goniometer_json(tmp_path / "gonio.json")
+
+    result = eiger_analysis.do_eiger_data_reduction(
+        nexus_filepath, goniometer_filepath=goniometer_filepath, publish=False
+    )
+
+    expected_path = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+    assert result == expected_path
+    _assert_is_reduced_xy(expected_path)
+
+
+def test_do_eiger_data_reduction_variable_temperature_returns_one_path_per_temp(
+    tmp_path: Path,
+):
+    nexus_filepath = build_i15_1_scan(
+        tmp_path,
+        "scan",
+        tth=SCAN_TTH + SCAN_TTH,  # both positions at each temperature
+        collection_specification=[
+            _temperature_spec(40.0, "C"),
+            _temperature_spec(50.0, "C"),
+        ],
+    )
+    goniometer_filepath = write_i15_1_goniometer_json(tmp_path / "gonio.json")
+
+    result = eiger_analysis.do_eiger_data_reduction(
+        nexus_filepath, goniometer_filepath=goniometer_filepath, publish=False
+    )
+
+    processed_dir = tmp_path / "processed" / "scan"
+    assert isinstance(result, list)
+    assert result == [
+        processed_dir / "scan_fastcs_eiger_000_40.0C.xy",
+        processed_dir / "scan_fastcs_eiger_001_50.0C.xy",
+    ]
+    for xy_filepath in result:
+        _assert_is_reduced_xy(xy_filepath)
+
+
+I15_1_DATA_DIR = Path(__file__).parent / "data" / "i15_1"
+
+SINGLE_TEMP_DATA_FILE = I15_1_DATA_DIR / "i15-1-100243.nxs"
+
+VT_DATA_FILE = I15_1_DATA_DIR / "i15-1-100245.nxs"
+
+
+def _scan_files_exist(nexus_filepath: Path) -> bool:
+    """The nexus file and the .h5 files it links to (*.h5 is gitignored)."""
+    linked_suffixes = ("-fastcs_eiger_000001.h5", "-fastcs_eiger_meta.h5", "-i0.h5")
+    linked_files = [
+        nexus_filepath.with_name(nexus_filepath.stem + suffix)
+        for suffix in linked_suffixes
+    ]
+    return all(f.exists() for f in [nexus_filepath, *linked_files])
 
 
 @pytest.mark.skipif(
-    not SINGLE_TEMP_DATA_FILE.exists(),
-    reason="Test data file not available (expected in local dev environment)",
+    not _scan_files_exist(SINGLE_TEMP_DATA_FILE),
+    reason="Test data file not available in tests/data/i15_1",
 )
-def test_data_reduction_with_single_temp_data_file(tmp_path: Path, shown_figure):
-    xy_file = eiger_analysis.do_eiger_data_reduction(SINGLE_TEMP_DATA_FILE)
+def test_data_reduction_with_single_temp_data_file(tmp_path: Path):
+    xy_file = eiger_analysis.do_eiger_data_reduction(
+        SINGLE_TEMP_DATA_FILE,
+        output_xy_filepath=tmp_path / "single_temp.xy",
+        publish=False,
+    )
 
     assert isinstance(xy_file, Path)
+    assert xy_file == tmp_path / "single_temp.xy"
     assert xy_file.exists()
 
 
 @pytest.mark.skipif(
-    not SINGLE_TEMP_DATA_FILE.exists(),
-    reason="Test data file not available (expected in local dev environment)",
+    not _scan_files_exist(VT_DATA_FILE),
+    reason="Test data file not available in tests/data/i15_1",
 )
 def test_data_reduction_with_vt_data_file(tmp_path: Path):
-    xy_file = eiger_analysis.do_eiger_data_reduction(VT_DATA_FILE)
+    xy_files = eiger_analysis.do_eiger_data_reduction(
+        VT_DATA_FILE,
+        output_xy_filepath=tmp_path / "vt.xy",
+        publish=False,
+    )
 
-    assert isinstance(xy_file, list)
-    assert all(isinstance(x, Path) for x in xy_file)
-    assert all(x.exists() for x in xy_file)
+    assert isinstance(xy_files, list)
+    assert xy_files == [
+        tmp_path / "vt_000_40.0C.xy",
+        tmp_path / "vt_001_50.0C.xy",
+    ]
+    assert all(x.exists() for x in xy_files)

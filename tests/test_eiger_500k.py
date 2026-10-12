@@ -304,6 +304,27 @@ def test_get_frames_sums_repeated_positions(tmp_path):
     assert np.allclose(result[1], (3.0 + 4.0) / (2.0 + 3.0))
 
 
+def test_get_frames_only_uses_the_frames_in_the_slice(tmp_path):
+    # two temperatures, each visiting the same two positions
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0),
+        tth=np.array([1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0]),
+        i0=np.array([1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 5.0, 5.0]),
+    )
+    loader = EigerDataLoader(nxs)
+
+    first = loader.get_frames(mask=False, normalise=True, frames=slice(0, 4))
+    second = loader.get_frames(mask=False, normalise=True, frames=slice(4, 8))
+
+    assert np.allclose(loader.get_unique_tth_positions(frames=slice(4, 8)), [1, 2])
+    assert first.shape == second.shape == (2, 4, 5)
+    assert np.allclose(first[0], (1.0 + 2.0) / 2.0)
+    assert np.allclose(first[1], (3.0 + 4.0) / 2.0)
+    assert np.allclose(second[0], (10.0 + 20.0) / 4.0)
+    assert np.allclose(second[1], (30.0 + 40.0) / 10.0)
+
+
 def test_get_frames_many_frames_per_position(tmp_path):
     # more frames at one position than there are image columns/rows, so a
     # wrong broadcast can't accidentally line up
