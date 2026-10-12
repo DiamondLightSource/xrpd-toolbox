@@ -363,7 +363,7 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     return output_xy_filepath
 
 
-def run_eiger_analysis(nexus_filepath: str | Path):
+def run_eiger_analysis(nexus_filepath: str | Path) -> Path | list[Path] | None:
 
     wait_for_finished_file(nexus_filepath)
 
@@ -384,6 +384,7 @@ def run_eiger_analysis(nexus_filepath: str | Path):
         goniometer_model_json, _ = do_eiger_goniometer_calibration(
             nexus_filepath=nexus_filepath
         )
+        goniometer_model_json = Path(goniometer_model_json)
         return goniometer_model_json
     elif scan_type == CollectionType.data_collection:
         # If it's actually a datacollections also send it to pdfcurl too
@@ -427,7 +428,7 @@ def plot_final_data(
 
 
 # fmt: off
-# if __name__ == "__main__":
+if __name__ == "__main__":
     # print(DEFAULT_MAX_SHAPE)
 
     # from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
@@ -451,6 +452,8 @@ def plot_final_data(
 
     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-98779.nxs"  # WB for calibration
 
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+
     # goniometer_cal_filepath, meatadata_filepath = do_eiger_goniometer_calibration(
     #     cal_nexus_filepath,
     #     calibrant_name="W",
@@ -459,11 +462,20 @@ def plot_final_data(
     #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
     # )
 
-    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-99340.nxs"  # test example
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100225.nxs"  # VT example
 
-    # do_eiger_data_reduction_and_send_xy_to_pdfcurl(
-    #     nexus_filepath="/workspaces/outputs/i15-1/i15-1-99878.nxs",
-    #     composition="GaIn",
+
+
+    eigerdata = EigerDataLoader(nexus_filepath)
+
+    print(eigerdata.get_collection_specification())
+
+
+    print(eigerdata.get_reshaped_data_slices())
+
+    # xy_files = do_eiger_data_reduction(
+    #     nexus_filepath=nexus_filepath,
+    #     publish=False,
     # )
 
     # quit()

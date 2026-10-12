@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import tempfile
@@ -326,15 +327,221 @@ class EigerDataLoader:
 
         return self._read_string(plan_name_path)
 
-    def get_data_shape(self) -> dict:
+    def get_fake_collection_spec(self) -> list[dict]:
 
-        data_shape_path = f"/{self.entry}/plan_metadata/data_shape"
+        collection_spec = [
+            {
+                "temperature": 30.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 40.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 50.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 60.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 70.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 80.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 90.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+            {
+                "temperature": 100.0,
+                "unit": "C",
+                "collection_specification": [
+                    {
+                        "tth": 20.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.01%",
+                        "fast_attenuator": "In",
+                    },
+                    {
+                        "tth": 25.0,
+                        "frames": 30,
+                        "slow_attenuator_position": "0.1%",
+                        "fast_attenuator": "In",
+                    },
+                ],
+            },
+        ]
 
-        data_shape_array = self._read_array(data_shape_path)
+        return collection_spec
 
-        data_shape_dict = dict(data_shape_array)
+    def get_collection_specification(self) -> dict:
+        collection_specification_path = (
+            f"/{self.entry}/plan_metadata/collection_specification"
+        )
 
-        return data_shape_dict
+        collection_specification = json.loads(
+            self._read_string(collection_specification_path)
+        )
+
+        return collection_specification
+
+    def get_data_shape(self, dev: bool = True):
+
+        if not dev:
+            collection_specification = self.get_collection_specification()
+        else:
+            collection_specification = self.get_fake_collection_spec()
+
+        print(collection_specification)
+
+        temperature_frames = []
+
+        for temperature_collection_spec in collection_specification:
+            print(temperature_collection_spec)
+
+            frame_for_temperature = [
+                f["frames"]
+                for f in temperature_collection_spec["collection_specification"]
+            ]
+
+            temperature_frames.append(sum(frame_for_temperature))
+
+        frame_count = sum(temperature_frames)
+
+        print(f"Total frames in collection: {frame_count}")
+
+        if frame_count != self.get_number_of_frames():
+            raise ValueError(
+                f"Frame count in collection specification ({frame_count}) does not"
+                f"match number of frames in data ({self.get_number_of_frames()})",
+            )
+
+        return temperature_frames
+
+    def get_reshaped_data_slices(self) -> list[slice]:
+
+        frames_for_temperature = self.get_data_shape()
+
+        print(f"Frame count in collection: {frames_for_temperature}")
+
+        frame_count = sum(frames_for_temperature)
+
+        print(f"Total frames in collection: {frame_count}")
+
+        slices = [
+            slice(
+                sum(frames_for_temperature[0:f]),
+                sum(frames_for_temperature[0 : f + 1]),
+                1,
+            )
+            for f in range(len(frames_for_temperature))
+        ]
+
+        return slices
 
     def get_composition(self) -> str:
         """returns the composition of the sample eg. SiO2 or Tb(HCO2)3. etc"""
@@ -405,18 +612,16 @@ class EigerDataLoader:
 
         return summed_frames / i0_per_image
 
-    @property
-    def i0(self) -> np.ndarray:
+    def get_i0(self, abs: bool = True) -> np.ndarray:
         i0_data_path = f"/{self.entry}/i0/data"
 
         # areaDetector writes (n_frames, 1)
-        return self._read_array(i0_data_path).flatten()
+        i0 = self._read_array(i0_data_path).flatten()
 
-    def get_i0(self, abs: bool = True) -> np.ndarray:
         if abs:
-            return np.abs(self.i0)
-        else:
-            return self.i0
+            i0 = np.abs(i0)
+
+        return i0
 
     def sum_frames(self) -> np.ndarray:
         """Total counts in each frame."""

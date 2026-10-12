@@ -313,3 +313,31 @@ def test_plot_final_data_overlays_normalised_reference(tmp_path: Path, shown_fig
     for line in lines:
         assert np.max(line.get_ydata()) == pytest.approx(1.0)
         assert np.min(line.get_ydata()) == pytest.approx(0.0, abs=1e-6)
+
+
+SINGLE_TEMP_DATA_FILE = Path("/Users/akz63626/projects/outputs/i15-1/i15-1-99878.nxs")
+
+VT_DATA_FILE = Path("/Users/akz63626/projects/outputs/i15-1/i15-1-100225.nxs")
+
+
+@pytest.mark.skipif(
+    not SINGLE_TEMP_DATA_FILE.exists(),
+    reason="Test data file not available (expected in local dev environment)",
+)
+def test_data_reduction_with_single_temp_data_file(tmp_path: Path, shown_figure):
+    xy_file = eiger_analysis.do_eiger_data_reduction(SINGLE_TEMP_DATA_FILE)
+
+    assert isinstance(xy_file, Path)
+    assert xy_file.exists()
+
+
+@pytest.mark.skipif(
+    not SINGLE_TEMP_DATA_FILE.exists(),
+    reason="Test data file not available (expected in local dev environment)",
+)
+def test_data_reduction_with_vt_data_file(tmp_path: Path):
+    xy_file = eiger_analysis.do_eiger_data_reduction(VT_DATA_FILE)
+
+    assert isinstance(xy_file, list)
+    assert all(isinstance(x, Path) for x in xy_file)
+    assert all(x.exists() for x in xy_file)
