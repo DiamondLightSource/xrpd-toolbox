@@ -212,6 +212,9 @@ def _get_temperature_slices(
     for temperature_spec in collection_specification:
         temperature = temperature_spec.get("temperature_celsius")
         unit = temperature_spec.get("temperature_unit") or ""
+        # whole degrees, as a "." in a filename isn't safe on every OS
+        if isinstance(temperature, (int, float)):
+            temperature = round(temperature)
         labels.append(f"{temperature}{unit}")
 
     return list(zip(slices, labels, strict=True))
@@ -342,7 +345,7 @@ def do_eiger_data_reduction(
             temperature_xy_filepath = output_xy_filepath
         else:
             temperature_xy_filepath = output_xy_filepath.with_name(
-                f"{output_xy_filepath.stem}_{index:03d}_{temperature_label}"
+                f"{output_xy_filepath.stem}_{index:04d}_{temperature_label}"
                 f"{output_xy_filepath.suffix}"
             )
 

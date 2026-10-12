@@ -6,6 +6,7 @@ pdfcurl - so they don't depend on how the reduction is done internally.
 """
 
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -373,8 +374,8 @@ def test_do_eiger_data_reduction_variable_temperature_returns_one_path_per_temp(
     processed_dir = tmp_path / "processed" / "scan"
     assert isinstance(result, list)
     assert result == [
-        processed_dir / "scan_fastcs_eiger_000_40.0C.xy",
-        processed_dir / "scan_fastcs_eiger_001_50.0C.xy",
+        processed_dir / "scan_fastcs_eiger_0000_40C.xy",
+        processed_dir / "scan_fastcs_eiger_0001_50C.xy",
     ]
     for xy_filepath in result:
         _assert_is_reduced_xy(xy_filepath)
@@ -387,14 +388,18 @@ SINGLE_TEMP_DATA_FILE = I15_1_DATA_DIR / "i15-1-100243.nxs"
 VT_DATA_FILE = I15_1_DATA_DIR / "i15-1-100245.nxs"
 
 
-def _scan_files_exist(nexus_filepath: Path) -> bool:
-    """The nexus file and the .h5 files it links to (*.h5 is gitignored)."""
+def _scan_files(nexus_filepath: Path) -> list[Path]:
+    """The nexus file and the .h5 files it links to."""
     linked_suffixes = ("-fastcs_eiger_000001.h5", "-fastcs_eiger_meta.h5", "-i0.h5")
     linked_files = [
         nexus_filepath.with_name(nexus_filepath.stem + suffix)
         for suffix in linked_suffixes
     ]
-    return all(f.exists() for f in [nexus_filepath, *linked_files])
+    return [nexus_filepath, *linked_files]
+
+
+def _scan_files_exist(nexus_filepath: Path) -> bool:
+    return all(f.exists() for f in _scan_files(nexus_filepath))
 
 
 @pytest.mark.skipif(
@@ -418,15 +423,18 @@ def test_data_reduction_with_single_temp_data_file(tmp_path: Path):
     reason="Test data file not available in tests/data/i15_1",
 )
 def test_data_reduction_with_vt_data_file(tmp_path: Path):
+    # reduced from a copy, so processed/ is written into tmp_path
+    for filepath in _scan_files(VT_DATA_FILE):
+        shutil.copy(filepath, tmp_path)
+
     xy_files = eiger_analysis.do_eiger_data_reduction(
-        VT_DATA_FILE,
-        output_xy_filepath=tmp_path / "vt.xy",
-        publish=False,
+        tmp_path / VT_DATA_FILE.name, publish=False
     )
 
+    processed_dir = tmp_path / "processed" / "i15-1-100245"
     assert isinstance(xy_files, list)
     assert xy_files == [
-        tmp_path / "vt_000_40.0C.xy",
-        tmp_path / "vt_001_50.0C.xy",
+        processed_dir / "i15-1-100245_fastcs_eiger_0000_40C.xy",
+        processed_dir / "i15-1-100245_fastcs_eiger_0001_50C.xy",
     ]
     assert all(x.exists() for x in xy_files)
