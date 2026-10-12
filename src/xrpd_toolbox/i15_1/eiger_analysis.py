@@ -462,8 +462,8 @@ if __name__ == "__main__":
     #     max_rings=[3, 5, 5, 5, 7, 7, 9, 11, 15, 17, 32, 64],
     # )
 
-    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100225.nxs"  # VT example
-
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
 
 
     eigerdata = EigerDataLoader(nexus_filepath)
@@ -473,33 +473,7 @@ if __name__ == "__main__":
 
     print(eigerdata.get_reshaped_data_slices())
 
-    # xy_files = do_eiger_data_reduction(
-    #     nexus_filepath=nexus_filepath,
-    #     publish=False,
-    # )
-
-    # quit()
-
-    # folder = Path("/workspaces/outputs/i15-1/")
-    # files = list(folder.glob("*.nxs"))
-    # files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-
-    # # nexus_filepath = (
-    # #     "/workspaces/outputs/i15-1/i15-1-99878.nxs"  # test example every 4 deg steps #noqa
-    # # )
-
-    # for file in files:
-    #     output_xy = do_eiger_data_reduction(
-    #         str(file),
-    #         edge_mask_width=(5, 3),
-    #         apply_intensity_correction=True,
-    #         apply_absorption_correction=True,
-    #         apply_azimuthal_mask=False,
-    #         correct_solid_angle=True,
-    #         publish=False,
-    #     )
-
-    #     # ref = "/workspaces/outputs/i15-1/i15-1-99878_processed_with_saved_corrections.xy" #noqa
-    #     plot_final_data(
-    #         output_xy, reference_xy=None, title=str(output_xy.stem), normalise_data=True #noqa
-    #     )
+    xy_files = do_eiger_data_reduction(
+        nexus_filepath=nexus_filepath,
+        publish=False,
+    )
