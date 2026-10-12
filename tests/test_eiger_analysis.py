@@ -398,14 +398,6 @@ def _scan_files(nexus_filepath: Path) -> list[Path]:
     return [nexus_filepath, *linked_files]
 
 
-def _scan_files_exist(nexus_filepath: Path) -> bool:
-    return all(f.exists() for f in _scan_files(nexus_filepath))
-
-
-@pytest.mark.skipif(
-    not _scan_files_exist(SINGLE_TEMP_DATA_FILE),
-    reason="Test data file not available in tests/data/i15_1",
-)
 def test_data_reduction_with_single_temp_data_file(tmp_path: Path):
     xy_file = eiger_analysis.do_eiger_data_reduction(
         SINGLE_TEMP_DATA_FILE,
@@ -418,10 +410,6 @@ def test_data_reduction_with_single_temp_data_file(tmp_path: Path):
     assert xy_file.exists()
 
 
-@pytest.mark.skipif(
-    not _scan_files_exist(VT_DATA_FILE),
-    reason="Test data file not available in tests/data/i15_1",
-)
 def test_data_reduction_with_vt_data_file(tmp_path: Path):
     # reduced from a copy, so processed/ is written into tmp_path
     for filepath in _scan_files(VT_DATA_FILE):
