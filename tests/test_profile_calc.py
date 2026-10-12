@@ -13,7 +13,7 @@ from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 TEST_DIR = Path(__file__).parent
 REPO_ROOT = TEST_DIR.parent
 CIF_DIR = REPO_ROOT / "cifs"
-TEST_DATA_DIR = TEST_DIR / "data"
+TEST_DATA_DIR = TEST_DIR / "data" / "i11"
 OUTPUT_NAME = "test.yaml"
 
 # Data file - use test data directory
