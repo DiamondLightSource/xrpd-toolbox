@@ -10,6 +10,8 @@ from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
 from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
+    FITS_DIR_NAME,
+    GONIOMETER_SAVE_NAME,
     PYFAI_DETECTOR_NAME,
     _load_goniometer,
     _load_goniometer_from_relative_path,
@@ -71,9 +73,16 @@ calibrant_lookup: dict[str, str] = {"Silicon": "Si", "Tungsten": "W"}
 def get_calibation_fit_images(goniometer_model_filepath: str | Path) -> list[Path]:
     """This is a helper to facilitate workflows display the images as an artefact"""
 
-    calibration_fit_folder = Path(goniometer_model_filepath).parent / "calibration_fits"
+    goniometer_model_filepath = Path(goniometer_model_filepath)
 
-    return list(calibration_fit_folder.glob("*.png"))
+    # <nexus stem>_<date>_<time>_<GONIOMETER_SAVE_NAME>
+    stem, date, time = goniometer_model_filepath.name.removesuffix(
+        f"_{GONIOMETER_SAVE_NAME}"
+    ).rsplit("_", 2)
+
+    calibration_fit_folder = goniometer_model_filepath.parent / FITS_DIR_NAME / stem
+
+    return sorted(calibration_fit_folder.glob(f"*_{date}_{time}.png"))
 
 
 def do_eiger_goniometer_calibration(
@@ -89,7 +98,8 @@ def do_eiger_goniometer_calibration(
 ):
     """Calibrate the goniometer from a calibrant scan, then reduce that scan.
 
-    plot_fits saves the fit at each angle to processed/calibration_fits,
+    plot_fits saves the fit at each angle to
+    processed/calibrations/<nexus stem>, suffixed with the calibration timestamp,
     show_plots opens them in interactive mode
     """
 
@@ -506,10 +516,17 @@ def plot_final_data(
 
 
 # fmt: off
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
 
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
+    nexus_calibration_filepath = "/workspaces/outputs/i15-1/i15-1-100262.nxs"  # Si cal
+
+    do_eiger_goniometer_calibration(
+        nexus_filepath=nexus_calibration_filepath,
+        calibrant_name="Si",plot_fits=True,
+        show_plots=False
+    )
 
 
 #     eigerdata = EigerDataLoader(nexus_filepath)

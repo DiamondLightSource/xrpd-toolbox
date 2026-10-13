@@ -842,7 +842,7 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
         resolution=0.05,
     )
 
-    eiger_pyfai.build_and_save_goniometer(
+    goniometer_filepath, _ = eiger_pyfai.build_and_save_goniometer(
         nexus_filepath=output_dir / "fake_calibration_scan.nxs",
         images=np.array(images),
         angles=angles,
@@ -855,10 +855,15 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
         plot_fits=True,
     )
 
-    fits_dir = output_dir / eiger_pyfai.FITS_DIR_NAME
+    timestamp = (
+        Path(goniometer_filepath)
+        .name.removeprefix("fake_calibration_scan_")
+        .removesuffix(f"_{eiger_pyfai.GONIOMETER_SAVE_NAME}")
+    )
+    fits_dir = output_dir / eiger_pyfai.FITS_DIR_NAME / "fake_calibration_scan"
     assert sorted(p.name for p in fits_dir.iterdir()) == [
-        "frame_0000_5.0000deg_model.png",
-        "frame_0001_10.0000deg_model.png",
+        f"frame_0000_5.0000deg_model_{timestamp}.png",
+        f"frame_0001_10.0000deg_model_{timestamp}.png",
     ]
 
 

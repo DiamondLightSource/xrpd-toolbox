@@ -43,7 +43,7 @@ FIX_BETWEEN_FRAMES = ["wavelength", "dist", "poni1", "poni2"]
 
 GONIOMETER_SAVE_NAME = "eiger_goniometer_calibration.json"
 METADATA_SAVE_NAME = "calibration_metadata.json"
-FITS_DIR_NAME = "calibration_fits"
+FITS_DIR_NAME = "calibrations"
 PYFAI_DETECTOR_NAME = "Eiger2CdTe_500k"
 
 
@@ -497,7 +497,8 @@ def build_and_save_goniometer(
 
     Angles should be sorted from a frame with the beam on the detector. With
     `seed_from_previous`, each frame starts from `model` fitted to the ones before.
-    `plot_fits` saves the fit for each frame, then with the model, and
+    `plot_fits` saves the fit for each frame with the model to
+    calibrations/<nexus stem>/ with the calibration timestamp as a suffix, and
     `show_plots` opens them.
     Returns the paths of the saved goniometer and metadata files.
     """
@@ -557,7 +558,6 @@ def build_and_save_goniometer(
             logger.info("  model over %d frames: χ² = %.3g", i + 1, gonioref.chi2())
 
         if show_plots:
-            fits_path = output_dir / FITS_DIR_NAME / f"{label}_frame.png"
             _plot_fit(sg, save_path=None, show=show_plots)
 
     assert gonioref is not None
@@ -568,6 +568,11 @@ def build_and_save_goniometer(
     # passed on to scipy, prints every iteration
     gonioref.refine2(iprint=2, disp=True)
     logger.info("Refinement done. χ² = %.6g", gonioref.chi2())
+
+    calibration_timestamp = datetime.datetime.now(datetime.UTC).strftime(
+        "%Y-%m-%d_%H-%M-%S"
+    )  # noqa - throws warning that is invalid
+    fits_dir = output_dir / FITS_DIR_NAME / nexus_path.stem
 
     for sg in single_geometries:
         gr = sg.geometry_refinement
@@ -586,17 +591,14 @@ def build_and_save_goniometer(
         )
 
         if plot_fits or show_plots:
-            fits_path = output_dir / FITS_DIR_NAME / f"{sg.label}_model.png"
+            fits_path = fits_dir / f"{sg.label}_model_{calibration_timestamp}.png"
+            logger.info(f"Plot to {fits_path=}")
             _plot_fit(
                 sg,
                 model_ai,
                 save_path=fits_path if plot_fits else None,
                 show=show_plots,
             )
-
-    calibration_timestamp = datetime.datetime.now(datetime.UTC).strftime(
-        "%Y-%m-%d_%H-%M-%S"
-    )  # noqa - throws warning that is invalid
 
     calibration_save_filepath = str(
         output_dir / f"{nexus_path.stem}_{calibration_timestamp}_{GONIOMETER_SAVE_NAME}"
