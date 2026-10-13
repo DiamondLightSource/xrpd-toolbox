@@ -14,7 +14,11 @@ from pyFAI.detectors import detector_factory
 from pyFAI.geometry import Geometry
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
-from eiger_fixtures import I15_1_DETECTOR_SHAPE, write_i15_1_goniometer_json
+from eiger_fixtures import (
+    I15_1_DETECTOR_SHAPE,
+    CORRECTION_h5,
+    write_i15_1_goniometer_json,
+)
 from xrpd_toolbox.i15_1 import eiger_pyfai
 from xrpd_toolbox.i15_1.eiger_500k import (
     ARM_ROTATION_SIGN,
@@ -1006,8 +1010,6 @@ def test_mask_module_edges_covers_every_chip_gap_in_the_detector_corrections():
     # the saved detector corrections exclude the 2 px outer border and the
     # inter-chip gaps (whole rows/columns, alongside some isolated bad pixels) -
     # the widths used in the reduction must mask all of those rows/columns
-    from xrpd_toolbox.i15_1.eiger_analysis import CORRECTION_h5
-
     base_mask = h5_to_array(CORRECTION_h5, "corrections/base_mask").astype(bool)
 
     mask = eiger_pyfai.mask_module_edges(

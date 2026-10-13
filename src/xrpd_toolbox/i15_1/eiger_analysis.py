@@ -173,7 +173,7 @@ def get_i15_1_polarisation_factor(energy_kev: float):
 def _apply_intensity_corrections(frames: np.ndarray, correction_h5: Path):
 
     if not correction_h5.exists():
-        intensity_correction = np.ones_like(frames[0].shape)
+        intensity_correction = np.ones(frames[0].shape)
     else:
         intensity_correction = h5_to_array(
             correction_h5, "/corrections/combined_divisor"
@@ -188,9 +188,7 @@ def _apply_intensity_corrections(frames: np.ndarray, correction_h5: Path):
 
 def get_outlier_mask(correction_h5: Path) -> np.ndarray:
     if not correction_h5.exists():
-        outlier_mask = mask_module_edges(
-            detector_shape=DEFAULT_MAX_SHAPE, mask_width=(0, 0)
-        )
+        outlier_mask = np.zeros(DEFAULT_MAX_SHAPE)
     else:
         outlier_mask = h5_to_array(correction_h5, "/corrections/bad_pixel_mask")
 

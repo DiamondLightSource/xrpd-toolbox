@@ -15,18 +15,14 @@ import pytest
 
 from eiger_fixtures import (
     I15_1_DETECTOR_SHAPE,
+    CORRECTION_h5,
     build_i15_1_scan,
     write_i15_1_goniometer_json,
 )
-from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.i15_1 import eiger_analysis
 from xrpd_toolbox.i15_1.eiger_pyfai import GONIOMETER_SAVE_NAME
 
 SCAN_TTH = (10.0, 14.0)
-
-CORRECTION_h5 = (
-    BASE_PATH / "i15_1" / "eiger_correction" / "i15-1-99877_detector_corrections.h5"
-)
 
 
 @pytest.fixture(autouse=True)
