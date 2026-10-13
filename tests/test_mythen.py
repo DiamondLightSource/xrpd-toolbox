@@ -15,7 +15,7 @@ CONFIG_FILE = (
 LEGANCY_CONIG = Path(__file__).parent.parent / "config" / "i11" / "legacy_config.toml"
 
 
-SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "1410696.nxs"
+SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "i11" / "1410696.nxs"
 
 
 @pytest.fixture

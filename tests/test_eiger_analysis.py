@@ -6,6 +6,7 @@ pdfcurl - so they don't depend on how the reduction is done internally.
 """
 
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -67,7 +68,8 @@ def test_do_eiger_data_reduction_writes_xy_into_processed_dir(tmp_path: Path):
     )
 
     expected_path = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-    assert Path(result) == expected_path
+    assert isinstance(result, Path)
+    assert result == expected_path
     _assert_is_reduced_xy(expected_path)
 
 
@@ -83,7 +85,8 @@ def test_do_eiger_data_reduction_respects_explicit_output_xy_filepath(tmp_path: 
         publish=False,
     )
 
-    assert Path(result) == explicit_output
+    assert isinstance(result, Path)
+    assert result == explicit_output
     _assert_is_reduced_xy(explicit_output)
 
 
@@ -97,8 +100,9 @@ def test_do_eiger_data_reduction_uses_calibration_saved_in_processed_dir(
 
     result = eiger_analysis.do_eiger_data_reduction(nexus_filepath, publish=False)
 
-    assert Path(result) == tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-    _assert_is_reduced_xy(Path(result))
+    assert isinstance(result, Path)
+    assert result == tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+    _assert_is_reduced_xy(result)
 
 
 def test_do_eiger_data_reduction_raises_without_any_calibration(tmp_path: Path):
@@ -173,7 +177,8 @@ def test_pdfcurl_reduction_finds_previously_saved_background_in_processed_dir(
         )
 
     expected_xy = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
-    assert Path(result) == expected_xy
+    assert isinstance(result, Path)
+    assert result == expected_xy
     _assert_is_reduced_xy(expected_xy)
     # the saved background is reused as-is, not regenerated
     assert existing_bg_xy.read_text() == "previously reduced background"
@@ -199,7 +204,8 @@ def test_pdfcurl_reduction_generates_missing_background_into_processed_dir(
     expected_bg_xy = (
         tmp_path / "processed" / "empty_capillary" / "empty_capillary_fastcs_eiger.xy"
     )
-    assert Path(result) == expected_xy
+    assert isinstance(result, Path)
+    assert result == expected_xy
     # the background was reduced from its own nexus file into processed/
     _assert_is_reduced_xy(expected_bg_xy)
     sent = mock_send.call_args.kwargs
@@ -216,7 +222,8 @@ def test_pdfcurl_reduction_sends_no_background_when_there_is_none(tmp_path: Path
             nexus_filepath
         )
 
-    _assert_is_reduced_xy(Path(result))
+    assert isinstance(result, Path)
+    _assert_is_reduced_xy(result)
     assert mock_send.call_args.kwargs["background_file"] is None
 
 
@@ -313,3 +320,109 @@ def test_plot_final_data_overlays_normalised_reference(tmp_path: Path, shown_fig
     for line in lines:
         assert np.max(line.get_ydata()) == pytest.approx(1.0)
         assert np.min(line.get_ydata()) == pytest.approx(0.0, abs=1e-6)
+
+
+def _temperature_spec(temperature, unit: str | None) -> dict:
+    return {
+        "temperature_celsius": temperature,
+        "temperature_unit": unit,
+        "collection_specification": [
+            {"tth": tth, "frames": 1, "slow_attenuator_position": "100%"}
+            for tth in SCAN_TTH
+        ],
+    }
+
+
+def test_do_eiger_data_reduction_single_temperature_returns_one_path(
+    tmp_path: Path,
+):
+    nexus_filepath = build_i15_1_scan(
+        tmp_path,
+        "scan",
+        tth=SCAN_TTH,
+        collection_specification=[_temperature_spec("RT", None)],
+    )
+    goniometer_filepath = write_i15_1_goniometer_json(tmp_path / "gonio.json")
+
+    result = eiger_analysis.do_eiger_data_reduction(
+        nexus_filepath, goniometer_filepath=goniometer_filepath, publish=False
+    )
+
+    expected_path = tmp_path / "processed" / "scan" / "scan_fastcs_eiger.xy"
+    assert result == expected_path
+    _assert_is_reduced_xy(expected_path)
+
+
+def test_do_eiger_data_reduction_variable_temperature_returns_one_path_per_temp(
+    tmp_path: Path,
+):
+    nexus_filepath = build_i15_1_scan(
+        tmp_path,
+        "scan",
+        tth=SCAN_TTH + SCAN_TTH,  # both positions at each temperature
+        collection_specification=[
+            _temperature_spec(40.0, "C"),
+            _temperature_spec(50.0, "C"),
+        ],
+    )
+    goniometer_filepath = write_i15_1_goniometer_json(tmp_path / "gonio.json")
+
+    result = eiger_analysis.do_eiger_data_reduction(
+        nexus_filepath, goniometer_filepath=goniometer_filepath, publish=False
+    )
+
+    processed_dir = tmp_path / "processed" / "scan"
+    assert isinstance(result, list)
+    assert result == [
+        processed_dir / "scan_fastcs_eiger_0000_40C.xy",
+        processed_dir / "scan_fastcs_eiger_0001_50C.xy",
+    ]
+    for xy_filepath in result:
+        _assert_is_reduced_xy(xy_filepath)
+
+
+I15_1_DATA_DIR = Path(__file__).parent / "data" / "i15_1"
+
+SINGLE_TEMP_DATA_FILE = I15_1_DATA_DIR / "i15-1-100243.nxs"
+
+VT_DATA_FILE = I15_1_DATA_DIR / "i15-1-100245.nxs"
+
+
+def _scan_files(nexus_filepath: Path) -> list[Path]:
+    """The nexus file and the .h5 files it links to."""
+    linked_suffixes = ("-fastcs_eiger_000001.h5", "-fastcs_eiger_meta.h5", "-i0.h5")
+    linked_files = [
+        nexus_filepath.with_name(nexus_filepath.stem + suffix)
+        for suffix in linked_suffixes
+    ]
+    return [nexus_filepath, *linked_files]
+
+
+def test_data_reduction_with_single_temp_data_file(tmp_path: Path):
+    xy_file = eiger_analysis.do_eiger_data_reduction(
+        SINGLE_TEMP_DATA_FILE,
+        output_xy_filepath=tmp_path / "single_temp.xy",
+        publish=False,
+    )
+
+    assert isinstance(xy_file, Path)
+    assert xy_file == tmp_path / "single_temp.xy"
+    assert xy_file.exists()
+
+
+def test_data_reduction_with_vt_data_file(tmp_path: Path):
+    # reduced from a copy, so processed/ is written into tmp_path
+    for filepath in _scan_files(VT_DATA_FILE):
+        shutil.copy(filepath, tmp_path)
+
+    xy_files = eiger_analysis.do_eiger_data_reduction(
+        tmp_path / VT_DATA_FILE.name, publish=False
+    )
+
+    processed_dir = tmp_path / "processed" / "i15-1-100245"
+    assert isinstance(xy_files, list)
+    assert xy_files == [
+        processed_dir / "i15-1-100245_fastcs_eiger_0000_40C.xy",
+        processed_dir / "i15-1-100245_fastcs_eiger_0001_50C.xy",
+    ]
+    assert all(x.exists() for x in xy_files)
