@@ -18,10 +18,15 @@ from eiger_fixtures import (
     build_i15_1_scan,
     write_i15_1_goniometer_json,
 )
+from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.i15_1 import eiger_analysis
 from xrpd_toolbox.i15_1.eiger_pyfai import GONIOMETER_SAVE_NAME
 
 SCAN_TTH = (10.0, 14.0)
+
+CORRECTION_h5 = (
+    BASE_PATH / "i15_1" / "eiger_correction" / "i15-1-99877_detector_corrections.h5"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -233,7 +238,7 @@ def test_pdfcurl_reduction_sends_no_background_when_there_is_none(tmp_path: Path
 
 
 def test_get_outlier_mask_is_a_sparse_boolean_detector_mask():
-    mask = eiger_analysis.get_outlier_mask()
+    mask = eiger_analysis.get_outlier_mask(CORRECTION_h5)
 
     assert mask.shape == I15_1_DETECTOR_SHAPE
     assert mask.dtype == bool
@@ -244,7 +249,9 @@ def test_get_outlier_mask_is_a_sparse_boolean_detector_mask():
 def test_apply_intensity_corrections_keeps_shape_and_is_near_unity():
     frames = np.ones((3, *I15_1_DETECTOR_SHAPE))
 
-    corrected = eiger_analysis._apply_intensity_corrections(frames)
+    corrected = eiger_analysis._apply_intensity_corrections(
+        frames, correction_h5=CORRECTION_h5
+    )
 
     assert corrected.shape == frames.shape
     assert np.all(np.isfinite(corrected))
@@ -258,9 +265,15 @@ def test_apply_intensity_corrections_is_the_same_linear_correction_for_each_fram
     rng = np.random.default_rng(0)
     first, second = rng.uniform(10, 1000, size=(2, *I15_1_DETECTOR_SHAPE))
 
-    corrected = eiger_analysis._apply_intensity_corrections(np.stack([first, second]))
-    corrected_first = eiger_analysis._apply_intensity_corrections(first[None])[0]
-    corrected_doubled = eiger_analysis._apply_intensity_corrections(2 * first[None])[0]
+    corrected = eiger_analysis._apply_intensity_corrections(
+        np.stack([first, second]), correction_h5=CORRECTION_h5
+    )
+    corrected_first = eiger_analysis._apply_intensity_corrections(
+        first[None], correction_h5=CORRECTION_h5
+    )[0]
+    corrected_doubled = eiger_analysis._apply_intensity_corrections(
+        2 * first[None], correction_h5=CORRECTION_h5
+    )[0]
 
     # each frame is corrected on its own, by a gain that doesn't depend on counts
     assert np.allclose(corrected[0], corrected_first)
