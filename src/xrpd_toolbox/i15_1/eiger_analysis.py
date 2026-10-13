@@ -6,9 +6,8 @@ import numpy as np
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import detector_factory
 
-from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.i15_1.custom_calibrants import load_wb_calibrant
-from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
+from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, EigerDataLoader
 from xrpd_toolbox.i15_1.eiger_pyfai import (
     PYFAI_DETECTOR_NAME,
     _load_goniometer,
@@ -31,11 +30,6 @@ logging.basicConfig(level=logging.INFO)
 
 GEOMETRY_CAL_FILEPATH = Path(
     "/dls_sw/i15-1/software/daq_configuration/geometrygeometry_calibration.json"
-)
-
-
-CORRECTION_h5 = (
-    BASE_PATH / "i15_1" / "eiger_correction" / "i15-1-99877_detector_corrections.h5"
 )
 
 
@@ -176,9 +170,14 @@ def get_i15_1_polarisation_factor(energy_kev: float):
         raise AttributeError(f"No known polarisation factor for {energy_kev=} ")
 
 
-def _apply_intensity_corrections(frames: np.ndarray):
+def _apply_intensity_corrections(frames: np.ndarray, correction_h5: Path):
 
-    intensity_correction = h5_to_array(CORRECTION_h5, "/corrections/combined_divisor")
+    if not correction_h5.exists():
+        intensity_correction = np.ones(frames[0].shape)
+    else:
+        intensity_correction = h5_to_array(
+            correction_h5, "/corrections/combined_divisor"
+        )
 
     corrected_frames = [(frame / intensity_correction) for frame in frames]
 
@@ -187,11 +186,25 @@ def _apply_intensity_corrections(frames: np.ndarray):
     return corrected_frames
 
 
-def get_outlier_mask() -> np.ndarray:
-
-    outlier_mask = h5_to_array(CORRECTION_h5, "/corrections/bad_pixel_mask")
+def get_outlier_mask(correction_h5: Path) -> np.ndarray:
+    if not correction_h5.exists():
+        outlier_mask = np.zeros(DEFAULT_MAX_SHAPE)
+    else:
+        outlier_mask = h5_to_array(correction_h5, "/corrections/bad_pixel_mask")
 
     return outlier_mask.astype(bool)
+
+
+def _get_eiger_correction_path(nexus_filepath: str | Path) -> Path:
+
+    processed_dir, _ = processed_directory_and_filename(nexus_filepath)
+
+    eiger_correcton_path = Path(processed_dir) / "eiger-correction.h5"
+
+    if not eiger_correcton_path.exists():
+        logger.warning(f"No eiger correction exists {eiger_correcton_path=}")
+
+    return eiger_correcton_path
 
 
 def _get_temperature_slices(
@@ -297,6 +310,10 @@ def do_eiger_data_reduction(
 
     mask = eiger_data.get_mask()
 
+    # TODO: Remove this hack - find a better solution, same for get_outlier_mask
+    # and _apply_intensity_corrections()
+    eiger_correctiion_path = _get_eiger_correction_path(nexus_filepath)
+
     if polarization_factor is None:
         polarization_factor = get_i15_1_polarisation_factor(
             energy_kev=eiger_data.energy_kev
@@ -310,7 +327,9 @@ def do_eiger_data_reduction(
 
         mask = edge_mask | mask  #  add masks the edges of the detector
 
-        mask = mask | get_outlier_mask()  # combine with outlier mask
+        mask = mask | get_outlier_mask(
+            correction_h5=eiger_correctiion_path
+        )  # combine with outlier mask
 
     assert np.amax(mask) <= 1, "Mask should be boolean"
 
@@ -338,7 +357,8 @@ def do_eiger_data_reduction(
 
         if apply_intensity_correction:
             summed_and_normalised_frames = _apply_intensity_corrections(
-                summed_and_normalised_frames
+                frames=summed_and_normalised_frames,
+                correction_h5=eiger_correctiion_path,
             )
 
         if is_single_temperature:

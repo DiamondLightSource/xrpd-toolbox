@@ -13,6 +13,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from xrpd_toolbox import BASE_PATH
+
 ENTRY = "entry"
 EIGER_DATA_PATH = "/entry/instrument/fastcs_eiger"
 
@@ -134,6 +136,9 @@ def build_eiger_nexus(
 I15_1_DETECTOR_SHAPE = (512, 1028)
 I15_1_ENERGY_KEV = 76.69
 
+# the i15-1 detector corrections (and goniometer geometry) kept in the package
+CORRECTION_h5 = BASE_PATH / "i15_1" / "eiger_correction" / "eiger-correction.h5"
+
 
 def build_i15_1_scan(
     directory: str | Path,
@@ -189,7 +194,6 @@ def build_i15_1_scan(
 def write_i15_1_goniometer_json(path: str | Path) -> Path:
     """Save the real i15-1 goniometer calibration (kept alongside the detector
     corrections in the package) as a pyFAI goniometer json file."""
-    from xrpd_toolbox.i15_1.eiger_analysis import CORRECTION_h5
     from xrpd_toolbox.utils.utils import h5_to_string
 
     geometry_json = h5_to_string(CORRECTION_h5, "geometry_json")
