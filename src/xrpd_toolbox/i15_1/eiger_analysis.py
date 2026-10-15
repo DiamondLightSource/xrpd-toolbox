@@ -13,6 +13,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     _load_goniometer,
     _load_goniometer_from_relative_path,
     build_and_save_goniometer,
+    get_calibration_fit_folder,
     integrate_with_goniometer,
     mask_module_edges,
 )
@@ -62,10 +63,10 @@ class CollectionType(StrEnum):
 calibrant_lookup: dict[str, str] = {"Silicon": "Si", "Tungsten": "W"}
 
 
-def get_calibation_fit_images(goniometer_model_filepath: str | Path) -> list[Path]:
+def get_calibation_fit_images(nexus_filepath: str | Path) -> list[Path]:
     """This is a helper to facilitate workflows display the images as an artefact"""
 
-    calibration_fit_folder = Path(goniometer_model_filepath).parent / "calibration_fits"
+    calibration_fit_folder = get_calibration_fit_folder(nexus_filepath)
 
     return list(calibration_fit_folder.glob("*.png"))
 

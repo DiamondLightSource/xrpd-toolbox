@@ -831,11 +831,6 @@ def test_system_integrate():
         )
 
 
-if __name__ == "__main__":
-    # test_system_calibrate()
-    test_system_integrate()
-
-
 def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
     output_dir = _fresh_output_dir("calibration_fits")
     angles = np.array([5.0, 10.0])
@@ -859,10 +854,16 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
         plot_fits=True,
     )
 
-    fits_dir = output_dir / eiger_pyfai.FITS_DIR_NAME
-    assert sorted(p.name for p in fits_dir.iterdir()) == [
-        "frame_0000_5.0000deg_model.png",
-        "frame_0001_10.0000deg_model.png",
+    fits_dir = (
+        output_dir / "processed" / "fake_calibration_scan" / eiger_pyfai.FITS_DIR_NAME
+    )
+    png_files = sorted(p.name for p in fits_dir.iterdir())
+
+    # each figure is named {label}_model_{timestamp}.png, so ignore the timestamp
+    assert all(file.endswith(".png") for file in png_files)
+    assert [file.split("_model_")[0] for file in png_files] == [
+        "frame_0000_5.0000deg",
+        "frame_0001_10.0000deg",
     ]
 
 
@@ -1085,3 +1086,8 @@ def test_load_goniometer_from_relative_path_raises_without_calibration(tmp_path)
 
     with pytest.raises(FileNotFoundError, match="No goniometer calibration"):
         eiger_pyfai._load_goniometer_from_relative_path(tmp_path / "scan.nxs")
+
+
+if __name__ == "__main__":
+    # test_system_calibrate()
+    test_system_integrate()
