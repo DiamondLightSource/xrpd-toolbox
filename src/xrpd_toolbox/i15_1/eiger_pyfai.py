@@ -473,6 +473,15 @@ def _plot_fit(
     plt.close(fig)
 
 
+def get_calibration_fit_folder(nexus_filepath: str | Path) -> Path:
+
+    processed_dir_str, _ = processed_directory_and_filename(nexus_filepath)
+
+    calibration_fit_folder = Path(processed_dir_str) / FITS_DIR_NAME
+
+    return calibration_fit_folder
+
+
 def build_and_save_goniometer(
     nexus_filepath: Path | str,
     images: np.ndarray,
@@ -557,9 +566,6 @@ def build_and_save_goniometer(
             logger.info("  model over %d frames: χ² = %.3g", i + 1, gonioref.chi2())
 
         if show_plots:
-            fits_path = (
-                output_dir / FITS_DIR_NAME / nexus_path.stem / f"{label}_frame.png"
-            )
             _plot_fit(sg, save_path=None, show=show_plots)
 
     assert gonioref is not None
@@ -588,7 +594,10 @@ def build_and_save_goniometer(
         )
 
         if plot_fits or show_plots:
-            fits_path = output_dir / FITS_DIR_NAME / f"{sg.label}_model.png"
+            fits_path = (
+                get_calibration_fit_folder(nexus_filepath=nexus_filepath)
+                / f"{sg.label}_model.png"
+            )
             _plot_fit(
                 sg,
                 model_ai,
