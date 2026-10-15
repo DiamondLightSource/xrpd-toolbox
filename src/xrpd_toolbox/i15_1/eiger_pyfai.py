@@ -577,6 +577,10 @@ def build_and_save_goniometer(
     gonioref.refine2(iprint=2, disp=True)
     logger.info("Refinement done. χ² = %.6g", gonioref.chi2())
 
+    calibration_timestamp = datetime.datetime.now(datetime.UTC).strftime(
+        "%Y-%m-%d_%H-%M-%S"
+    )  # noqa - throws warning that is invalid
+
     for sg in single_geometries:
         gr = sg.geometry_refinement
         assert gr.data is not None
@@ -596,7 +600,7 @@ def build_and_save_goniometer(
         if plot_fits or show_plots:
             fits_path = (
                 get_calibration_fit_folder(nexus_filepath=nexus_filepath)
-                / f"{sg.label}_model.png"
+                / f"{sg.label}_model_{calibration_timestamp}.png"
             )
             _plot_fit(
                 sg,
@@ -604,10 +608,6 @@ def build_and_save_goniometer(
                 save_path=fits_path if plot_fits else None,
                 show=show_plots,
             )
-
-    calibration_timestamp = datetime.datetime.now(datetime.UTC).strftime(
-        "%Y-%m-%d_%H-%M-%S"
-    )  # noqa - throws warning that is invalid
 
     calibration_save_filepath = str(
         output_dir / f"{nexus_path.stem}_{calibration_timestamp}_{GONIOMETER_SAVE_NAME}"

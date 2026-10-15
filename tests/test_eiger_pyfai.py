@@ -857,9 +857,13 @@ def test_build_and_save_goniometer_plot_fits_saves_one_figure_per_angle():
     fits_dir = (
         output_dir / "processed" / "fake_calibration_scan" / eiger_pyfai.FITS_DIR_NAME
     )
-    assert sorted(p.name for p in fits_dir.iterdir()) == [
-        "frame_0000_5.0000deg_model.png",
-        "frame_0001_10.0000deg_model.png",
+    png_files = sorted(p.name for p in fits_dir.iterdir())
+
+    # each figure is named {label}_model_{timestamp}.png, so ignore the timestamp
+    assert all(file.endswith(".png") for file in png_files)
+    assert [file.split("_model_")[0] for file in png_files] == [
+        "frame_0000_5.0000deg",
+        "frame_0001_10.0000deg",
     ]
 
 
