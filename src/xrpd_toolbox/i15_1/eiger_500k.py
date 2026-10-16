@@ -20,7 +20,7 @@ from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
-from xrpd_toolbox.utils.utils import h5_to_array
+from xrpd_toolbox.utils.utils import h5_to_array, processed_directory_and_filename
 
 PIXEL_SIZE = 7.5e-5  # in m
 INITIAL_DISTNACE = 250  # mm
@@ -517,6 +517,13 @@ class EigerDataLoader:
         goniometer_model = gonio_from_json_string(goniometer_json_str)  # noqa
 
         return goniometer_model
+
+    def get_processed_xy_filepath(self):
+
+        processed_dir, file_name = processed_directory_and_filename(self.filepath)
+        output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
+
+        return output_xy_filepath
 
 
 class Eiger500K(Detector):

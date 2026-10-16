@@ -342,8 +342,7 @@ def do_eiger_data_reduction(
     is_single_temperature = len(temperature_slices) == 1
 
     if output_xy_filepath is None:
-        processed_dir, file_name = processed_directory_and_filename(nexus_filepath)
-        output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
+        output_xy_filepath = eiger_data.get_processed_xy_filepath()
     output_xy_filepath = Path(output_xy_filepath)
 
     output_xy_filepaths: list[Path] = []
