@@ -435,3 +435,15 @@ def test_data_reduction_with_vt_data_file(tmp_path: Path):
         processed_dir / "i15-1-100245_fastcs_eiger_0001_50C.xy",
     ]
     assert all(x.exists() for x in xy_files)
+
+
+def test_eiger_eiger_correction_in_correct_path():
+
+    eiger_correction_path = eiger_analysis._get_eiger_correction_path(
+        "/dls/data/i15-1/2026/cm12345-1/i15-1-12345.nxs"
+    )
+
+    assert (
+        str(eiger_correction_path)
+        == "/dls/data/i15-1/2026/cm12345-1/processed/eiger-correction.h5"
+    )
