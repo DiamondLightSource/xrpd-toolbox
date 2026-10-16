@@ -15,12 +15,12 @@ class PDFGetConfig(BaseModel):
     dataformat: Literal["QA", "Qnm", "twotheta"] = "twotheta"
     backgroundfile: str | Path | None = None
     outputtypes: OUTPUT_TYPES | list[OUTPUT_TYPES] = ["iq", "sq", "fq", "gr"]
-    qmaxinst: float = 20.0
-    qmin: float = 0.0
+    qmaxinst: float = 50.0
+    qmin: float = 0.5
     qmax: float = 50.0
     rmin: float = 0.0
     rmax: float = 20.0
-    rstep: float = 0.01
+    rstep: float = 0.02
     rpoly: float = 0.9
 
 
@@ -47,12 +47,12 @@ def send_xy_to_pdfcurl(
     publish: bool = False,
     dataformat: Literal["QA", "Qnm", "twotheta"] = "twotheta",
     outputtypes: OUTPUT_TYPES | list[OUTPUT_TYPES] | None = None,
-    qmaxinst: float = 20.0,
-    qmin: float = 0.0,
+    qmaxinst: float = 50.0,
+    qmin: float = 0.5,
     qmax: float = 50.0,
     rmin: float = 0.0,
     rmax: float = 20.0,
-    rstep: float = 0.01,
+    rstep: float = 0.02,
     rpoly: float = 0.9,
 ) -> dict:
     """Send an .xy file to pdfcurl. Unspecified options use the pdfcurl defaults."""
