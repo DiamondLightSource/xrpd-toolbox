@@ -440,10 +440,10 @@ def test_data_reduction_with_vt_data_file(tmp_path: Path):
 def test_eiger_eiger_correction_in_correct_path():
 
     eiger_correction_path = eiger_analysis._get_eiger_correction_path(
-        "/dls/data/i15-1/2026/cm12345-1/i15-1-12345.nxs"
+        "/tmp/data/i15-1/2026/cm12345-1/i15-1-12345.nxs"
     )
 
     assert (
         str(eiger_correction_path)
-        == "/dls/data/i15-1/2026/cm12345-1/processed/eiger-correction.h5"
+        == "/tmp/data/i15-1/2026/cm12345-1/processed/eiger-correction.h5"
     )
