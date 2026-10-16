@@ -200,7 +200,7 @@ def _get_eiger_correction_path(nexus_filepath: str | Path) -> Path:
 
     processed_dir, _ = processed_directory_and_filename(nexus_filepath)
 
-    eiger_correcton_path = Path(processed_dir) / "eiger-correction.h5"
+    eiger_correcton_path = Path(processed_dir).parent / "eiger-correction.h5"
 
     if not eiger_correcton_path.exists():
         logger.warning(f"No eiger correction exists {eiger_correcton_path=}")
