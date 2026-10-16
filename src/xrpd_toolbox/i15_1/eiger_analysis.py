@@ -426,6 +426,14 @@ def _get_background_xy_filepath(eiger_data: EigerDataLoader) -> str | None:
         return None
 
 
+def get_xy_step_size(xy_filepath: str) -> float:
+
+    x, _ = np.genfromtxt(xy_filepath, unpack=True)
+    x_diff = np.diff(x)
+
+    return float(np.round(np.median(x_diff), 2))
+
+
 def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     nexus_filepath: str | Path,
     output_xy_filepath: str | Path | None = None,
@@ -446,6 +454,8 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     )
 
     for xy_filepath in xy_filepaths:
+        # step_size = get_xy_step_size(str(xy_filepath)) #no this is NOT rstep!!!
+
         try:
             logger.info(f"Sending {xy_filepath} to pdfcurl (pdfgetx3)")
             response_from_pdfcurl = send_xy_to_pdfcurl(
@@ -527,7 +537,12 @@ def plot_final_data(
 
 
 # fmt: off
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    step = get_xy_step_size(
+        "/workspaces/outputs/i15-1/processed/i15-1-99878/i15-1-99878_fastcs_eiger.xy"
+    )
+
+    print(step)
 
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
