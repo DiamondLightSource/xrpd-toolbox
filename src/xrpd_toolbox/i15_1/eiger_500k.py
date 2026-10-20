@@ -525,6 +525,17 @@ class EigerDataLoader:
 
         return output_xy_filepath
 
+    def get_qmax(self) -> float | None:
+
+        qmax_data_path = f"/{self.entry}/plan_metadata/sample_info/data/q_max"
+        try:
+            qmax = float(self._read_array(qmax_data_path))
+        except Exception as e:
+            logging.warning(f"qmax not found in nexus {e}")
+            qmax = None
+
+        return qmax
+
 
 class Eiger500K(Detector):
     IS_FLAT = False  # this detector is flat
