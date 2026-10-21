@@ -123,6 +123,8 @@ def absorption_correction(
 
 
 def calculate_form_factor(elements: Collection[str], s: np.ndarray) -> np.ndarray:
+    """s is scattering vector in radians"""
+
     params = np.asarray([X_RAY_FORM_FACTORS[el] for el in elements])
 
     if params.shape[0] != len(elements):
@@ -141,8 +143,15 @@ def calculate_form_factor(elements: Collection[str], s: np.ndarray) -> np.ndarra
     return ff  # (n_atoms, s)
 
 
+def calculate_form_factor_from_q(elements: Collection[str], q: np.ndarray):
+
+    s = q_space_to_s(q)
+
+    return calculate_form_factor(elements=elements, s=s)
+
+
 # @njit()
-def calculate_debye_waller_factor(b_iso: np.ndarray, s: np.ndarray):
+def calculate_debye_waller_factor(b_iso: np.ndarray, s: np.ndarray) -> np.ndarray:
     """s is scattering vector in radians"""
     # (n_hkl, n_atoms)
     return np.exp(-np.outer(s**2, b_iso))
@@ -451,7 +460,10 @@ def d_spacing(hkl: np.ndarray, g_star: np.ndarray) -> np.ndarray:
     return 1.0 / np.sqrt(g_hkl)
 
 
-def plot_form_factors(elements: Sequence[str], q_space: np.ndarray | None = None):
+def plot_form_factors(
+    elements: Sequence[str],
+    q_space: np.ndarray | None = None,
+):
     if q_space is None:
         q_space = np.linspace(0.01, 25, 1000)
 
@@ -1065,7 +1077,32 @@ class ReitveldRefinement(Model[ScatteringData]):
 
 
 # if __name__ == "__main__":
-#     output_name = "/workspaces/outputs/test.toml"
+#     from xrpd_toolbox.utils.utils import normalise
+
+#     elements = list(X_RAY_FORM_FACTORS.keys())
+
+#     q = np.linspace(0.01, 40, 1000)
+
+#     ff_at_high_q = {}
+
+#     for el in elements:
+#         ff = normalise(calculate_form_factor_from_q([el], q))
+
+#         ff_at_high_q[el] = ff[-1]
+
+#     ff_values = np.array(list(ff_at_high_q.values())).flatten()
+
+#     print(ff_values)
+
+#     max_index = np.argsort(ff_values)[::-1]
+
+#     print(max_index)
+
+#     print(np.array(list(ff_at_high_q.keys()))[max_index])
+
+#     plot_form_factors(["Ag1+", "Br1-", "W", "Si"], q, True)
+
+# output_name = "/workspaces/outputs/test.toml"
 
 #     def test_refine_silicon():
 #         cif_filepath = "/workspaces/XRPD-Toolbox/cifs/Si.cif"
