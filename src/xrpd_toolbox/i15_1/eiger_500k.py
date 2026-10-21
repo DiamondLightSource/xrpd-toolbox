@@ -193,15 +193,27 @@ class EigerDataLoader:
         self, frames: slice | None = None
     ) -> tuple[np.ndarray, np.ndarray]:
         """tth_groups for only the frames in `frames`, eg. one temperature."""
-        if frames is None:
+        if self.get_plan_name() == "static_collection":
+            # the arm doesn't move, so tth isn't read back for every frame -
+            # every frame is at the one position
+            frame_indices = range(self.get_number_of_frames())[frames or slice(None)]
+            position_index_of_each_frame = np.zeros(len(frame_indices), dtype=int)
+            return position_index_of_each_frame, np.array([np.mean(self.positions)])
+
+        elif frames is None:
             return self.tth_groups
+        else:
+            number_of_detector_frames = self.get_number_of_frames()
+            # this is just incase someone aborts the scan early,
+            # and the number of positions
+            # doesn't match the number of frames
+            positions = self.positions[:number_of_detector_frames][frames]
 
-        number_of_detector_frames = self.get_number_of_frames()
-        positions = self.positions[:number_of_detector_frames][frames]
+            position_index_of_each_readback, mean_unique_positions = group_positions(
+                positions
+            )
 
-        position_index_of_each_readback, mean_positions = group_positions(positions)
-
-        return position_index_of_each_readback, mean_positions
+            return position_index_of_each_readback, mean_unique_positions
 
     def get_unique_tth_positions(self, frames: slice | None = None) -> np.ndarray:
         """Ascending, in the same order as the summed frames."""
@@ -436,10 +448,10 @@ class EigerDataLoader:
         Returns one image per position, in ascending two-theta order.
         `frames` restricts it to a range of frames, eg. one temperature.
         """
-
         position_index_of_each_frame, unique_positions = self.get_tth_groups(frames)
 
         frame_indices = range(self.get_number_of_frames())[frames or slice(None)]
+
         number_of_positions = len(unique_positions)
 
         if len(frame_indices) == 0:
