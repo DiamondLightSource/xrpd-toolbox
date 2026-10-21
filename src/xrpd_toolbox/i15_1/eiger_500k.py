@@ -179,6 +179,9 @@ class EigerDataLoader:
 
         number_of_detector_frames = self.get_number_of_frames()
         positions = self.positions[:number_of_detector_frames][frames]
+
+        print(number_of_detector_frames, positions)
+
         return group_positions(positions)
 
     def get_unique_tth_positions(self, frames: slice | None = None) -> np.ndarray:

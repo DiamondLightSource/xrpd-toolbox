@@ -526,10 +526,11 @@ def plot_final_data(
 
 
 # fmt: off
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100614.nxs"  # static collection
 
 
 #     eigerdata = EigerDataLoader(nexus_filepath)
@@ -539,7 +540,7 @@ def plot_final_data(
 
 #     print(eigerdata.get_reshaped_data_slices())
 
-#     xy_files = do_eiger_data_reduction(
-#         nexus_filepath=nexus_filepath,
-#         publish=False,
-#     )
+    xy_files = do_eiger_data_reduction(
+        nexus_filepath=nexus_filepath,
+        publish=False,
+    )

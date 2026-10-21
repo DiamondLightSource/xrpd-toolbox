@@ -396,6 +396,8 @@ SINGLE_TEMP_DATA_FILE = I15_1_DATA_DIR / "i15-1-100243.nxs"
 
 VT_DATA_FILE = I15_1_DATA_DIR / "i15-1-100245.nxs"
 
+STATIC_COLLECTION = I15_1_DATA_DIR / "i15-1-100614.nxs"
+
 
 def _scan_files(nexus_filepath: Path) -> list[Path]:
     """The nexus file and the .h5 files it links to."""
@@ -435,6 +437,18 @@ def test_data_reduction_with_vt_data_file(tmp_path: Path):
         processed_dir / "i15-1-100245_fastcs_eiger_0001_50C.xy",
     ]
     assert all(x.exists() for x in xy_files)
+
+
+def test_data_reduction_with_static_collection(tmp_path: Path):
+
+    xy_files = eiger_analysis.do_eiger_data_reduction(
+        tmp_path / STATIC_COLLECTION.name, publish=False
+    )
+
+    processed_dir = tmp_path / "processed" / "i15-1-100614"
+    assert processed_dir.exists()
+    assert isinstance(xy_files, Path)
+    assert xy_files.exists()
 
 
 def test_eiger_eiger_correction_in_correct_path():
