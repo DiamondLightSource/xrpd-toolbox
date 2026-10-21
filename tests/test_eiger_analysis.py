@@ -440,6 +440,9 @@ def test_data_reduction_with_vt_data_file(tmp_path: Path):
 
 
 def test_data_reduction_with_static_collection(tmp_path: Path):
+    # reduced from a copy, so processed/ is written into tmp_path
+    for filepath in _scan_files(STATIC_COLLECTION):
+        shutil.copy(filepath, tmp_path)
 
     xy_files = eiger_analysis.do_eiger_data_reduction(
         tmp_path / STATIC_COLLECTION.name, publish=False
