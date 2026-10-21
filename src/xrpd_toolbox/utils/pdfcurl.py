@@ -1,8 +1,12 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
+from uuid import UUID, uuid4
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from xrpd_toolbox.core import XYEData
 
 I15_1_PDFCURL_ENDPOINT = "https://i15-1-pdfget.diamond.ac.uk/data2pdf"
 
@@ -29,13 +33,36 @@ class PDFCurlRequest(PDFGetConfig):
     input_filepath: str | Path
     output_filepath: list[str | Path] | None = None
     publish: bool = False
+    return_serialised: bool = False
+
+
+class EncodedPDFCurlRequest(PDFGetConfig):
+    name: str
+    input_data: XYEData
+    publish: bool = False
+
+
+class PDFCurlResult(BaseModel):
+    gr: str | XYEData | None = None
+    sq: str | XYEData | None = None
+    fq: str | XYEData | None = None
+    iq: str | XYEData | None = None
+
+
+class PDFCurlResponse(BaseModel):
+    name: str
+    result: PDFCurlResult | None = None
+    complete: bool = False
+    error: str | None = None
+    id: UUID | None = Field(default_factory=uuid4)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 def send_post_request(url: str, data: dict) -> httpx.Response:
     """Send a JSON payload to a URL via HTTP POST."""
     response = httpx.post(url, json=data)
     response.raise_for_status()
-    return response
+    return response.json()
 
 
 def send_xy_to_pdfcurl(

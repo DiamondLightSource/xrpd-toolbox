@@ -405,6 +405,17 @@ class EigerDataLoader:
 
         return self._read_string(composition_path)
 
+    def get_density(self) -> float:
+        """returns the density of the sample eg. 2.7g/cm3. etc
+
+        should be in g/cm3 if it's not the user input it wrong"""
+
+        density_path = f"{self.entry}/plan_metadata/sample_info/data/density"
+
+        density = float(self._read_array(density_path))
+
+        return density
+
     def sum_frames_at_each_two_theta_position(
         self, frames: slice | None = None
     ) -> np.ndarray:

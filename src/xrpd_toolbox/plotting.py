@@ -71,10 +71,14 @@ class DataPlot(XYEData):
         else:
             return None
 
-    def plot(self):
+    def plot(self, plot_type: str = "line"):
         if self.title is not None:
             plt.title(self.title)
-        plt.scatter(self.x, self.y, label="Obs", color="black", s=5)
+        if plot_type == "line":
+            plt.plot(self.x, self.y, label="Obs", color="black")
+        else:
+            plt.scatter(self.x, self.y, label="Obs", color="black", s=5)
+
         plt.xlabel(self.x_label)
         plt.ylabel(self.y_label)
         plt.legend()
@@ -122,7 +126,7 @@ class FittedDataPlot(DataPlot):
             difference = np.array(self.y) - np.array(self.calc)
             return difference.tolist()
 
-    def plot(self, save_to: str | None = None):
+    def plot(self, plot_type: str = "line", save_to: str | None = None):
         if isinstance(self.background, float):
             background = [self.background] * len(self.x)
         elif isinstance(self.background, np.ndarray):
@@ -133,7 +137,10 @@ class FittedDataPlot(DataPlot):
         offset = -0.1 * np.amax(self.y)
         if self.title is not None:
             plt.title(self.title)
-        plt.scatter(self.x, self.y, label="Obs", color="black", s=5)
+        if plot_type == "line":
+            plt.plot(self.x, self.y, label="Obs", color="black")
+        else:
+            plt.scatter(self.x, self.y, label="Obs", color="black", s=5)
         plt.plot(self.x, self.calc, label="Calc", color="red")
         if background is not None:
             plt.plot(self.x, background, label="Background")

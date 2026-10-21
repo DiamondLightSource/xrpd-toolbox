@@ -592,11 +592,15 @@ class XYEData(XRPDBaseModel):
         return self
 
     @classmethod
-    def from_csv(cls, filepath: str | Path):
+    def from_csv(cls, filepath: str | Path, skip_header: int = 0):
         try:
-            x, y, e = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+            x, y, e = np.genfromtxt(
+                str(filepath), skip_header=skip_header, unpack=True, dtype=float
+            )
         except ValueError:
-            x, y = np.genfromtxt(str(filepath), unpack=True, dtype=float)
+            x, y = np.genfromtxt(
+                str(filepath), skip_header=skip_header, unpack=True, dtype=float
+            )
             e = None
 
         return cls(title=Path(filepath).stem, x=x, y=y, e=e, filepath=str(filepath))

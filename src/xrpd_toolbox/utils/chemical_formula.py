@@ -4,6 +4,7 @@ import re
 from functools import cached_property
 from itertools import combinations
 
+import numpy as np
 from pydantic import Field, computed_field, model_validator
 from scipy.constants import Avogadro
 
@@ -183,14 +184,18 @@ class ChemicalFormula(XRPDBaseModel):
 
         return list(self.chemical_formula.keys())
 
-    @cached_property
-    def estimated_min_distance(self) -> float | None:
+    def get_element_pair_distances(self) -> dict:
 
-        element_pairs = combinations(set(self.elements), 2)
+        if len(self.elements) > 1:
+            element_pairs = combinations(set(self.elements), 2)
+        else:
+            element_pairs = combinations(set([self.elements[0]] * 2), 2)
+
+        # print(list(element_pairs))
 
         radii = ElementRadii()
 
-        min_distance = None
+        distances = {}
 
         for elem1, elem2 in element_pairs:
             if elem1 == elem2:
@@ -198,11 +203,20 @@ class ChemicalFormula(XRPDBaseModel):
             else:
                 distance = radii.get_interatomic_distance(elem1, elem2)
 
-            if distance is not None:
-                if min_distance is None or distance < min_distance:
-                    min_distance = distance
+            distances[f"{elem1} -> {elem2}"] = distance
 
-        return min_distance  # type: ignore
+        return distances
+
+    @cached_property
+    def estimated_min_distance(self) -> float:
+
+        distances = self.get_element_pair_distances()
+
+        print(list(distances))
+
+        min_distance = np.amin(list(distances.values()))
+
+        return min_distance
 
     @cached_property
     def atomic_fraction(self) -> list[float | int]:
@@ -219,11 +233,11 @@ class ChemicalFormula(XRPDBaseModel):
 
         return molecular_weight(self.chemical_formula)
 
-    def rho(self, density: float) -> float:
+    def rho(self, density_g_cm3: float) -> float:
         """Convert mass density (g/cm^3) to atomic number density (atoms/Å^3)."""
 
         return density_to_number_density(
-            density_g_cm3=density,
+            density_g_cm3=density_g_cm3,
             molar_mass_g_mol=self.molecular_weight,
             atoms_per_formula_unit=self.total_atoms,
         )

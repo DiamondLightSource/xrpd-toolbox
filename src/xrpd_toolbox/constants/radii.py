@@ -57,16 +57,19 @@ class ElementRadii(XRPDBaseModel):
         """Get the interatomic distance between two elements."""
         radius1 = self.get_crystal_radius(element1, charge1)
         radius2 = self.get_crystal_radius(element2, charge2)
+
         if radius1 is not None and radius2 is not None:
-            return float(min(radius1) + min(radius2))
+            return float(max(radius1) + max(radius2))
         else:
             return None
 
 
-# if __name__ == "__main__":
-#     radii = ElementRadii()
-#     print(radii.get_atomic_radius("Si"))
-#     print(radii.get_interatomic_distance("Si", "Si"))
+if __name__ == "__main__":
+    radii = ElementRadii()
+    print(radii.get_atomic_radius("Si"))
+    print(radii.get_interatomic_distance("Si", "Si"))
+    print(radii.get_interatomic_distance("K", "Pd"))
+    print(radii.get_interatomic_distance("Pd", "Cl"))
 
 #     mask = (radii.elements == "Fe") & (radii.charges == 2) & (radii.coordinations==6)
 #     print("Fe2+ CN=6 crystal radii:", radii.crystal_radii[mask])
