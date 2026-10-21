@@ -252,6 +252,27 @@ def test_sum_frames_at_each_two_theta_position_only_sums(tmp_path):
     assert np.allclose(result[1], 5.0)
 
 
+@pytest.mark.parametrize("frames", [None, slice(0, 4)])
+def test_get_frames_static_collection_normalises_by_every_frame(tmp_path, frames):
+    # the arm doesn't move, so tth is read back fewer times than there are frames
+    nxs = build_eiger_nexus(
+        tmp_path / "scan.nxs",
+        data=_constant_frames(1.0, 2.0, 3.0, 4.0),
+        tth=np.array([80.0, 80.0]),
+        i0=np.array([1.0, 1.0, 1.0, 1.0]),
+        plan_name="static_collection",
+    )
+    loader = EigerDataLoader(nxs)
+
+    result = loader.get_frames(mask=False, normalise=True, frames=frames)
+
+    # every frame summed and divided by the i0 of every frame, not just the
+    # frames that have a tth readback
+    assert result.shape == (1, 4, 5)
+    assert np.allclose(result[0], (1.0 + 2.0 + 3.0 + 4.0) / 4.0)
+    assert np.allclose(loader.get_unique_tth_positions(frames), [80.0])
+
+
 def test_get_frames_ignores_tth_positions_without_a_frame(tmp_path):
     # the tth readback can log more points than the detector saved frames
     nxs = build_eiger_nexus(

@@ -38,6 +38,10 @@ logger = logging.getLogger(__name__)
 TTH_GROUP_TOLERANCE_DEG = 1e-3
 
 
+def round_to(x: np.ndarray, step: float):
+    return np.round(x / step) * step
+
+
 def gonio_from_json_string(json_str: str):
     fd, path = tempfile.mkstemp(suffix=".json")
     try:
@@ -53,23 +57,36 @@ def group_positions(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Group readbacks within `tolerance` of each other, as the readback jitters.
 
-    Returns the group of each frame and the mean position of each group.
+    Returns which position each readback belongs to (an index into the second
+    array) and the mean of the readbacks at each position, in ascending order.
     """
     positions = np.asarray(positions, dtype=np.float64)
     if positions.size == 0:
         return np.empty(0, dtype=int), np.empty(0)
 
-    order = np.argsort(positions, kind="stable")
-    sorted_labels = np.concatenate(
-        [[0], np.cumsum(np.diff(positions[order]) > tolerance)]
-    )
-    labels = np.empty(positions.size, dtype=int)
-    labels[order] = sorted_labels
+    sort_order = np.argsort(positions, kind="stable")
+    sorted_positions = positions[sort_order]
 
-    n_groups = sorted_labels[-1] + 1
-    counts = np.bincount(labels, minlength=n_groups)
-    means = np.bincount(labels, weights=positions, minlength=n_groups) / counts
-    return labels, means
+    # a gap bigger than the jitter between neighbouring readbacks means the arm
+    # moved, so every readback after it is at the next position
+    arm_moved = np.diff(sorted_positions) > tolerance
+    sorted_position_index = np.concatenate([[0], np.cumsum(arm_moved)])
+
+    # put the indices back in the original readback order
+    position_index_of_each_readback = np.empty(positions.size, dtype=int)
+    position_index_of_each_readback[sort_order] = sorted_position_index
+
+    number_of_positions = sorted_position_index[-1] + 1
+    readbacks_at_each_position = np.bincount(
+        position_index_of_each_readback, minlength=number_of_positions
+    )
+    sum_at_each_position = np.bincount(
+        position_index_of_each_readback,
+        weights=positions,
+        minlength=number_of_positions,
+    )
+    mean_positions = sum_at_each_position / readbacks_at_each_position
+    return position_index_of_each_readback, mean_positions
 
 
 def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
@@ -149,26 +166,50 @@ class EigerDataLoader:
         return deltas
 
     @cached_property
-    def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
-        # the tth readback can have more points than the detector saved frames,
-        # so only group the positions that have a frame
+    def tth_for_each_frame(self) -> np.ndarray:
+        """One tth readback per detector frame.
+
+        The readback can have more points than the detector saved frames (eg. an
+        aborted scan), so the extras are ignored. It can also have fewer (eg. a
+        static collection, where the arm doesn't move), so the frames after the
+        last readback are taken to be at that readback.
+        """
         number_of_detector_frames = self.get_number_of_frames()
-        positions = self.positions[:number_of_detector_frames]
-        if len(positions) != len(self.positions):
+        number_of_readbacks = len(self.positions)
+
+        if number_of_readbacks > number_of_detector_frames:
             logger.warning(
                 "%d tth positions but only %d detector frames, ignoring the extras",
-                len(self.positions),
+                number_of_readbacks,
                 number_of_detector_frames,
             )
+            return self.positions[:number_of_detector_frames]
 
-        labels, group_tth = group_positions(positions)
-        counts = np.bincount(labels, minlength=len(group_tth))
-        logger.info(
-            "Grouped %d frames into %d two-theta positions", labels.size, counts.size
+        if number_of_readbacks < number_of_detector_frames:
+            logger.info(
+                "%d tth positions for %d detector frames, using the last for the rest",
+                number_of_readbacks,
+                number_of_detector_frames,
+            )
+            missing_readbacks = number_of_detector_frames - number_of_readbacks
+            return np.pad(self.positions, (0, missing_readbacks), mode="edge")
+
+        return self.positions
+
+    @cached_property
+    def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
+        position_index_of_each_frame, tth_groups = group_positions(
+            self.tth_for_each_frame
         )
-        for tth, count in zip(group_tth, counts, strict=True):
+        counts = np.bincount(position_index_of_each_frame, minlength=len(tth_groups))
+        logger.info(
+            "Grouped %d frames into %d two-theta positions",
+            position_index_of_each_frame.size,
+            counts.size,
+        )
+        for tth, count in zip(tth_groups, counts, strict=True):
             logger.debug("  2θ=%.5f°: %d frames", tth, count)
-        return labels, group_tth
+        return position_index_of_each_frame, tth_groups
 
     def get_tth_groups(
         self, frames: slice | None = None
@@ -177,13 +218,12 @@ class EigerDataLoader:
         if frames is None:
             return self.tth_groups
 
-        number_of_detector_frames = self.get_number_of_frames()
-        positions = self.positions[:number_of_detector_frames][frames]
-        return group_positions(positions)
+        return group_positions(self.tth_for_each_frame[frames])
 
     def get_unique_tth_positions(self, frames: slice | None = None) -> np.ndarray:
         """Ascending, in the same order as the summed frames."""
-        return self.get_tth_groups(frames)[1]
+        _, mean_positions = self.get_tth_groups(frames)
+        return mean_positions
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -413,10 +453,10 @@ class EigerDataLoader:
         Returns one image per position, in ascending two-theta order.
         `frames` restricts it to a range of frames, eg. one temperature.
         """
-
         position_index_of_each_frame, unique_positions = self.get_tth_groups(frames)
 
         frame_indices = range(self.get_number_of_frames())[frames or slice(None)]
+
         number_of_positions = len(unique_positions)
 
         if len(frame_indices) == 0:
