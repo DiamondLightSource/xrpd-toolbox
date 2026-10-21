@@ -166,19 +166,41 @@ class EigerDataLoader:
         return deltas
 
     @cached_property
-    def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
-        # the tth readback can have more points than the detector saved frames,
-        # so only group the positions that have a frame
+    def tth_for_each_frame(self) -> np.ndarray:
+        """One tth readback per detector frame.
+
+        The readback can have more points than the detector saved frames (eg. an
+        aborted scan), so the extras are ignored. It can also have fewer (eg. a
+        static collection, where the arm doesn't move), so the frames after the
+        last readback are taken to be at that readback.
+        """
         number_of_detector_frames = self.get_number_of_frames()
-        positions = self.positions[:number_of_detector_frames]
-        if len(positions) != len(self.positions):
+        number_of_readbacks = len(self.positions)
+
+        if number_of_readbacks > number_of_detector_frames:
             logger.warning(
                 "%d tth positions but only %d detector frames, ignoring the extras",
-                len(self.positions),
+                number_of_readbacks,
                 number_of_detector_frames,
             )
+            return self.positions[:number_of_detector_frames]
 
-        position_index_of_each_frame, tth_groups = group_positions(positions)
+        if number_of_readbacks < number_of_detector_frames:
+            logger.info(
+                "%d tth positions for %d detector frames, using the last for the rest",
+                number_of_readbacks,
+                number_of_detector_frames,
+            )
+            missing_readbacks = number_of_detector_frames - number_of_readbacks
+            return np.pad(self.positions, (0, missing_readbacks), mode="edge")
+
+        return self.positions
+
+    @cached_property
+    def tth_groups(self) -> tuple[np.ndarray, np.ndarray]:
+        position_index_of_each_frame, tth_groups = group_positions(
+            self.tth_for_each_frame
+        )
         counts = np.bincount(position_index_of_each_frame, minlength=len(tth_groups))
         logger.info(
             "Grouped %d frames into %d two-theta positions",
@@ -193,27 +215,10 @@ class EigerDataLoader:
         self, frames: slice | None = None
     ) -> tuple[np.ndarray, np.ndarray]:
         """tth_groups for only the frames in `frames`, eg. one temperature."""
-        if self.get_plan_name() == "static_collection":
-            # the arm doesn't move, so tth isn't read back for every frame -
-            # every frame is at the one position
-            frame_indices = range(self.get_number_of_frames())[frames or slice(None)]
-            position_index_of_each_frame = np.zeros(len(frame_indices), dtype=int)
-            return position_index_of_each_frame, np.array([np.mean(self.positions)])
-
-        elif frames is None:
+        if frames is None:
             return self.tth_groups
-        else:
-            number_of_detector_frames = self.get_number_of_frames()
-            # this is just incase someone aborts the scan early,
-            # and the number of positions
-            # doesn't match the number of frames
-            positions = self.positions[:number_of_detector_frames][frames]
 
-            position_index_of_each_readback, mean_unique_positions = group_positions(
-                positions
-            )
-
-            return position_index_of_each_readback, mean_unique_positions
+        return group_positions(self.tth_for_each_frame[frames])
 
     def get_unique_tth_positions(self, frames: slice | None = None) -> np.ndarray:
         """Ascending, in the same order as the summed frames."""
