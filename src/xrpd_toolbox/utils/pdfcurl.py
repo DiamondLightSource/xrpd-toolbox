@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from xrpd_toolbox.core import XYEData
 
 I15_1_PDFCURL_ENDPOINT = "https://i15-1-pdfget.diamond.ac.uk/data2pdf"
+TERMINATION_TYPES = Literal["lorch", "step"]
 
 OUTPUT_TYPES = Literal["iq", "sq", "fq", "gr"]
 
@@ -17,15 +18,20 @@ class PDFGetConfig(BaseModel):
     composition: str
     wavelength: float
     dataformat: Literal["QA", "Qnm", "twotheta"] = "twotheta"
-    backgroundfile: str | Path | None = None
+    backgroundfile: str | Path | XYEData | None = None
     outputtypes: OUTPUT_TYPES | list[OUTPUT_TYPES] = ["iq", "sq", "fq", "gr"]
-    qmaxinst: float = 50.0
-    qmin: float = 0.5
+    qmaxinst: float = 20.0
+    qmin: float = 0.0
     qmax: float = 50.0
     rmin: float = 0.0
     rmax: float = 20.0
-    rstep: float = 0.02
+    rstep: float = 0.01
     rpoly: float = 0.9
+    terminationfunctions: TERMINATION_TYPES | list[TERMINATION_TYPES] | None = None
+    twothetazero: float = 0
+    bgscale: float = 1.0
+    mode: Literal["xray"] = "xray"  #'xray', 'neutron', 'electron', 'sas', 'xdiff'
+    force: bool = True
 
 
 class PDFCurlRequest(PDFGetConfig):
