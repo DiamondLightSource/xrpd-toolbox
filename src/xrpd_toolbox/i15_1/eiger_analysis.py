@@ -545,6 +545,7 @@ if __name__ == "__main__":
 
     # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100614.nxs"  # static collection
 
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100603.nxs"
 
