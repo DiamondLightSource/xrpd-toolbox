@@ -87,6 +87,11 @@ def send_xy_to_pdfcurl(
     rmax: float = 20.0,
     rstep: float = 0.02,
     rpoly: float = 0.9,
+    terminationfunctions: TERMINATION_TYPES | list[TERMINATION_TYPES] | None = None,
+    twothetazero: float = 0,
+    bgscale: float = 1.0,
+    mode: Literal["xray"] = "xray",  #'xray', 'neutron', 'electron', 'sas', 'xdiff'
+    force: bool = True,
 ) -> dict:
     """Send an .xy file to pdfcurl. Unspecified options use the pdfcurl defaults."""
 
@@ -112,6 +117,11 @@ def send_xy_to_pdfcurl(
         rmax=rmax,
         rstep=rstep,
         rpoly=rpoly,
+        terminationfunctions=terminationfunctions,
+        twothetazero=twothetazero,
+        bgscale=bgscale,
+        mode=mode,
+        force=force,
     )
 
     response = send_post_request(
