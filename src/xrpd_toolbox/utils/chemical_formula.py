@@ -212,7 +212,7 @@ class ChemicalFormula(XRPDBaseModel):
 
         distances = self.get_element_pair_distances()
 
-        print(list(distances))
+        # print(list(distances))
 
         min_distance = np.amin(list(distances.values()))
 
