@@ -211,6 +211,17 @@ def test_xyedata_from_csv(tmp_path: Path):
     assert data.filepath == str(csv_file)
 
 
+def test_xyedata_from_csv_skip_header(tmp_path: Path):
+    csv_file = tmp_path / "data.csv"
+    csv_file.write_text("header line\nx y\n1 2\n2 3\n")
+
+    data = XYEData.from_csv(str(csv_file), skip_header=2)
+
+    assert np.array_equal(data.x, np.array([1.0, 2.0]))
+    assert np.array_equal(data.y, np.array([2.0, 3.0]))
+    assert data.e is None
+
+
 def test_scattering_data_from_xye_and_fullprof(tmp_path: Path):
     xye_file = tmp_path / "data.xye"
     xye_file.write_text("1 2 0.1\n2 3 0.2\n")

@@ -229,6 +229,68 @@ def test_pdfcurl_reduction_sends_no_background_when_there_is_none(tmp_path: Path
 
 
 # ---------------------------------------------------------------------------
+# _publish_xy
+# ---------------------------------------------------------------------------
+
+
+def _published_plot(monkeypatch) -> MagicMock:
+    post = MagicMock()
+    monkeypatch.setattr("xrpd_toolbox.plotting.requests.post", post)
+    return post
+
+
+def _published_json(post: MagicMock) -> dict:
+    post.assert_called_once()
+    return json.loads(post.call_args.kwargs["data"])
+
+
+def test_publish_xy_without_markers_or_background_is_a_plain_plot(
+    tmp_path: Path, monkeypatch
+):
+    post = _published_plot(monkeypatch)
+    xy = _write_xy(tmp_path / "data.xy", np.arange(5.0), np.arange(5.0) ** 2)
+
+    eiger_analysis._publish_xy(xy, data_type="xrd", known_peak_markers=None)
+
+    published = _published_json(post)
+    assert published["y"] == [0.0, 1.0, 4.0, 9.0, 16.0]
+    assert "background" not in published
+
+
+def test_publish_xy_with_background_filepath(tmp_path: Path, monkeypatch):
+    post = _published_plot(monkeypatch)
+    x = np.arange(5.0)
+    xy = _write_xy(tmp_path / "data.xy", x, x**2)
+    background = _write_xy(tmp_path / "background.xy", x, np.full(5, 0.5))
+
+    eiger_analysis._publish_xy(
+        xy, data_type="xrd", known_peak_markers=None, background=background
+    )
+
+    published = _published_json(post)
+    assert published["background"] == [0.5] * 5
+    assert published["markers"] is None
+    assert published["calc"] == published["y"]
+
+
+def test_publish_xy_with_background_list_and_markers(tmp_path: Path, monkeypatch):
+    post = _published_plot(monkeypatch)
+    x = np.arange(5.0)
+    xy = _write_xy(tmp_path / "data.xy", x, x**2)
+
+    eiger_analysis._publish_xy(
+        xy,
+        data_type="xrd",
+        known_peak_markers=[1.0, 3.0],
+        background=[0.1, 0.2, 0.3, 0.4, 0.5],
+    )
+
+    published = _published_json(post)
+    assert published["background"] == [0.1, 0.2, 0.3, 0.4, 0.5]
+    assert published["markers"] == [1.0, 3.0]
+
+
+# ---------------------------------------------------------------------------
 # get_outlier_mask / _apply_intensity_corrections
 # ---------------------------------------------------------------------------
 
