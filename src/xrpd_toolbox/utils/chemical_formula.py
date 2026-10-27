@@ -186,10 +186,13 @@ class ChemicalFormula(XRPDBaseModel):
 
     def get_element_pair_distances(self) -> dict:
 
+        print(f"{self.elements=}")
+        print(f"{self.elements[0]=}")
+
         if len(self.elements) > 1:
             element_pairs = combinations(set(self.elements), 2)
         else:
-            element_pairs = combinations(set([self.elements[0]] * 2), 2)
+            element_pairs = [[self.elements[0], self.elements[0]]]
 
         # print(list(element_pairs))
 
@@ -198,10 +201,7 @@ class ChemicalFormula(XRPDBaseModel):
         distances = {}
 
         for elem1, elem2 in element_pairs:
-            if elem1 == elem2:
-                distance = radii.get_crystal_radius(elem1)
-            else:
-                distance = radii.get_interatomic_distance(elem1, elem2)
+            distance = radii.get_interatomic_distance(elem1, elem2)
 
             distances[f"{elem1} -> {elem2}"] = distance
 
@@ -281,3 +281,7 @@ if __name__ == "__main__":
     )
 
     print(ChemicalFormula(formula="SiO2").estimated_min_distance)
+
+    si = ChemicalFormula(formula="Si")
+
+    print(si.estimated_min_distance)

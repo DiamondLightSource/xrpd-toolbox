@@ -64,8 +64,8 @@ class PDFCurlResponse(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-def send_post_request(url: str, data: dict) -> httpx.Response:
-    """Send a JSON payload to a URL via HTTP POST."""
+def send_post_request(url: str, data: dict) -> dict:
+    """Send a JSON payload to a URL via HTTP POST and return the JSON response."""
     response = httpx.post(url, json=data)
     response.raise_for_status()
     return response.json()
@@ -128,4 +128,4 @@ def send_xy_to_pdfcurl(
         url=I15_1_PDFCURL_ENDPOINT, data=pdfcurl_config.model_dump(mode="json")
     )
 
-    return response.json()
+    return response

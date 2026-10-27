@@ -158,7 +158,8 @@ def test_estimated_min_distance_is_the_shortest_pair_distance():
 def test_estimated_min_distance_of_a_single_element():
     chem = ChemicalFormula(formula="Si")
 
-    assert chem.estimated_min_distance > 0
+    # Si-Si bond in crystalline silicon is 2.35 Å
+    assert chem.estimated_min_distance == pytest.approx(2.35, abs=0.05)
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +172,7 @@ def radii() -> ElementRadii:
     return ElementRadii()
 
 
-def test_element_radii_columns_are_the_same_length(radii):
+def test_element_radii_columns_are_the_same_length(radii: ElementRadii):
     n = len(radii.elements)
 
     assert n > 0
@@ -181,7 +182,7 @@ def test_element_radii_columns_are_the_same_length(radii):
     assert len(radii.ionic_radii) == n
 
 
-def test_get_crystal_radius_returns_every_charge_and_coordination(radii):
+def test_get_crystal_radius_returns_every_charge_and_coordination(radii: ElementRadii):
     si_radii = radii.get_crystal_radius("Si")
 
     assert si_radii is not None
@@ -195,33 +196,136 @@ def test_get_crystal_radius_for_a_charge(radii):
     np.testing.assert_allclose(pd_radii, [0.78, 1.0])
 
 
-def test_get_crystal_radius_unknown_is_none(radii):
-    assert radii.get_crystal_radius("Xx") is None
-    assert radii.get_crystal_radius("Si", charge=-4) is None
-
-
-def test_get_atomic_radius(radii):
+def test_get_atomic_radius(radii: ElementRadii):
     assert radii.get_atomic_radius("Si") == pytest.approx(1.1)
     assert radii.get_atomic_radius("Xx") is None
 
 
-def test_get_interatomic_distance_sums_the_largest_crystal_radii(radii):
+def test_get_interatomic_distance_sums_the_largest_crystal_radii(radii: ElementRadii):
     # K+ CN12 = 1.78 Å, Pd2+ CN6 = 1.0 Å
     assert radii.get_interatomic_distance("K", "Pd") == pytest.approx(2.78)
 
 
-def test_get_interatomic_distance_with_charges(radii):
+def test_get_interatomic_distance_with_charges(radii: ElementRadii):
     # Pd4+ CN6 = 0.755 Å, Cl- CN6 = 1.67 Å
     distance = radii.get_interatomic_distance("Pd", "Cl", charge1=4, charge2=-1)
 
     assert distance == pytest.approx(2.425)
 
 
-def test_get_interatomic_distance_is_symmetric(radii):
+def test_get_interatomic_distance_is_symmetric(radii: ElementRadii):
     assert radii.get_interatomic_distance("Pd", "Cl") == radii.get_interatomic_distance(
         "Cl", "Pd"
     )
 
 
-def test_get_interatomic_distance_unknown_is_none(radii):
-    assert radii.get_interatomic_distance("Xx", "Cl") is None
+def test_get_crystal_radius_unknown_raises(radii: ElementRadii):
+    with pytest.raises(ValueError):
+        radii.get_crystal_radius("Xx")
+    with pytest.raises(ValueError):
+        radii.get_crystal_radius("Si", charge=-4)
+
+
+def test_get_interatomic_distance_unknown_raises(radii: ElementRadii):
+    with pytest.raises(ValueError):
+        radii.get_interatomic_distance("Xx", "Cl")
+
+
+def test_get_covalent_radius(radii: ElementRadii):
+    assert radii.get_covalent_radius("Si") == pytest.approx(1.16)
+    assert radii.get_covalent_radius("C") == pytest.approx(0.75)
+
+
+def test_get_covalent_radius_unknown_raises(radii: ElementRadii):
+    with pytest.raises(ValueError):
+        radii.get_covalent_radius("Xx")
+
+
+@pytest.mark.parametrize(
+    "element, bond_length",
+    [
+        ("Si", 2.35),  # crystalline silicon
+        ("C", 1.54),  # diamond
+        ("Ge", 2.45),  # crystalline germanium
+    ],
+)
+def test_get_interatomic_distance_of_the_same_element_is_the_covalent_bond(
+    radii: ElementRadii, element: str, bond_length: float
+):
+    distance = radii.get_interatomic_distance(element, element)
+
+    assert distance == pytest.approx(2 * radii.get_covalent_radius(element))
+    assert distance == pytest.approx(bond_length, abs=0.05)
+
+
+def test_get_interatomic_distance_of_the_same_element_with_charges_uses_crystal_radii(
+    radii: ElementRadii,
+):
+    # Si4+ CN6 = 0.54 Å
+    distance = radii.get_interatomic_distance("Si", "Si", charge1=4, charge2=4)
+
+    assert distance == pytest.approx(1.08)
+
+
+@pytest.mark.parametrize(
+    "bond_order, radius",
+    [(1, 0.75), (2, 0.67), (3, 0.60)],
+)
+def test_get_covalent_radius_for_a_bond_order(
+    radii: ElementRadii, bond_order, radius: float
+):
+    assert radii.get_covalent_radius("C", bond_order=bond_order) == pytest.approx(
+        radius
+    )
+
+
+def test_get_covalent_radius_without_that_bond_order_raises(radii: ElementRadii):
+    # Pyykkö gives no double or triple bond radius for H, or triple for Li
+    with pytest.raises(ValueError, match="bond_order=2"):
+        radii.get_covalent_radius("H", bond_order=2)
+    with pytest.raises(ValueError, match="bond_order=3"):
+        radii.get_covalent_radius("Li", bond_order=3)
+
+
+@pytest.mark.parametrize("element", ["C", "N", "O", "Si", "P", "Fe", "Mo", "W"])
+def test_covalent_radii_get_shorter_with_bond_order(radii: ElementRadii, element):
+    single, double, triple = (
+        radii.get_covalent_radius(element, bond_order=order) for order in (1, 2, 3)
+    )
+
+    assert single > double > triple
+
+
+@pytest.mark.parametrize(
+    "element1, element2, bond_order, bond_length",
+    [
+        ("C", "C", 1, 1.54),  # ethane
+        ("C", "C", 2, 1.34),  # ethene
+        ("C", "C", 3, 1.20),  # ethyne
+        ("C", "O", 2, 1.21),  # formaldehyde
+        ("N", "N", 3, 1.10),  # N2
+        ("C", "N", 3, 1.16),  # HCN
+    ],
+)
+def test_get_interatomic_distance_with_a_bond_order(
+    radii: ElementRadii, element1, element2, bond_order, bond_length: float
+):
+    distance = radii.get_interatomic_distance(element1, element2, bond_order=bond_order)
+
+    # the radii are fitted to many molecules, so are good to a few pm
+    assert distance == pytest.approx(bond_length, abs=0.05)
+
+
+def test_get_interatomic_distance_single_bond_order_is_the_same_element_default(
+    radii: ElementRadii,
+):
+    assert radii.get_interatomic_distance(
+        "Si", "Si", bond_order=1
+    ) == radii.get_interatomic_distance("Si", "Si")
+
+
+def test_get_interatomic_distance_with_bond_order_and_charges_raises(
+    radii: ElementRadii,
+):
+    with pytest.raises(ValueError, match="bond_order"):
+        radii.get_interatomic_distance("Si", "O", charge1=4, bond_order=2)
