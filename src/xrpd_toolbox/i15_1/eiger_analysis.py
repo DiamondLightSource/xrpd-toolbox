@@ -17,7 +17,7 @@ from xrpd_toolbox.i15_1.eiger_pyfai import (
     integrate_with_goniometer,
     mask_module_edges,
 )
-from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
+from xrpd_toolbox.plotting import DataPlot, FittedDataPlot, XYEData
 from xrpd_toolbox.utils.pdfcurl import send_xy_to_pdfcurl
 from xrpd_toolbox.utils.utils import (
     h5_to_array,
@@ -263,17 +263,27 @@ def _publish_xy(
     output_xy_filepath: Path,
     data_type: str,
     known_peak_markers: list[float] | None,
+    background: Path | str | list[float] | None = None,
 ):
     try:
         data_plot = DataPlot.from_csv(output_xy_filepath)
         data_plot.x_label = "2θ (deg)"
         data_plot.data_type = data_type
 
-        if known_peak_markers is not None:
+        if isinstance(background, (Path, str)):
+            background_xye = XYEData.from_csv(str(background))
+            background_y = background_xye.y
+        elif isinstance(background, list):
+            background_y = background
+        else:
+            background_y = background
+
+        if (known_peak_markers is not None) or (background is not None):
             data_plot = FittedDataPlot(
                 **data_plot.model_dump(),
                 calc=data_plot.y,
-                markers=list(known_peak_markers),
+                markers=known_peak_markers,
+                background=background_y,
             )
 
         data_plot.publish(beamline="i15-1")
@@ -386,7 +396,12 @@ def do_eiger_data_reduction(
         )
 
         if publish:
-            _publish_xy(temperature_xy_filepath, data_type, known_peak_markers)
+            _publish_xy(
+                output_xy_filepath=temperature_xy_filepath,
+                data_type=data_type,
+                known_peak_markers=known_peak_markers,
+                background=_get_background_xy_filepath(eiger_data),
+            )
 
         output_xy_filepaths.append(temperature_xy_filepath)
 
@@ -528,10 +543,11 @@ def plot_final_data(
 # fmt: off
 if __name__ == "__main__":
 
-#     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
+    # nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100243.nxs"  # single T example
 #     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100245.nxs"  # VT example
     nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100614.nxs"  # static collection
 
+    nexus_filepath = "/workspaces/outputs/i15-1/i15-1-100603.nxs"
 
 #     eigerdata = EigerDataLoader(nexus_filepath)
 
@@ -542,5 +558,7 @@ if __name__ == "__main__":
 
     xy_files = do_eiger_data_reduction(
         nexus_filepath=nexus_filepath,
-        publish=False,
+        publish=True,
     )
+
+    print(xy_files)

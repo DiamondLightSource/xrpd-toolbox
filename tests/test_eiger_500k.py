@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import h5py
 import numpy as np
 import pytest
 from pyFAI.detectors import Detector
@@ -801,3 +802,46 @@ def test_apply_mask_removes_saturated_bad_pixels():
 
     assert masked.max() == 10.0
     assert masked[0, 0, 0] == 0
+
+
+def _add_sample_info(nxs: Path, **datasets) -> None:
+    with h5py.File(nxs, "a") as f:
+        for name, value in datasets.items():
+            f.create_dataset(
+                f"/entry/plan_metadata/sample_info/data/{name}", data=value
+            )
+
+
+def test_get_density(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs")
+    _add_sample_info(nxs, density=2.7)
+    loader = EigerDataLoader(nxs)
+
+    density = loader.get_density()
+
+    assert density == pytest.approx(2.7)
+    assert isinstance(density, float)
+
+
+def test_get_density_missing_raises(tmp_path):
+    loader = EigerDataLoader(build_eiger_nexus(tmp_path / "scan.nxs"))
+
+    with pytest.raises(ValueError, match="density"):
+        loader.get_density()
+
+
+def test_get_qmax(tmp_path):
+    nxs = build_eiger_nexus(tmp_path / "scan.nxs")
+    _add_sample_info(nxs, q_max=25.0)
+    loader = EigerDataLoader(nxs)
+
+    qmax = loader.get_qmax()
+
+    assert qmax == pytest.approx(25.0)
+    assert isinstance(qmax, float)
+
+
+def test_get_qmax_missing_is_none(tmp_path):
+    loader = EigerDataLoader(build_eiger_nexus(tmp_path / "scan.nxs"))
+
+    assert loader.get_qmax() is None

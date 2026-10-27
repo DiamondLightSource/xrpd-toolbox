@@ -445,6 +445,17 @@ class EigerDataLoader:
 
         return self._read_string(composition_path)
 
+    def get_density(self) -> float:
+        """returns the density of the sample eg. 2.7g/cm3. etc
+
+        should be in g/cm3 if it's not the user input it wrong"""
+
+        density_path = f"{self.entry}/plan_metadata/sample_info/data/density"
+
+        density = float(self._read_array(density_path))
+
+        return density
+
     def sum_frames_at_each_two_theta_position(
         self, frames: slice | None = None
     ) -> np.ndarray:
@@ -564,6 +575,17 @@ class EigerDataLoader:
         output_xy_filepath = Path(processed_dir) / (file_name + "_fastcs_eiger.xy")
 
         return output_xy_filepath
+
+    def get_qmax(self) -> float | None:
+
+        qmax_data_path = f"/{self.entry}/plan_metadata/sample_info/data/q_max"
+        try:
+            qmax = float(self._read_array(qmax_data_path))
+        except Exception as e:
+            logging.warning(f"qmax not found in nexus {e}")
+            qmax = None
+
+        return qmax
 
 
 class Eiger500K(Detector):
