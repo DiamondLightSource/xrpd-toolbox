@@ -186,8 +186,8 @@ class ChemicalFormula(XRPDBaseModel):
 
     def get_element_pair_distances(self) -> dict:
 
-        print(f"{self.elements=}")
-        print(f"{self.elements[0]=}")
+        # print(f"{self.elements=}")
+        # print(f"{self.elements[0]=}")
 
         if len(self.elements) > 1:
             element_pairs = combinations(set(self.elements), 2)
