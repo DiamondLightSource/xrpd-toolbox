@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import os
 import re
@@ -24,12 +25,17 @@ from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
-    # get_calibrant_peaks,
     get_entry,
     h5_to_array,
     load_int_array_from_file,
+    processed_directory_and_filename,
     save_data_to_h5,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+
 
 MYTHEN_CONFIG_DIR = BASE_PATH.parent.parent / "config" / "i11"
 DEFAULT_BAD_CHANS = MYTHEN_CONFIG_DIR / "badchannels.txt"
@@ -481,6 +487,25 @@ class MythenModule:
     def error(self) -> np.ndarray:
         return np.sqrt(self.counts)
 
+    @property
+    def n_frames(self) -> int:
+        return self.data.shape[0]
+
+    def get_frame(self, frame: int) -> "MythenModule":
+        """Returns a MythenModule containing only a single frame of this module"""
+
+        frame_slice = slice(frame, frame + 1)
+
+        return MythenModule(
+            data=self.data[frame_slice],
+            conversion=self.conversion,
+            beamline_offset=self.beamline_offset,
+            module_id=self.module_id,
+            positions=self.positions[frame_slice],
+            durations=self.durations[frame_slice],
+            bad_channel_mask=self.bad_channel_mask,
+        )
+
 
 class MythenDetector:
     def __init__(
@@ -570,8 +595,17 @@ class MythenDetector:
             "bad_channel_mask": self.bad_channels.masks[nth_active_module],
         }
 
-    def get_module(self, mod: int) -> MythenModule:
-        return self.modules[mod]
+    def get_module(self, mod: int, frame: int | None = None) -> MythenModule:
+        """Returns the module, or just a single frame of it if frame is given"""
+
+        if frame is None:
+            return self.modules[mod]
+        else:
+            return self.modules[mod].get_frame(frame)
+
+    @property
+    def n_frames(self) -> int:
+        return self.get_module(self.active_modules[0]).n_frames
 
     def contruct_modules(self):
         self.modules = OrderedDict()
@@ -584,16 +618,21 @@ class MythenDetector:
             self.modules[nth_active_module] = module
 
     def generate_xye(
-        self, modules: Iterable[int], masked: bool = True
+        self, modules: Iterable[int], masked: bool = True, frame: int | None = None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Concatenates the modules and sorts by tth. Uses every frame,
+        or just a single frame if frame is given"""
+
+        selected_modules = [self.get_module(f, frame) for f in modules]
+
         if masked:
-            module_tth_list = [self.get_module(f).tth for f in modules]
-            module_counts_list = [self.get_module(f).counts for f in modules]
-            module_errors_list = [self.get_module(f).error for f in modules]
+            module_tth_list = [m.tth for m in selected_modules]
+            module_counts_list = [m.counts for m in selected_modules]
+            module_errors_list = [m.error for m in selected_modules]
         else:
-            module_tth_list = [self.get_module(f).unmasked_tth for f in modules]
-            module_counts_list = [self.get_module(f).unmasked_counts for f in modules]
-            module_errors_list = [self.get_module(f).unmasked_error for f in modules]
+            module_tth_list = [m.unmasked_tth for m in selected_modules]
+            module_counts_list = [m.unmasked_counts for m in selected_modules]
+            module_errors_list = [m.unmasked_error for m in selected_modules]
 
         unsorted_tth = np.concatenate(module_tth_list)
         unsorted_counts = np.concatenate(module_counts_list)
@@ -613,20 +652,23 @@ class MythenDetector:
         rebin_step: float = 0.004,
         error_calc: str = "poisson",
         normalise: bool = False,
+        frame: int | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns the final dataset that you would use to generate a xye file,
-        binned and all
+        binned and all. Uses every frame, or just a single frame if frame is given
         """
 
-        tth, counts, error = self.generate_xye(modules=self.good_modules, masked=masked)
+        tth, counts, error = self.generate_xye(
+            modules=self.good_modules, masked=masked, frame=frame
+        )
 
         # TODO: Should count times really be in MythenModule and then recreated this way
         # - seems like extra wasteful computation?
 
         if normalise:
             module_duration_list = [
-                self.get_module(f).duration for f in self.good_modules
+                self.get_module(f, frame).duration for f in self.good_modules
             ]
             durations = np.concatenate(module_duration_list)
             counts = counts / durations
@@ -733,8 +775,43 @@ class MythenDetector:
     def process_pump_probe(self):
         pass
 
-    def process_time_resolved(self):
-        pass
+    def process_time_resolved(self) -> list[str]:
+        """Every frame is treated as its own dataset: each one is binned and
+        saved to its own xye, in processed/<filename>/, suffixed with the frame
+        number eg. <filename>_summed_mythen3_0.xye, <filename>_summed_mythen3_1.xye"""
+
+        processed_dir, _ = processed_directory_and_filename(self.filepath)
+        xye_stem = Path(self.xye_filepath_out).stem
+
+        xye_filepaths = []
+
+        for frame in range(self.n_frames):
+            tth, counts, error = self.generate_binned_xye(
+                masked=self.settings.bad_channel_masking,
+                rebin_step=self.settings.rebin_step,
+                error_calc=self.settings.error_calc,
+                normalise=self.settings.normalise,
+                frame=frame,
+            )
+
+            keep_index = np.argwhere(tth > 0).flatten()
+
+            xye_filepath = os.path.join(processed_dir, f"{xye_stem}_{frame}.xye")
+
+            logging.info(f"{frame=}, {xye_filepath=}")
+
+            XYEData(
+                title=f"{Path(self.filepath).stem}_{frame}",
+                x=tth[keep_index],
+                y=counts[keep_index],
+                e=error[keep_index],
+            ).save_to_xye(xye_filepath)
+
+            xye_filepaths.append(xye_filepath)
+
+        print(f"{len(xye_filepaths)} frames saved to: {processed_dir}")
+
+        return xye_filepaths
 
     def simulate_data(self, calibrant_name: str):
         pass

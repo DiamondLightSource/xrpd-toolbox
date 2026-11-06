@@ -666,6 +666,53 @@ def test_detector_generate_binned_xye_normalise(
     assert np.all(counts[in_first_frame & (counts > 0)] == pytest.approx(0.5))
 
 
+def test_detector_generate_xye_single_frame(tmp_path: Path, bad_channels_file: Path):
+    detector = make_detector(tmp_path, bad_channels_file, [0, 1], [])
+
+    all_tth, _, _ = detector.generate_xye(modules=[0, 1])
+    frame_tth, _, _ = detector.generate_xye(modules=[0, 1], frame=1)
+
+    assert len(frame_tth) * N_FRAMES == len(all_tth)
+
+    expected_tth = np.sort(
+        np.concatenate([detector.get_module(m).tth_2d[1] for m in [0, 1]])
+    )
+    # module 0 and 1 each have one bad channel
+    assert len(frame_tth) == len(expected_tth) - 2
+    assert np.isin(frame_tth, expected_tth).all()
+
+
+def test_detector_process_time_resolved(tmp_path: Path, bad_channels_file: Path):
+    detector = make_detector(tmp_path, bad_channels_file, [0, 1], [])
+
+    xye_filepaths = detector.process_time_resolved()
+
+    processed_dir = tmp_path / "processed" / "fake"
+    assert xye_filepaths == [
+        str(processed_dir / f"fake_summed_mythen3_test_{n}.xye")
+        for n in range(N_FRAMES)
+    ]
+
+    for frame, xye_filepath in enumerate(xye_filepaths):
+        xye_data = XYEData.from_csv(xye_filepath)
+        expected_tth, _, _ = detector.generate_binned_xye(
+            rebin_step=detector.settings.rebin_step, frame=frame
+        )
+        np.testing.assert_allclose(xye_data.x, expected_tth[expected_tth > 0])
+
+
+def test_mythen_module_get_frame(mythen_module: MythenModule):
+    frame = mythen_module.get_frame(2)
+
+    assert frame.n_frames == 1
+    np.testing.assert_allclose(frame.data[0], mythen_module.data[2])
+    np.testing.assert_allclose(frame.tth_2d[0], mythen_module.tth_2d[2])
+    np.testing.assert_allclose(frame.duration_2d[0], mythen_module.duration_2d[2])
+    np.testing.assert_array_equal(
+        frame.bad_channel_mask, mythen_module.bad_channel_mask
+    )
+
+
 def test_detector_plot_diffraction(
     tmp_path: Path, bad_channels_file: Path, no_show: None
 ):
@@ -816,6 +863,20 @@ def test_detector_process_step_scan_leaves_raw_nexus_alone(si_nexus: Path):
 
     with h5py.File(si_nexus, "r") as file:
         assert "entry/xye" not in file
+
+
+def test_detector_real_data_process_time_resolved(si_nexus: Path):
+    detector = MythenDetector(filepath=si_nexus, filename_suffix="_test")
+
+    xye_filepaths = detector.process_time_resolved()
+
+    processed_dir = si_nexus.parent / "processed" / si_nexus.stem
+    expected_names = [f"1410696_summed_mythen3_test_{n}.xye" for n in range(4)]
+
+    assert [Path(f).name for f in xye_filepaths] == expected_names
+    for xye_filepath in xye_filepaths:
+        assert Path(xye_filepath).parent == processed_dir
+        assert np.all(XYEData.from_csv(xye_filepath).x > 0)
 
 
 @pytest.mark.xfail(strict=True, reason="ring2 data is saved over /ring1")
