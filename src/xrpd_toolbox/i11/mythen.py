@@ -529,7 +529,7 @@ class MythenDetector:
         self.active_modules: list[int] = self.settings.active_modules
         self.bad_modules: list[int] = self.settings.bad_modules
         self.good_modules: list[int] = list(
-            set(self.active_modules) ^ set(self.bad_modules)
+            set(self.active_modules) - set(self.bad_modules)
         )
         self.ring1_modules: list[int] = list(range(0, 14))
         self.ring2_modules: list[int] = list(range(14, 28))
