@@ -146,7 +146,7 @@ def test_get_number_of_frames_missing_dataset_raises(tmp_path):
     nxs = build_eiger_nexus(tmp_path / "scan.nxs", include_data=False)
     loader = EigerDataLoader(nxs)
 
-    with pytest.raises(ValueError, match="No dataset"):
+    with pytest.raises(ValueError, match="not found in HDF5 file"):
         loader.get_number_of_frames()
 
 
@@ -516,7 +516,7 @@ def test_sum_frames_scalar_dataset_raises(tmp_path):
     )
     loader = EigerDataLoader(nxs)
 
-    with pytest.raises(ValueError, match="ndim >= 2"):
+    with pytest.raises(ValueError, match="insufficient dimensions"):
         loader.sum_frames()
 
 
@@ -536,10 +536,10 @@ def test_get_i0_is_one_value_per_frame(tmp_path):
 
 
 def test_data_loader_only_opens_the_file_once(nexus_file):
-    import xrpd_toolbox.i15_1.eiger_500k as eiger_500k_module
+    import xrpd_toolbox.data_loader as data_loader_module
 
     open_count = 0
-    real_file_cls = eiger_500k_module.File
+    real_file_cls = data_loader_module.File
 
     class CountingFile(real_file_cls):
         def __init__(self, *args, **kwargs):
@@ -547,7 +547,7 @@ def test_data_loader_only_opens_the_file_once(nexus_file):
             open_count += 1
             super().__init__(*args, **kwargs)
 
-    with patch.object(eiger_500k_module, "File", CountingFile):
+    with patch.object(data_loader_module, "File", CountingFile):
         loader = EigerDataLoader(nexus_file)  # opens the file once, in __init__
 
         # methods that used to each open their own fresh file handle

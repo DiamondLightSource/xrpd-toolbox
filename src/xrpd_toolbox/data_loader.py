@@ -1,103 +1,130 @@
+from collections.abc import Collection
 from pathlib import Path
+from typing import Self
 
 import numpy as np
 from h5py import Dataset, File
-
-from xrpd_toolbox.utils.utils import get_entry, h5_to_array
-
-
-def get_dataset(filepath, dataset_path: str) -> Dataset:
-    with File(filepath, "r") as file:
-        if dataset_path not in file:
-            raise ValueError(f"Dataset path {dataset_path} not found in {filepath}")
-
-        data = file.get(dataset_path)
-
-        if not isinstance(data, Dataset):
-            raise ValueError(f"{dataset_path} is not a dataset")
-
-        return data
 
 
 class BaseDataLoader:
     """
     Base class for detector data loaders.
-    Handles Nexus/HDF5 access and metadata retrieval.
+    Reads the detector data in one nexus file, keeping the file open.
     """
 
     def __init__(self, filepath: str | Path, dataset_path: str):
-        self.filepath = Path(filepath)
+        self.filepath = str(filepath)
+        self._file: File | None = None
 
-        self.entry = get_entry(self.filepath)
+        self.entry = list(self.file.keys())[0]  # /entry
+
         self.dataset_path = dataset_path
 
-    def get_entries(self):
-        paths = []
+    @property
+    def file(self) -> File:
+        if self._file is None:
+            self._file = File(self.filepath, "r", libver="latest", swmr=True)
+        return self._file
 
-        with File(self.filepath, "r") as file:
-            file.visit(paths.append)
+    def close(self) -> None:
+        if self._file is not None:
+            self._file.close()
+            self._file = None
 
-        return paths
+    def __enter__(self) -> Self:
+        return self
 
-    def get_data(self, dataset_path: str | None = None, selection=...) -> np.ndarray:
-        dataset_path = dataset_path or self.dataset_path
+    def __exit__(self, *exc_info) -> None:
+        self.close()
 
-        with File(self.filepath, "r") as file:
-            if dataset_path not in file:
-                raise ValueError(
-                    f"Dataset path {dataset_path} not found in {self.filepath}"
-                )
+    def _read_array(self, data_path: str) -> np.ndarray:
+        data = self.file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            return np.asarray(data)
+        else:
+            raise ValueError(f"Data is None at {data_path} in {self.filepath}")
 
-            data = file.get(dataset_path)
+    def _read_string(self, data_path: str) -> str:
+        data = self.file.get(data_path)
+        if (data is not None) and isinstance(data, Dataset):
+            value = data[()]
 
-            if data is None or not isinstance(data, Dataset):
-                raise ValueError(f"Data at {dataset_path} in {self.filepath} is None.")
+            if isinstance(value, bytes):
+                value = value.decode()
 
-            if data.ndim < 1:
-                raise ValueError("Data has insufficient dimensions.")
-
-            return np.asarray(data[selection])
-
-    def sum_frames(self):
-        data = get_dataset(filepath=self.filepath, dataset_path=self.dataset_path)
-
-        n_frames = data.shape[1]
-
-        summed_images = []
-
-        for frame in range(n_frames):
-            frame_image = data[frame, :, :]  # bs is all 1d scans
-            # frame_image = data[...,frame, :, :] #on gda scans
-            image_sum = np.sum(frame_image)
-
-            summed_images.append(image_sum)
-
-        summed_images = np.array(summed_images)
-
-        return summed_images
-
-    def max_value_per_frame(self) -> np.ndarray:
-        data = get_dataset(filepath=self.filepath, dataset_path=self.dataset_path)
-
-        n_frames = data.shape[1]
-
-        max_values = []
-
-        for frame in range(n_frames):
-            frame_image = data[..., frame, :, :]
-            max_value = np.max(frame_image)
-
-            max_values.append(max_value)
-
-        max_values = np.array(max_values)
-
-        return max_values
+            return value
+        else:
+            raise ValueError(f"Data is None at {data_path} in {self.filepath}")
 
     @property
-    def data(self) -> np.ndarray:
-        """Load the entire dataset."""
-        return self.get_data()
+    def dataset(self) -> Dataset:
+        """The detector dataset, without loading any data"""
 
-    def read_array(self, path: str) -> np.ndarray:
-        """Helper for reading arbitrary datasets."""
-        return h5_to_array(self.filepath, path)
+        if self.dataset_path not in self.file:
+            raise ValueError(
+                f"Dataset path {self.dataset_path} not found in HDF5 file: "
+                f"{self.filepath}"
+            )
+
+        data = self.file.get(self.dataset_path)
+
+        if not isinstance(data, Dataset):
+            raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
+
+        if data.ndim < 1:
+            raise ValueError("Data has insufficient dimensions.")
+
+        return data
+
+    def get_entries(self) -> list[str]:
+        paths = []
+        self.file.visit(paths.append)
+        return paths
+
+    def get_data(self, frames: int | Collection[int] | slice) -> np.ndarray:
+        return self.dataset[frames, ...]
+
+    def load_all_data(self) -> np.ndarray:
+        """Loads every frame into memory - prefer get_data with a slice."""
+        return self.get_data(frames=slice(None))
+
+    def get_data_dimensions(self) -> tuple[int, ...]:
+        return self.dataset.shape
+
+    def get_number_of_frames(self) -> int:
+        """Number of detector frames, read from the shape without loading any data."""
+        return self.dataset.shape[0]
+
+    def _frame_indices(self) -> list[tuple[int, ...]]:
+        """Every index of the dataset that isn't one of the 2 image axes"""
+
+        data = self.dataset
+
+        if data.ndim < 2:
+            raise ValueError(f"Expected image data with ndim >= 2, got {data.ndim}")
+
+        return list(np.ndindex(data.shape[:-2]))
+
+    def sum_frames(self) -> np.ndarray:
+        """Total counts in each frame."""
+
+        data = self.dataset
+        frame_indices = self._frame_indices()
+        totals = np.zeros(len(frame_indices), dtype=np.float64)
+
+        for n, index in enumerate(frame_indices):
+            totals[n] = np.nansum(data[index], dtype=np.float64)
+
+        return totals
+
+    def max_value_per_frame(self) -> np.ndarray:
+        """Maximum pixel value in each frame."""
+
+        data = self.dataset
+        frame_indices = self._frame_indices()
+        max_values = np.zeros(len(frame_indices), dtype=np.float64)
+
+        for n, index in enumerate(frame_indices):
+            max_values[n] = np.nanmax(data[index])
+
+        return max_values
