@@ -82,6 +82,9 @@ class BaseDataLoader:
         return paths
 
     def get_data(self, frames: int | Collection[int] | slice) -> np.ndarray:
+        """This is a basic implementation,
+        which should work for most cases, but if not overload"""
+
         return self.dataset[frames, ...]
 
     def load_all_data(self) -> np.ndarray:

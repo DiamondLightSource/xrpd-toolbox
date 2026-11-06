@@ -25,6 +25,7 @@ from xrpd_toolbox.i11.mythen import (
     MythenSettings,
     convert_angcal_to_pydantic_json,
 )
+from xrpd_toolbox.i11.mythen_analysis import MythenBlueskyDataLoader
 from xrpd_toolbox.utils.utils import h5_to_array, normalise
 
 matplotlib.use("Agg")
@@ -89,7 +90,11 @@ def no_show(monkeypatch):
     monkeypatch.setattr(mythen.plt, "show", lambda: None)
 
 
-def make_fake_loader(n_frames: int = N_FRAMES, durations: np.ndarray | None = None):
+def make_fake_loader(
+    n_frames: int = N_FRAMES,
+    durations: np.ndarray | None = None,
+    positions: np.ndarray | None = None,
+):
     """Builds a data loader for MythenDetector that doesn't need a nexus file.
     Counts in module n are all n + 1, so modules can be told apart"""
 
@@ -104,7 +109,10 @@ def make_fake_loader(n_frames: int = N_FRAMES, durations: np.ndarray | None = No
                 for m in self.modules
             ]
             self.data = np.concatenate(self.module_data, axis=-1)
-            self.positions = np.linspace(0, 1, n_frames)
+            self.get_module_data = self.module_data.__getitem__
+            self.positions = (
+                np.linspace(0, 1, n_frames) if positions is None else positions
+            )
             self.durations = (
                 np.ones(n_frames) if durations is None else np.asarray(durations)
             )
@@ -123,11 +131,12 @@ def make_detector(
     filepath = tmp_path / "fake.nxs"
     filepath.touch()
 
+    settings_kwargs.setdefault("edge_bad_channels", 0)
+
     settings = MythenSettings(
         active_modules=active_modules,
         bad_modules=bad_modules,
         bad_channels_filepath=bad_channels_file,
-        edge_bad_channels=0,
         **settings_kwargs,
     )
 
@@ -325,10 +334,6 @@ def test_bad_channels_unset_filepath_raises():
         BadChannels("")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="an empty file loads as a float array, which can't be used as a mask index",
-)
 def test_bad_channels_empty_file(tmp_path: Path):
     filepath = tmp_path / "empty.txt"
     filepath.touch()
@@ -338,10 +343,6 @@ def test_bad_channels_empty_file(tmp_path: Path):
     assert masks[0].sum() == 4
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="edge channels are applied to modules 0..n_modules-1, not the active ids",
-)
 def test_detector_edge_channels_masked_on_active_modules(
     tmp_path: Path, bad_channels_file: Path
 ):
@@ -464,10 +465,6 @@ def test_mythen_module_default_mask_keeps_everything(
     np.testing.assert_allclose(module.counts, module.unmasked_counts)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="default durations have one entry per channel (as bool), not per frame",
-)
 def test_mythen_module_default_durations(
     module_data: np.ndarray, conversion: ModuleConversion
 ):
@@ -482,9 +479,6 @@ def test_mythen_module_default_durations(
     np.testing.assert_allclose(module.duration_2d, 1.0)
 
 
-@pytest.mark.xfail(
-    strict=True, reason="positions_2d broadcasts per-frame positions along channels"
-)
 def test_mythen_module_positions_2d(mythen_module: MythenModule):
     positions_2d = mythen_module.positions_2d
 
@@ -542,9 +536,6 @@ def test_detector_good_modules_excludes_bad_and_inactive(
     assert sorted(detector.good_modules) == [0, 1, 2, 5, 20]
 
 
-@pytest.mark.xfail(
-    strict=True, reason="active ring modules use symmetric difference (^)"
-)
 def test_detector_active_ring_modules(tmp_path: Path, bad_channels_file: Path):
     detector = make_detector(
         tmp_path, bad_channels_file, active_modules=[0, 1, 2, 15, 20], bad_modules=[]
@@ -642,28 +633,33 @@ def test_detector_generate_binned_xye(tmp_path: Path, bad_channels_file: Path):
     assert finite_counts.max() <= 2.0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="durations are concatenated in module order but counts are sorted by tth",
-)
 def test_detector_generate_binned_xye_normalise(
     tmp_path: Path, bad_channels_file: Path
 ):
-    # counts in module 0 are 1, so normalising by a duration of 2 should give 0.5
+    # counts in module 0 are all 1, so normalised counts should be 1 / duration.
+    # the frames are 10 degrees apart, so they don't overlap once binned
+    durations = np.array([1.0, 2.0, 4.0])
     detector = make_detector(
         tmp_path,
         bad_channels_file,
-        active_modules=[0, 1],
+        active_modules=[0],
         bad_modules=[],
-        data_loader=make_fake_loader(durations=np.array([2.0, 2.0, 1.0])),
+        data_loader=make_fake_loader(
+            durations=durations, positions=np.array([0.0, 10.0, 20.0])
+        ),
     )
     module_0 = detector.get_module(0)
-    first_frame_tth = module_0.tth_2d[0, ~module_0.bad_channel_mask]
 
-    tth, counts, _ = detector.generate_binned_xye(normalise=True, rebin_step=0.004)
+    tth, counts, error = detector.generate_binned_xye(normalise=True)
 
-    in_first_frame = (tth > first_frame_tth.min()) & (tth < first_frame_tth.max())
-    assert np.all(counts[in_first_frame & (counts > 0)] == pytest.approx(0.5))
+    for frame, duration in enumerate(durations):
+        frame_tth = module_0.tth_2d[frame, ~module_0.bad_channel_mask]
+        in_frame = (tth > frame_tth.min()) & (tth < frame_tth.max()) & (counts > 0)
+
+        assert in_frame.any()
+        np.testing.assert_allclose(counts[in_frame], 1 / duration)
+        # binning several points together reduces the error below a single point's
+        assert np.all(error[in_frame] <= 1 / duration + 1e-12)
 
 
 def test_detector_generate_xye_single_frame(tmp_path: Path, bad_channels_file: Path):
@@ -783,7 +779,7 @@ def test_data_loader_positions_and_durations(si_nexus: Path):
 def test_data_loader_get_data_by_module(si_nexus: Path):
     loader = MythenDataLoader(si_nexus)
 
-    module_2 = loader.get_data(modules=2, frame=slice(None))
+    module_2 = loader.get_data(modules=2)
 
     np.testing.assert_array_equal(module_2, loader.module_data[2])
 
@@ -798,16 +794,117 @@ def test_data_loader_load_all_data_by_counter(si_nexus: Path, counter: int):
     np.testing.assert_array_equal(data, all_counters[:, :, counter])
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="module_data is split by modules in the file, not the modules loaded",
-)
 def test_data_loader_subset_of_modules(si_nexus: Path):
     loader = MythenDataLoader(si_nexus, modules=[0, 1, 2])
 
     assert len(loader.module_data) == 3
     for module_data in loader.module_data:
         assert module_data.shape == (4, PIXELS_PER_MODULE)
+
+
+def test_data_loader_does_not_load_data_on_init(si_nexus: Path):
+    loader = MythenDataLoader(si_nexus)
+
+    # cached_property only puts the data in __dict__ once it has been read
+    assert "data" not in loader.__dict__
+    assert "module_data" not in loader.__dict__
+
+
+@pytest.mark.parametrize("modules", [slice(None), [3, 7, 20], 5])
+def test_data_loader_get_module_data(si_nexus: Path, modules):
+    loader = MythenDataLoader(si_nexus, modules=modules)
+
+    for n_module in range(len(loader.module_ids)):
+        np.testing.assert_array_equal(
+            loader.get_module_data(n_module), loader.module_data[n_module]
+        )
+
+    assert "data" in loader.__dict__  # module_data needed the full read
+
+
+def test_data_loader_get_module_data_reads_the_right_module(si_nexus: Path):
+    loader = MythenDataLoader(si_nexus, modules=[3, 7, 20])
+    all_modules = MythenDataLoader(si_nexus).load_all_data()
+
+    module_7 = loader.get_module_data(1)
+
+    assert "data" not in loader.__dict__  # only the one module was read
+    np.testing.assert_array_equal(
+        module_7, all_modules[:, 7 * PIXELS_PER_MODULE : 8 * PIXELS_PER_MODULE]
+    )
+
+
+def test_detector_does_not_load_all_data_at_once(si_nexus: Path):
+    detector = MythenDetector(filepath=si_nexus)
+
+    assert "data" not in detector.mythen_data.__dict__
+
+
+# MythenBlueskyDataLoader (synthetic data)
+
+BLUESKY_FRAMES = 5
+BLUESKY_MODULES = [0, 1, 2, 5]
+
+
+@pytest.fixture
+def bluesky_nexus(tmp_path: Path) -> Path:
+    """A fastcs style nexus: (frames, 1, channels) with only the present modules"""
+
+    n_channels = len(BLUESKY_MODULES) * PIXELS_PER_MODULE
+    data = np.arange(BLUESKY_FRAMES * n_channels, dtype=np.uint32).reshape(
+        BLUESKY_FRAMES, 1, n_channels
+    )
+
+    filepath = tmp_path / "bluesky.nxs"
+    with h5py.File(filepath, "w") as file:
+        file.create_dataset("entry/fastcs_mythen3/fastcs_mythen3", data=data)
+        file.create_dataset("entry/instrument/diff_stage/delta", data=[10.0, 12.0])
+
+    return filepath
+
+
+def test_bluesky_loader_does_not_load_data_on_init(bluesky_nexus: Path):
+    loader = MythenBlueskyDataLoader(bluesky_nexus, modules=BLUESKY_MODULES)
+
+    assert "data" not in loader.__dict__
+    assert "module_data" not in loader.__dict__
+
+
+def test_bluesky_loader_data(bluesky_nexus: Path):
+    loader = MythenBlueskyDataLoader(bluesky_nexus, modules=BLUESKY_MODULES)
+
+    assert loader.data.shape == (BLUESKY_FRAMES, 4 * PIXELS_PER_MODULE)
+    assert len(loader.module_data) == len(BLUESKY_MODULES)
+
+
+def test_bluesky_loader_get_module_data(bluesky_nexus: Path):
+    loader = MythenBlueskyDataLoader(bluesky_nexus, modules=BLUESKY_MODULES)
+
+    module_data = loader.get_module_data(2)
+
+    assert "data" not in loader.__dict__  # only the one module was read
+    assert module_data.shape == (BLUESKY_FRAMES, PIXELS_PER_MODULE)
+    np.testing.assert_array_equal(module_data, loader.module_data[2])
+
+
+def test_bluesky_loader_positions_and_durations_without_loading_data(
+    bluesky_nexus: Path,
+):
+    loader = MythenBlueskyDataLoader(bluesky_nexus, modules=BLUESKY_MODULES)
+
+    np.testing.assert_allclose(loader.positions, np.full(BLUESKY_FRAMES, 11.0))
+    np.testing.assert_allclose(loader.durations, np.ones(BLUESKY_FRAMES))
+    assert "data" not in loader.__dict__
+
+
+def test_bluesky_loader_frame_selection(bluesky_nexus: Path):
+    loader = MythenBlueskyDataLoader(
+        bluesky_nexus, modules=BLUESKY_MODULES, frames=slice(1, 4)
+    )
+
+    assert loader.n_frames == 3
+    assert loader.get_module_data(0).shape == (3, PIXELS_PER_MODULE)
+    assert loader.positions.shape == (3,)
 
 
 # MythenDetector (real data)
@@ -847,9 +944,6 @@ def test_detector_real_data_matches_preprocessed(si_nexus: Path):
     assert np.amax(np.abs(normalised_diff)) < 0.01
 
 
-@pytest.mark.xfail(
-    strict=True, reason="save_data_to_nexus writes into the raw file, not the copy"
-)
 def test_detector_process_step_scan_leaves_raw_nexus_alone(si_nexus: Path):
     # the test data already has reduced data in it from earlier runs
     with h5py.File(si_nexus, "a") as file:
@@ -863,6 +957,9 @@ def test_detector_process_step_scan_leaves_raw_nexus_alone(si_nexus: Path):
 
     with h5py.File(si_nexus, "r") as file:
         assert "entry/xye" not in file
+
+    with h5py.File(detector.processed_nexus_filepath, "r") as file:
+        assert "entry/xye/tth" in file
 
 
 def test_detector_real_data_process_time_resolved(si_nexus: Path):
@@ -879,24 +976,27 @@ def test_detector_real_data_process_time_resolved(si_nexus: Path):
         assert np.all(XYEData.from_csv(xye_filepath).x > 0)
 
 
-@pytest.mark.xfail(strict=True, reason="ring2 data is saved over /ring1")
 def test_detector_process_step_scan_saves_both_rings(si_nexus: Path):
     detector = MythenDetector(filepath=si_nexus, filename_suffix="_test")
 
     detector.process_step_scan(control=False)
 
-    with h5py.File(si_nexus, "r") as file:
-        assert "entry/ring2/data" in file
+    first_ring_pixels = len(detector.active_ring1_modules) * PIXELS_PER_MODULE
+
+    ring1 = h5_to_array(detector.processed_nexus_filepath, "entry/ring1/data")
+    ring2 = h5_to_array(detector.processed_nexus_filepath, "entry/ring2/data")
+
+    np.testing.assert_array_equal(
+        ring1, detector.mythen_data.data[:, :first_ring_pixels]
+    )
+    np.testing.assert_array_equal(
+        ring2, detector.mythen_data.data[:, first_ring_pixels:]
+    )
 
 
 # angcal conversion
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ValidationError,
-    reason="centre is read as a top level field, not per module",
-)
 def test_convert_legacy_angcal(tmp_path: Path):
 
     legacy = {"beamline_offset": -0.5, "centre": 639.5}

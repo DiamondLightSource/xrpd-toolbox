@@ -112,6 +112,22 @@ def test_parameter_array_serialisation_and_indexing():
     assert second_item.refine is False
 
 
+def test_parameter_array_json_round_trip_keeps_infinite_bounds():
+    array = ParameterArray(
+        parameter_array=[Parameter(value=1.0), Parameter(value=2.0, bounds=[0, 5])]
+    )
+
+    # json mode (used for saving to yaml) turns the infinite bounds into None
+    serialised = array.model_dump(mode="json")
+    assert serialised["lower_bounds"] == [None, 0]
+
+    loaded = ParameterArray.model_validate(serialised)
+
+    unbounded, bounded = loaded.parameter_array
+    assert unbounded.bounds == [-np.inf, np.inf]
+    assert bounded.bounds == [0, 5]
+
+
 class SimpleXRPDModel(XRPDBaseModel):
     x: int
     y: str

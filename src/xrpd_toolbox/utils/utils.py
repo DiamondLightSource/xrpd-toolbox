@@ -246,7 +246,7 @@ def load_int_array_from_file(filepath: str | Path) -> np.ndarray:
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"{filepath} does not exist")
     elif os.path.getsize(filepath) == 0:
-        return np.array([])
+        return np.array([], dtype=int)
     else:
         return np.loadtxt(filepath, dtype=np.int64, comments="#", usecols=0, ndmin=1)
 
