@@ -96,10 +96,7 @@ def run_mythen_time_resolved_scan(filepath: str, absent: Collection[int] = (4, 1
 
     wait_for_finished_file(filepath)
 
-    modules = list(range(28))
     modules = [m for m in range(28) if m not in absent]
-
-    print(modules)
 
     settings = MythenSettings(
         active_modules=modules, data_reduction_mode="time_resolved"
