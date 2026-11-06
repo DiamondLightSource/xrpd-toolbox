@@ -17,7 +17,10 @@ from xrpd_toolbox.utils.files import (
 PLOT_TYPES = Literal["scatter", "line", "line+markers"]
 
 
-BEAMLINE_TO_URL = {"i15-1": "https://i15-1-datavis.diamond.ac.uk/plot"}
+BEAMLINE_TO_URL = {
+    "i15-1": "https://i15-1-datavis.diamond.ac.uk/plot",
+    "i11": "https://i11-datavis.diamond.ac.uk/plot",
+}
 
 
 class DataPlot(XYEData):

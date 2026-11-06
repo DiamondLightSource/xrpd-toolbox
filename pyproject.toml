@@ -49,6 +49,7 @@ dev = [
     "pyright",
     "pytest",
     "pytest-cov",
+    "pytest-qt>=4.5.0",
     "ruff",
     "tox-uv",
     "types-mock",
@@ -80,6 +81,8 @@ addopts = """
 filterwarnings = "error"
 # Doctest python code in docs, python code in src docstrings, test functions in tests
 testpaths = "docs src tests"
+# pytest-qt: use PyQt6 rather than whichever Qt binding it finds first
+qt_api = "pyqt6"
 
 [tool.coverage.run]
 patch = ["subprocess"]

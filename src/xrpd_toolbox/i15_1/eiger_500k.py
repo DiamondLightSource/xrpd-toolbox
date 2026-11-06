@@ -10,7 +10,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pyFAI
-from h5py import Dataset, File
 from pyFAI import units
 from pyFAI.calibrant import get_calibrant
 from pyFAI.detectors import Detector
@@ -19,6 +18,7 @@ from pyFAI.gui import jupyter
 from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 from pyFAI.method_registry import IntegrationMethod
 
+from xrpd_toolbox.data_loader import BaseDataLoader
 from xrpd_toolbox.utils.unit_conversion import beam_energy_to_wavelength
 from xrpd_toolbox.utils.utils import h5_to_array, processed_directory_and_filename
 
@@ -99,7 +99,7 @@ def apply_mask(image_frames: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return masked_image_frames
 
 
-class EigerDataLoader:
+class EigerDataLoader(BaseDataLoader):
     """Reads the Eiger data in one nexus file, keeping the file open."""
 
     def __init__(
@@ -107,55 +107,7 @@ class EigerDataLoader:
         filepath: str | Path,
         eiger_data_path: str = "/entry/instrument/fastcs_eiger/data",
     ):
-        self.filepath = str(filepath)
-        self._file: File | None = None
-
-        self.entry = list(self.file.keys())[0]  # /entry
-
-        self.dataset_path = eiger_data_path
-
-    @property
-    def file(self) -> File:
-        if self._file is None:
-            self._file = File(self.filepath, "r", libver="latest", swmr=True)
-        return self._file
-
-    def close(self) -> None:
-        if self._file is not None:
-            self._file.close()
-            self._file = None
-
-    def __enter__(self) -> "EigerDataLoader":
-        return self
-
-    def __exit__(self, *exc_info) -> None:
-        self.close()
-
-    def get_data_dimensions(self):
-        data = self.file.get(self.dataset_path)
-        if (data is not None) and isinstance(data, Dataset):
-            return np.shape(data[()])
-        else:
-            raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
-
-    def _read_array(self, data_path: str) -> np.ndarray:
-        data = self.file.get(data_path)
-        if (data is not None) and isinstance(data, Dataset):
-            return np.asarray(data)
-        else:
-            raise ValueError(f"Data is None at {data_path} in {self.filepath}")
-
-    def _read_string(self, data_path: str) -> str:
-        data = self.file.get(data_path)
-        if (data is not None) and isinstance(data, Dataset):
-            value = data[()]
-
-            if isinstance(value, bytes):
-                value = value.decode()
-
-            return value
-        else:
-            raise ValueError(f"Data is None at {data_path} in {self.filepath}")
+        super().__init__(filepath, dataset_path=eiger_data_path)
 
     @cached_property
     def positions(self) -> np.ndarray:
@@ -258,41 +210,6 @@ class EigerDataLoader:
     def get_wavelength_in_m(self) -> float:
         """Returns the wavelength in angstrom"""
         return self.wavelength / 1e10
-
-    def load_all_data(self) -> np.ndarray:
-        """Loads every frame into memory - prefer get_data with a slice."""
-        return self.get_data(frames=slice(None))
-
-    def get_data(
-        self,
-        frames: int | Collection[int] | slice,
-    ):
-
-        if self.dataset_path not in self.file:
-            raise ValueError(
-                f"Dataset path {self.dataset_path} not found in HDF5 file."
-            )
-
-        data = self.file.get(self.dataset_path)
-
-        if (data is not None) and isinstance(data, Dataset):
-            if data.ndim < 1:
-                raise ValueError("Data has insufficient dimensions.")
-            module_frame_data = data[frames, ...]
-
-            return module_frame_data
-        else:
-            raise ValueError(f"Data at {self.dataset_path} in {self.filepath}is None.")
-
-    def get_number_of_frames(self) -> int:
-        """Number of detector frames, read from the shape without loading any data."""
-
-        data = self.file.get(self.dataset_path)
-
-        if not isinstance(data, Dataset):
-            raise ValueError(f"No dataset at {self.dataset_path} in {self.filepath}")
-
-        return data.shape[0]
 
     @cached_property
     def mask_filepath(self):
@@ -538,18 +455,12 @@ class EigerDataLoader:
         return i0
 
     def sum_frames(self) -> np.ndarray:
-        """Total counts in each frame."""
+        """Total counts in each frame, ignoring masked pixels."""
 
-        data = self.file.get(self.dataset_path)
+        data = self.dataset
         mask = self.get_mask(as_nan=True)
 
-        if not isinstance(data, Dataset):
-            raise ValueError(f"Data is None at {self.dataset_path} in {self.filepath}")
-
-        if data.ndim < 2:
-            raise ValueError(f"Expected image data with ndim >= 2, got {data.ndim}")
-
-        frame_indices = list(np.ndindex(data.shape[:-2]))
+        frame_indices = self._frame_indices()
         totals = np.zeros(len(frame_indices), dtype=np.float64)
 
         for n, index in enumerate(frame_indices):

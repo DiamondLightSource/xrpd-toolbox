@@ -435,6 +435,10 @@ class ParameterArray(BaseModel):
         if "value" in data:
             n = len(data["value"])
 
+            # serialising to json (eg. for yaml) turns infinite bounds into None
+            lower_bounds = data.get("lower_bounds", [None] * n)
+            upper_bounds = data.get("upper_bounds", [None] * n)
+
             params = []
             for i in range(n):
                 params.append(
@@ -442,8 +446,8 @@ class ParameterArray(BaseModel):
                         value=data["value"][i],
                         refine=data.get("refine", [True] * n)[i],
                         bounds=[
-                            data["lower_bounds"][i],
-                            data["upper_bounds"][i],
+                            -np.inf if lower_bounds[i] is None else lower_bounds[i],
+                            np.inf if upper_bounds[i] is None else upper_bounds[i],
                         ],
                     )
                 )

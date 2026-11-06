@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import os
 import re
@@ -9,14 +10,13 @@ from pathlib import Path
 from shutil import copy
 from typing import Literal
 
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from h5py import Dataset, File
 from pydantic import Field, field_validator
 
 from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.core import XRPDBaseModel, XYEData
+from xrpd_toolbox.data_loader import BaseDataLoader
 
 # from xrpd_toolbox.fit_engine.peaks import fit_peaks
 from xrpd_toolbox.fit_engine.profile_calculation import Structure
@@ -24,12 +24,16 @@ from xrpd_toolbox.utils.messenger import Messenger
 from xrpd_toolbox.utils.mythen_utils import channel_to_angle, modules_to_pixels
 from xrpd_toolbox.utils.utils import (
     bin_and_propagate_errors,
-    # get_calibrant_peaks,
     get_entry,
-    h5_to_array,
     load_int_array_from_file,
+    processed_directory_and_filename,
     save_data_to_h5,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+
 
 MYTHEN_CONFIG_DIR = BASE_PATH.parent.parent / "config" / "i11"
 DEFAULT_BAD_CHANS = MYTHEN_CONFIG_DIR / "badchannels.txt"
@@ -262,86 +266,80 @@ class BadChannels:
         return bad_channel_mask  # bad channels are denoted by 1
 
 
-class MythenDataLoader:
+class MythenDataLoader(BaseDataLoader):
     def __init__(
         self,
         filepath: str | Path,
         counter: int = 0,
-        mythen_data_path="mythen_nx",
-        frames: int | slice | Collection[int] = slice(None),
         modules: int | slice | Collection[int] = slice(None),
+        frames: int | slice | Collection[int] = slice(None),
+        mythen_data_path="mythen_nx",
     ):
-        self.filepath = Path(filepath)
+        if not str(filepath).lower().endswith(".nxs"):
+            raise ValueError(f"{filepath} should be a Nexus File!!")
+
+        entry = get_entry(filepath)
+        super().__init__(filepath, dataset_path=f"/{entry}/{mythen_data_path}/data")
+
         self.frames = frames
         self.modules = modules
         self.counter = counter
         self.mythen_data_path = mythen_data_path
 
-        self.entry = get_entry(self.filepath)
-        self.dataset_path = f"/{self.entry}/{self.mythen_data_path}/data"
         self.n_modules_in_data, self.n_frames = self.read_nxs_metadata()
-
-        if self.frames == slice(None) and self.modules == slice(None):
-            self.data, self.module_data = self.load()
-        else:
-            self.data = self.get_data(modules=self.modules, frame=self.frames)
-
-    def load(self):
-        self.data = self.load_all_data(self.counter)
-        self.module_data = np.array_split(self.data, self.n_modules_in_data, axis=-1)
-
-        return self.data, self.module_data
 
     @property
     def pixels_per_module(self):
         return PIXELS_PER_MODULE
 
+    @property
+    def module_ids(self) -> list[int]:
+        """The detector module ids selected by self.modules, in order"""
+
+        if isinstance(self.modules, int):
+            return [self.modules]
+        elif isinstance(self.modules, slice):
+            return list(range(self.n_modules_in_data))[self.modules]
+        else:
+            return list(self.modules)
+
+    @cached_property
+    def data(self) -> np.ndarray:
+        """The selected frames and modules - only read from file when first used"""
+        return self.get_data(
+            frames=self.frames, modules=self.modules, counter=self.counter
+        )
+
+    @cached_property
+    def module_data(self) -> list[np.ndarray]:
+        """self.data split into modules - only read from file when first used"""
+        return np.array_split(self.data, len(self.module_ids), axis=-1)
+
+    def get_module_data(self, n_module: int) -> np.ndarray:
+        """Reads only the nth selected module from file, for the selected frames"""
+
+        module_id = self.module_ids[n_module]
+
+        return np.atleast_2d(
+            self.get_data(frames=self.frames, modules=module_id, counter=self.counter)
+        )
+
     def get_data(
         self,
-        modules: int | Collection[int] | slice,
-        frame: int | Collection[int] | slice,
+        frames: int | Collection[int] | slice = slice(None),
+        modules: int | Collection[int] | slice = slice(None),
         counter: int = 0,
-    ):
+    ) -> np.ndarray:
         if isinstance(modules, int) or isinstance(modules, Collection):
             pixels = modules_to_pixels(modules=modules)
         else:
             pixels = modules
 
-        with File(self.filepath, "r") as file:
-            if self.dataset_path not in file:
-                raise ValueError(
-                    f"Dataset path {self.dataset_path} not found in HDF5 file."
-                )
-
-            data = file.get(self.dataset_path)
-
-            if (data is not None) and isinstance(data, Dataset):
-                if data.ndim < 1:
-                    raise ValueError("Data has insufficient dimensions.")
-                module_frame_data = data[frame, pixels, counter]
-
-                return np.asarray(module_frame_data)
-            else:
-                raise ValueError(
-                    f"Data at {self.dataset_path} in {self.filepath}is None."
-                )
+        return np.asarray(self.dataset[frames, pixels, counter])
 
     @cached_property
     def delta_path(self) -> str:
-        delta_subpaths = ("delta", "deltas", "ds")
-
-        with h5py.File(self.filepath, "r") as file:
-            base = f"/{self.entry}/{self.mythen_data_path}"
-
-            for name in delta_subpaths:
-                path = f"{base}/{name}"
-                if path in file and isinstance(file[path], h5py.Dataset):
-                    return path
-
-            raise KeyError(
-                f"No delta dataset found. Tried: "
-                f"{', '.join(f'{base}/{n}' for n in delta_subpaths)}"
-            )
+        return f"/{self.entry}/{self.mythen_data_path}/delta"
 
     @cached_property
     def count_time_path(self) -> str:
@@ -350,31 +348,22 @@ class MythenDataLoader:
     @cached_property
     def positions(self) -> np.ndarray:
         try:
-            deltas = h5_to_array(self.filepath, self.delta_path)
-            return deltas
+            return self._read_array(self.delta_path)
         except ValueError as e:
-            print(f"{e} - {self.delta_path} in data - returning 0")
-            deltas = np.array([0])
-            return deltas
+            print(f"{e} - returning 0")
+            return np.array([0])
 
     @cached_property
     def durations(self) -> np.ndarray:
-        return h5_to_array(self.filepath, self.count_time_path)
+        return self._read_array(self.count_time_path)
 
     def read_nxs_metadata(self) -> tuple[int, int]:
-        with h5py.File(self.filepath, "r") as file:
-            data = file.get(self.dataset_path)
-            if (data is not None) and isinstance(data, Dataset):
-                first_frame = data[0, :, self.counter]
-                first_frame_len = first_frame.shape[-1]
-                n_modules_in_data = int(first_frame_len / self.pixels_per_module)
-                n_frames = len(data)
-                return n_modules_in_data, n_frames
-            else:
-                raise ValueError(f"Data is None at {self.dataset_path}")
+        n_frames, n_pixels = self.dataset.shape[:2]
+        n_modules_in_data = int(n_pixels / self.pixels_per_module)
+        return n_modules_in_data, n_frames
 
-    def load_all_data(self, counter: int) -> np.ndarray:
-        return self.get_data(slice(None), slice(None), counter)
+    def load_all_data(self, counter: int = 0) -> np.ndarray:
+        return self.get_data(frames=slice(None), modules=slice(None), counter=counter)
 
 
 class MythenModule:
@@ -400,7 +389,7 @@ class MythenModule:
             self.bad_channel_mask = bad_channel_mask
 
         if durations is None:
-            self.durations = np.ones(self.data.shape[-1], dtype=bool)
+            self.durations = np.ones(self.data.shape[0])
         else:
             self.durations = durations
 
@@ -420,8 +409,7 @@ class MythenModule:
 
     @cached_property
     def positions_2d(self):
-        print(len(self.positions))
-        positions_2d = np.broadcast_to(self.positions, self.data.shape)
+        positions_2d = np.broadcast_to(self.positions[:, np.newaxis], self.data.shape)
         return positions_2d
 
     @cached_property
@@ -481,6 +469,25 @@ class MythenModule:
     def error(self) -> np.ndarray:
         return np.sqrt(self.counts)
 
+    @property
+    def n_frames(self) -> int:
+        return self.data.shape[0]
+
+    def get_frame(self, frame: int) -> "MythenModule":
+        """Returns a MythenModule containing only a single frame of this module"""
+
+        frame_slice = slice(frame, frame + 1)
+
+        return MythenModule(
+            data=self.data[frame_slice],
+            conversion=self.conversion,
+            beamline_offset=self.beamline_offset,
+            module_id=self.module_id,
+            positions=self.positions[frame_slice],
+            durations=self.durations[frame_slice],
+            bad_channel_mask=self.bad_channel_mask,
+        )
+
 
 class MythenDetector:
     def __init__(
@@ -491,14 +498,13 @@ class MythenDetector:
         xye_filepath_out: str | Path | None = None,
         output_directory: str | Path | None = None,
         filename_suffix: str = "",
+        data_loader: type = MythenDataLoader,
     ):
         self.filepath = filepath
         self.filename_suffix = filename_suffix
 
         if str(self.filepath) == "dev":
             pass
-        elif not str(self.filepath).lower().endswith(".nxs"):
-            raise ValueError(f"{self.filepath} should be a Nexus File!!")
         elif not os.path.exists(self.filepath):
             raise ValueError(f"{self.filepath} does not exist!!")
 
@@ -517,6 +523,9 @@ class MythenDetector:
             f"{Path(self.filename).stem}_reduced_mythen3{self.filename_suffix}.nxs",
         )
 
+        # the raw nexus is copied the first time anything is saved to it
+        self._processed_nexus_created = False
+
         self.xye_filepath_out = xye_filepath_out or os.path.join(
             self.output_directory,
             f"{self.filename}_summed_mythen3{self.filename_suffix}.xye",
@@ -530,29 +539,28 @@ class MythenDetector:
         self.active_modules: list[int] = self.settings.active_modules
         self.bad_modules: list[int] = self.settings.bad_modules
         self.good_modules: list[int] = list(
-            set(self.active_modules) ^ set(self.bad_modules)
+            set(self.active_modules) - set(self.bad_modules)
         )
         self.ring1_modules: list[int] = list(range(0, 14))
         self.ring2_modules: list[int] = list(range(14, 28))
 
-        self.active_ring1_modules: list[int] = list(
-            set(self.active_modules) ^ set(self.ring2_modules)
+        self.active_ring1_modules: list[int] = sorted(
+            set(self.active_modules) & set(self.ring1_modules)
         )
-        self.active_ring2_modules: list[int] = list(
-            set(self.active_modules) ^ set(self.ring1_modules)
+        self.active_ring2_modules: list[int] = sorted(
+            set(self.active_modules) & set(self.ring2_modules)
         )
 
         self.bad_channels = BadChannels(
             filepath=self.settings.bad_channels_filepath,
             n_edge_bad_channels=self.settings.edge_bad_channels,
-            n_modules=len(self.active_modules),
         )
 
         # mythen data loader, just loads the data,
         # it has no information about which modules are which
 
-        self.mythen_data = MythenDataLoader(
-            filepath=filepath,
+        self.mythen_data = data_loader(
+            filepath=filepath, modules=self.settings.active_modules
         )
 
         self.contruct_modules()
@@ -562,7 +570,7 @@ class MythenDetector:
         so it's easier to make a contructor of it's kwargs"""
 
         return {
-            "data": self.mythen_data.module_data[n_module],
+            "data": self.mythen_data.get_module_data(n_module),
             "conversion": self.calibration[f"module_{nth_active_module}"],
             "beamline_offset": self.calibration.beamline_offset,
             "module_id": nth_active_module,
@@ -571,8 +579,17 @@ class MythenDetector:
             "bad_channel_mask": self.bad_channels.masks[nth_active_module],
         }
 
-    def get_module(self, mod: int) -> MythenModule:
-        return self.modules[mod]
+    def get_module(self, mod: int, frame: int | None = None) -> MythenModule:
+        """Returns the module, or just a single frame of it if frame is given"""
+
+        if frame is None:
+            return self.modules[mod]
+        else:
+            return self.modules[mod].get_frame(frame)
+
+    @property
+    def n_frames(self) -> int:
+        return self.get_module(self.active_modules[0]).n_frames
 
     def contruct_modules(self):
         self.modules = OrderedDict()
@@ -584,27 +601,48 @@ class MythenDetector:
 
             self.modules[nth_active_module] = module
 
-    def generate_xye(
-        self, modules: Iterable[int], masked: bool = True
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _generate_xye_and_durations(
+        self, modules: Iterable[int], masked: bool = True, frame: int | None = None
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Concatenates the modules and sorts by tth, keeping the duration of each
+        point in the same order. Uses every frame, or just one if frame is given"""
+
+        selected_modules = [self.get_module(f, frame) for f in modules]
+
         if masked:
-            module_tth_list = [self.get_module(f).tth for f in modules]
-            module_counts_list = [self.get_module(f).counts for f in modules]
-            module_errors_list = [self.get_module(f).error for f in modules]
+            module_tth_list = [m.tth for m in selected_modules]
+            module_counts_list = [m.counts for m in selected_modules]
+            module_errors_list = [m.error for m in selected_modules]
+            module_duration_list = [m.duration for m in selected_modules]
         else:
-            module_tth_list = [self.get_module(f).unmasked_tth for f in modules]
-            module_counts_list = [self.get_module(f).unmasked_counts for f in modules]
-            module_errors_list = [self.get_module(f).unmasked_error for f in modules]
+            module_tth_list = [m.unmasked_tth for m in selected_modules]
+            module_counts_list = [m.unmasked_counts for m in selected_modules]
+            module_errors_list = [m.unmasked_error for m in selected_modules]
+            module_duration_list = [m.unmasked_duration for m in selected_modules]
 
         unsorted_tth = np.concatenate(module_tth_list)
         unsorted_counts = np.concatenate(module_counts_list)
         unsorted_error = np.concatenate(module_errors_list)
+        unsorted_duration = np.concatenate(module_duration_list)
 
         sort_indexes = np.argsort(unsorted_tth)
 
         tth = unsorted_tth[sort_indexes]
         counts = unsorted_counts[sort_indexes]
         error = unsorted_error[sort_indexes]
+        duration = unsorted_duration[sort_indexes]
+
+        return tth, counts, error, duration
+
+    def generate_xye(
+        self, modules: Iterable[int], masked: bool = True, frame: int | None = None
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Concatenates the modules and sorts by tth. Uses every frame,
+        or just a single frame if frame is given"""
+
+        tth, counts, error, _ = self._generate_xye_and_durations(
+            modules=modules, masked=masked, frame=frame
+        )
 
         return tth, counts, error
 
@@ -614,23 +652,20 @@ class MythenDetector:
         rebin_step: float = 0.004,
         error_calc: str = "poisson",
         normalise: bool = False,
+        frame: int | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns the final dataset that you would use to generate a xye file,
-        binned and all
+        binned and all. Uses every frame, or just a single frame if frame is given
         """
 
-        tth, counts, error = self.generate_xye(modules=self.good_modules, masked=masked)
-
-        # TODO: Should count times really be in MythenModule and then recreated this way
-        # - seems like extra wasteful computation?
+        tth, counts, error, durations = self._generate_xye_and_durations(
+            modules=self.good_modules, masked=masked, frame=frame
+        )
 
         if normalise:
-            module_duration_list = [
-                self.get_module(f).duration for f in self.good_modules
-            ]
-            durations = np.concatenate(module_duration_list)
             counts = counts / durations
+            error = error / durations
 
         binned_tth, binned_counts, binned_error = bin_and_propagate_errors(
             tth,
@@ -642,7 +677,9 @@ class MythenDetector:
 
         return binned_tth, binned_counts, binned_error
 
-    def communicate_with_control(self, send_to_ispyb: bool = False):
+    def communicate_with_control(
+        self, xye_filepath_out: str | Path, send_to_ispyb: bool = False
+    ):
         """
         Attempts to connect to i11-control and send a message indicating
         that a file has been processed. This will cause gda to plot the latest file
@@ -653,11 +690,11 @@ class MythenDetector:
 
         daq = Messenger(host="i11-control")
         daq.connect()
-        daq.send_file(str(self.xye_filepath_out))  # sends message to GDA
+        daq.send_file(str(xye_filepath_out))  # sends message to GDA
 
         if send_to_ispyb:
             daq.send_to_ispyb(
-                str(self.filepath), str(self.xye_filepath_out)
+                str(self.filepath), str(xye_filepath_out)
             )  # sends to ispyb
 
     def process_step_scan(self, plot: bool = False, control: bool = True):
@@ -674,6 +711,11 @@ class MythenDetector:
                 normalise=self.settings.normalise,
             )
         )
+
+        keep_index = np.argwhere(self.binned_tth > 0).flatten()
+        self.binned_tth = self.binned_tth[keep_index]
+        self.binned_counts = self.binned_counts[keep_index]
+        self.binned_error = self.binned_error[keep_index]
 
         self.xye_data = XYEData(
             title=Path(self.filepath).stem,
@@ -693,34 +735,40 @@ class MythenDetector:
 
         ring1_data, ring2_data = self.get_ring1_ring2_data()
         self.save_data_to_nexus(subpath="/ring1", names_and_data={"data": ring1_data})
-        self.save_data_to_nexus(subpath="/ring1", names_and_data={"data": ring2_data})
+        self.save_data_to_nexus(subpath="/ring2", names_and_data={"data": ring2_data})
 
         print(f"Data saved to: {self.processed_nexus_filepath}")
 
         if control:
             try:
-                self.communicate_with_control(send_to_ispyb=self.settings.send_to_ispyb)
+                self.communicate_with_control(
+                    xye_filepath_out=self.xye_filepath_out,
+                    send_to_ispyb=self.settings.send_to_ispyb,
+                )
             except Exception as e:
                 print(f"Could not connect with control - {e}")
                 pass
 
     def get_ring1_ring2_data(self):
         first_ring_pixels = len(self.active_ring1_modules) * PIXELS_PER_MODULE
-        ring1_data = self.mythen_data.get_data(slice(0, first_ring_pixels), slice(None))
-        ring2_data = self.mythen_data.get_data(
-            slice(first_ring_pixels, None), slice(None)
-        )
+        ring1_data = self.mythen_data.get_data(modules=slice(0, first_ring_pixels))
+        ring2_data = self.mythen_data.get_data(modules=slice(first_ring_pixels, None))
 
         return ring1_data, ring2_data
 
     def save_data_to_nexus(
         self, subpath: str, names_and_data: dict[str, np.ndarray], **kwargs
     ):
-        copy(self.filepath, self.processed_nexus_filepath)
+        """Saves into the processed nexus file, which starts as a copy of the
+        raw nexus file - the raw nexus file is never written to"""
+
+        if not self._processed_nexus_created:
+            copy(self.filepath, self.processed_nexus_filepath)
+            self._processed_nexus_created = True
 
         for name, data in names_and_data.items():
             save_data_to_h5(
-                self.filepath,
+                self.processed_nexus_filepath,
                 f"{self.mythen_data.entry}{subpath}/{name}",
                 data,
                 **kwargs,
@@ -729,8 +777,43 @@ class MythenDetector:
     def process_pump_probe(self):
         pass
 
-    def process_time_resolved(self):
-        pass
+    def process_time_resolved(self) -> list[str]:
+        """Every frame is treated as its own dataset: each one is binned and
+        saved to its own xye, in processed/<filename>/, suffixed with the frame
+        number eg. <filename>_summed_mythen3_0.xye, <filename>_summed_mythen3_1.xye"""
+
+        processed_dir, _ = processed_directory_and_filename(self.filepath)
+        xye_stem = Path(self.xye_filepath_out).stem
+
+        xye_filepaths = []
+
+        for frame in range(self.n_frames):
+            tth, counts, error = self.generate_binned_xye(
+                masked=self.settings.bad_channel_masking,
+                rebin_step=self.settings.rebin_step,
+                error_calc=self.settings.error_calc,
+                normalise=self.settings.normalise,
+                frame=frame,
+            )
+
+            keep_index = np.argwhere(tth > 0).flatten()
+
+            xye_filepath = os.path.join(processed_dir, f"{xye_stem}_{frame}.xye")
+
+            logging.info(f"{frame=}, {xye_filepath=}")
+
+            XYEData(
+                title=f"{Path(self.filepath).stem}_{frame}",
+                x=tth[keep_index],
+                y=counts[keep_index],
+                e=error[keep_index],
+            ).save_to_xye(xye_filepath)
+
+            xye_filepaths.append(xye_filepath)
+
+        print(f"{len(xye_filepaths)} frames saved to: {processed_dir}")
+
+        return xye_filepaths
 
     def simulate_data(self, calibrant_name: str):
         pass
@@ -828,7 +911,6 @@ def convert_angcal_to_pydantic_json(
         legacy_dict = json.load(file)
 
     pydantic_dict["beamline_offset"] = legacy_dict["beamline_offset"]
-    pydantic_dict["centre"] = legacy_dict["centre"]
 
     for entry in legacy_dict.keys():
         numbers = re.findall(r"-?\d*\.?\d+", str(entry))
@@ -838,6 +920,7 @@ def convert_angcal_to_pydantic_json(
             pydantic_dict[f"module_{module}"] = {
                 "conv": legacy_dict[f"conv_{module}"],
                 "offset": legacy_dict[f"offset_{module}"],
+                "centre": legacy_dict["centre"],
             }
 
     pydantic_model = AngularCalibration.model_validate(pydantic_dict)
@@ -851,7 +934,7 @@ def convert_angcal_to_new_pydantic_json(
     module_conv_list = []
 
     with open(ang_cal_json_path, "rb") as file:
-        legacy_dict = json.load(file)
+        legacy_dict: dict = json.load(file)
 
     for entry in legacy_dict.keys():
         numbers = re.findall(r"-?\d*\.?\d+", str(entry))
@@ -873,8 +956,16 @@ def convert_angcal_to_new_pydantic_json(
     pydantic_model.save_to_json(new_path)
 
 
-# if __name__ == "__main__":
-#     PARENT_PATH = Path(__file__).parent.parent
+if __name__ == "__main__":
+    SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "i11" / "1410696.nxs"
+
+    detector = MythenDetector(filepath=SI_DATA_FILE, filename_suffix="_test")
+
+    detector.process_step_scan(control=False)
+    print(detector.xye_filepath_out)
+
+    detector.plot_diffraction()
+
 
 #     print(PARENT_PATH)
 
