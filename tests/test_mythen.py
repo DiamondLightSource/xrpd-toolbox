@@ -2,11 +2,13 @@ import os
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.core import XYEData
 from xrpd_toolbox.i11.mythen import MythenDetector, MythenSettings
+from xrpd_toolbox.utils.utils import normalise
 
 CONFIG_FILE = (
     Path(__file__).parent.parent / "config" / "i11" / "mythen3_reduction_config.toml"
@@ -16,6 +18,10 @@ LEGANCY_CONIG = Path(__file__).parent.parent / "config" / "i11" / "legacy_config
 
 
 SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "i11" / "1410696.nxs"
+
+PREORICESSED_SI_XYE_15KEV = (
+    BASE_PATH.parent.parent / "tests" / "data" / "i11" / "1410696_summed_mythen3.xye"
+)
 
 
 @pytest.fixture
@@ -128,3 +134,23 @@ def test_data_reduction_mode_validation():
 def test_legacy_toml():
     legacy_setting = MythenSettings.load(LEGANCY_CONIG)
     assert legacy_setting
+
+
+def test_mythen_data_reduction_matches_real_data(tmp_path: Path):
+    # reduction writes into the nexus file, so work on a copy - the nexus
+    # links to its mythen data file by name, so that is copied alongside it
+    nexus_filepath = tmp_path / SI_DATA_FILE.name
+    shutil.copy(SI_DATA_FILE, nexus_filepath)
+    shutil.copy(SI_DATA_FILE.parent / "mythen3_1410696.hdf5", tmp_path)
+
+    detector = MythenDetector(filepath=nexus_filepath, filename_suffix="_test")
+
+    detector.process_step_scan(control=False)
+
+    processed_now = XYEData.from_csv(detector.xye_filepath_out)
+
+    preprocessed = XYEData.from_csv(PREORICESSED_SI_XYE_15KEV)
+
+    normalised_diff = normalise(processed_now.y) - normalise(preprocessed.y)
+
+    assert np.amax(normalised_diff) < 0.01

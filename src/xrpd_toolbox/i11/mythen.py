@@ -267,11 +267,15 @@ class MythenDataLoader:
         self,
         filepath: str | Path,
         counter: int = 0,
-        mythen_data_path="mythen_nx",
-        frames: int | slice | Collection[int] = slice(None),
         modules: int | slice | Collection[int] = slice(None),
+        frames: int | slice | Collection[int] = slice(None),
+        mythen_data_path="mythen_nx",
     ):
         self.filepath = Path(filepath)
+
+        if not str(self.filepath).lower().endswith(".nxs"):
+            raise ValueError(f"{self.filepath} should be a Nexus File!!")
+
         self.frames = frames
         self.modules = modules
         self.counter = counter
@@ -281,16 +285,12 @@ class MythenDataLoader:
         self.dataset_path = f"/{self.entry}/{self.mythen_data_path}/data"
         self.n_modules_in_data, self.n_frames = self.read_nxs_metadata()
 
-        if self.frames == slice(None) and self.modules == slice(None):
-            self.data, self.module_data = self.load()
-        else:
-            self.data = self.get_data(modules=self.modules, frame=self.frames)
+        print(self.n_modules_in_data)
 
-    def load(self):
-        self.data = self.load_all_data(self.counter)
+        self.data = self.get_data(
+            modules=self.modules, frame=self.frames, counter=self.counter
+        )
         self.module_data = np.array_split(self.data, self.n_modules_in_data, axis=-1)
-
-        return self.data, self.module_data
 
     @property
     def pixels_per_module(self):
@@ -491,14 +491,13 @@ class MythenDetector:
         xye_filepath_out: str | Path | None = None,
         output_directory: str | Path | None = None,
         filename_suffix: str = "",
+        data_loader: type = MythenDataLoader,
     ):
         self.filepath = filepath
         self.filename_suffix = filename_suffix
 
         if str(self.filepath) == "dev":
             pass
-        elif not str(self.filepath).lower().endswith(".nxs"):
-            raise ValueError(f"{self.filepath} should be a Nexus File!!")
         elif not os.path.exists(self.filepath):
             raise ValueError(f"{self.filepath} does not exist!!")
 
@@ -551,8 +550,8 @@ class MythenDetector:
         # mythen data loader, just loads the data,
         # it has no information about which modules are which
 
-        self.mythen_data = MythenDataLoader(
-            filepath=filepath,
+        self.mythen_data = data_loader(
+            filepath=filepath, modules=self.settings.active_modules
         )
 
         self.contruct_modules()
@@ -674,6 +673,11 @@ class MythenDetector:
                 normalise=self.settings.normalise,
             )
         )
+
+        keep_index = np.argwhere(self.binned_tth > 0).flatten()
+        self.binned_tth = self.binned_tth[keep_index]
+        self.binned_counts = self.binned_counts[keep_index]
+        self.binned_error = self.binned_error[keep_index]
 
         self.xye_data = XYEData(
             title=Path(self.filepath).stem,
@@ -851,7 +855,7 @@ def convert_angcal_to_new_pydantic_json(
     module_conv_list = []
 
     with open(ang_cal_json_path, "rb") as file:
-        legacy_dict = json.load(file)
+        legacy_dict: dict = json.load(file)
 
     for entry in legacy_dict.keys():
         numbers = re.findall(r"-?\d*\.?\d+", str(entry))
@@ -873,8 +877,16 @@ def convert_angcal_to_new_pydantic_json(
     pydantic_model.save_to_json(new_path)
 
 
-# if __name__ == "__main__":
-#     PARENT_PATH = Path(__file__).parent.parent
+if __name__ == "__main__":
+    SI_DATA_FILE = BASE_PATH.parent.parent / "tests" / "data" / "i11" / "1410696.nxs"
+
+    detector = MythenDetector(filepath=SI_DATA_FILE, filename_suffix="_test")
+
+    detector.process_step_scan(control=False)
+    print(detector.xye_filepath_out)
+
+    detector.plot_diffraction()
+
 
 #     print(PARENT_PATH)
 
