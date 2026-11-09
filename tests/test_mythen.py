@@ -14,7 +14,9 @@ from xrpd_toolbox.i11 import mythen
 from xrpd_toolbox.i11.mythen import (
     DEFAULT_ANG_CAL,
     DEFAULT_BAD_CHANS,
+    LOCAL_CONFIG_FILE,
     MODULES_IN_DETECTOR,
+    MYTHEN_CONFIG_DIR,
     PIXELS_PER_MODULE,
     AngularCalibration,
     BadChannels,
@@ -30,9 +32,7 @@ from xrpd_toolbox.utils.utils import h5_to_array, normalise
 
 matplotlib.use("Agg")
 
-CONFIG_DIR = BASE_PATH.parent.parent / "config" / "i11"
-CONFIG_FILE = CONFIG_DIR / "mythen3_reduction_config.toml"
-LEGACY_CONFIG = CONFIG_DIR / "legacy_config.toml"
+LEGACY_CONFIG = MYTHEN_CONFIG_DIR / "legacy_config.toml"
 
 TEST_DATA_DIR = BASE_PATH.parent.parent / "tests" / "data" / "i11"
 SI_DATA_FILE = TEST_DATA_DIR / "1410696.nxs"
@@ -192,7 +192,7 @@ def test_mythen_settings(mythen_settings: MythenSettings):
 
 
 def test_mythen_settings_load_from_toml():
-    settings = MythenSettings.load_from_toml(CONFIG_FILE)
+    settings = MythenSettings.load_from_toml(LOCAL_CONFIG_FILE)
 
     assert isinstance(settings, MythenSettings)
 

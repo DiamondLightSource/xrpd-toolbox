@@ -92,14 +92,18 @@ class MythenBlueskyDataLoader(BaseDataLoader):
         return np.ones(self.n_frames)
 
 
-def run_mythen_time_resolved_scan(filepath: str, absent: Collection[int] = (4, 11, 17)):
+def run_mythen_time_resolved_scan(
+    filepath: str, absent_modules: Collection[int] = (4, 11, 17)
+):
 
     wait_for_finished_file(filepath)
 
-    modules = [m for m in range(28) if m not in absent]
+    active_modules = [m for m in range(28) if m not in absent_modules]
+
+    logger.info(f"Active modules {active_modules}")
 
     settings = MythenSettings(
-        active_modules=modules, data_reduction_mode="time_resolved"
+        active_modules=active_modules, data_reduction_mode="time_resolved"
     )
 
     detector = MythenDetector(
@@ -109,6 +113,8 @@ def run_mythen_time_resolved_scan(filepath: str, absent: Collection[int] = (4, 1
     filepaths = detector.process_time_resolved()
 
     for filepath in filepaths:
+        logger.info(f"Filepath: {filepath}")
+
         data_plot = XYEData.from_csv(filepath)
         data_plot = DataPlot(
             **data_plot.model_dump(), x_label="2theta", data_type="pxrd"
