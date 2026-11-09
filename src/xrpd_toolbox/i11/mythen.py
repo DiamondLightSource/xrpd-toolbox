@@ -38,17 +38,24 @@ logging.basicConfig(level=logging.INFO)
 MYTHEN_CONFIG_DIR = BASE_PATH / "i11" / "config"
 DEFAULT_BAD_CHANS = MYTHEN_CONFIG_DIR / "badchannels.txt"
 DEFAULT_ANG_CAL = MYTHEN_CONFIG_DIR / "default_angcal.json"
+
+LOCAL_CONFIG_FILE = BASE_PATH / "i11" / "config" / "mythen3_reduction_config.toml"
+
 DEFAULT_LIVE_CONFIG_FILE = (
     "/dls_sw/i11/software/mythen3/diamond/mythen3_reduction_config.toml"
 )
-
-LOCAL_CONFIG_FILE = BASE_PATH / "i11" / "config" / "mythen3_reduction_config.toml"
+DEFAULT_LIVE_ANG_CAL_FILE = (
+    "/dls_sw/i11/software/mythen3/diamond/ang_cal_020426_cen_639.5_least_squares.json"
+)
+DEFAULT_LIVE_BAD_CHANNEL_FILE = "/dls_sw/i11/software/mythen/badchannels.txt"
 
 
 logger.info(f"{MYTHEN_CONFIG_DIR=}")
 logger.info(f"{DEFAULT_BAD_CHANS=}")
 logger.info(f"{DEFAULT_ANG_CAL=}")
 logger.info(f"{DEFAULT_LIVE_CONFIG_FILE=}")
+logger.info(f"{DEFAULT_LIVE_ANG_CAL_FILE=}")
+logger.info(f"{DEFAULT_LIVE_BAD_CHANNEL_FILE=}")
 
 
 # np.set_printoptions(threshold=sys.maxsize)
@@ -147,10 +154,8 @@ class MythenSettings(XRPDBaseModel):
     data_reduction_mode: Literal[
         "step_scan", "time_resolved", "pump_probe", "flat_field", "bad_pixel"
     ] = "step_scan"
-    bad_channels_filepath: str | Path = "/dls_sw/i11/software/mythen/badchannels.txt"
-    angcal_filepath: str | Path = (
-        "/dls_sw/i11/software/mythen3/diamond/ang_cal_020426_cen_639.5_least_squares.json"
-    )
+    bad_channels_filepath: str | Path = DEFAULT_LIVE_BAD_CHANNEL_FILE
+    angcal_filepath: str | Path = DEFAULT_LIVE_ANG_CAL_FILE
     normalise: bool = False
 
     @field_validator("bad_channels_filepath")
