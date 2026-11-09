@@ -35,12 +35,20 @@ logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 
-MYTHEN_CONFIG_DIR = BASE_PATH.parent.parent / "config" / "i11"
+MYTHEN_CONFIG_DIR = BASE_PATH / "i11" / "config"
 DEFAULT_BAD_CHANS = MYTHEN_CONFIG_DIR / "badchannels.txt"
 DEFAULT_ANG_CAL = MYTHEN_CONFIG_DIR / "default_angcal.json"
 DEFAULT_LIVE_CONFIG_FILE = (
     "/dls_sw/i11/software/mythen3/diamond/mythen3_reduction_config.toml"
 )
+
+LOCAL_CONFIG_FILE = BASE_PATH / "i11" / "config" / "mythen3_reduction_config.toml"
+
+
+logger.info(f"{MYTHEN_CONFIG_DIR=}")
+logger.info(f"{DEFAULT_BAD_CHANS=}")
+logger.info(f"{DEFAULT_ANG_CAL=}")
+logger.info(f"{DEFAULT_LIVE_CONFIG_FILE=}")
 
 
 # np.set_printoptions(threshold=sys.maxsize)

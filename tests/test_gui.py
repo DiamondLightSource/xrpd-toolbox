@@ -25,14 +25,16 @@ from xrpd_toolbox import BASE_PATH
 from xrpd_toolbox.core import XYEData
 from xrpd_toolbox.gui import bad_pixel_gui as bpg
 from xrpd_toolbox.gui import mythen3_process_gui as pg
-from xrpd_toolbox.i11.mythen import PIXELS_PER_MODULE, MythenDataLoader, MythenSettings
+from xrpd_toolbox.i11.mythen import (
+    LOCAL_CONFIG_FILE,
+    PIXELS_PER_MODULE,
+    MythenDataLoader,
+    MythenSettings,
+)
 
 TEST_DATA_DIR = BASE_PATH.parent.parent / "tests" / "data" / "i11"
 SI_DATA_FILE = TEST_DATA_DIR / "1410696.nxs"
 SI_MYTHEN_FILE = TEST_DATA_DIR / "mythen3_1410696.hdf5"
-CONFIG_FILE = (
-    BASE_PATH.parent.parent / "config" / "i11" / "mythen3_reduction_config.toml"
-)
 
 
 @pytest.fixture
@@ -920,11 +922,11 @@ def test_main_window_needs_settings(qtbot: QtBot):
 
 
 def test_main_window_loads_settings_from_a_file(qtbot: QtBot):
-    window = pg.MainWindow(settings_path=CONFIG_FILE)
+    window = pg.MainWindow(settings_path=LOCAL_CONFIG_FILE)
     qtbot.addWidget(window)
 
-    assert window.settings_path == CONFIG_FILE
-    assert window.settings_model == MythenSettings.load(CONFIG_FILE)
+    assert window.settings_path == LOCAL_CONFIG_FILE
+    assert window.settings_model == MythenSettings.load(LOCAL_CONFIG_FILE)
 
 
 def test_main_window_has_a_widget_for_every_shown_setting(
@@ -1322,7 +1324,7 @@ def test_main_window_double_clicking_the_list_plots(
 def test_run_mythen_process_uses_the_live_config(
     captured_windows: list, monkeypatch: pytest.MonkeyPatch
 ):
-    monkeypatch.setattr(pg, "DEFAULT_LIVE_CONFIG_FILE", str(CONFIG_FILE))
+    monkeypatch.setattr(pg, "DEFAULT_LIVE_CONFIG_FILE", str(LOCAL_CONFIG_FILE))
 
     with pytest.raises(SystemExit) as exit_info:
         pg.run_mythen_process()
@@ -1331,7 +1333,7 @@ def test_run_mythen_process_uses_the_live_config(
 
     (window,) = captured_windows
     assert window.isVisible()
-    expected = MythenSettings.load(CONFIG_FILE)
+    expected = MythenSettings.load(LOCAL_CONFIG_FILE)
     expected.send_to_ispyb = False
     assert window.settings_model == expected
 
