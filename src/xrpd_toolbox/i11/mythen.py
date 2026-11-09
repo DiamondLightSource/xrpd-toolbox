@@ -181,6 +181,9 @@ class BadChannels:
         self, filepath: str | Path, n_edge_bad_channels: int = 5, n_modules: int = 28
     ):
         self.filepath = filepath
+
+        logger.info(f"BadChannels filepath = {self.filepath}")
+
         self.n_edge_bad_channels = n_edge_bad_channels
         self.n_modules = n_modules
 
@@ -281,12 +284,17 @@ class MythenDataLoader(BaseDataLoader):
         entry = get_entry(filepath)
         super().__init__(filepath, dataset_path=f"/{entry}/{mythen_data_path}/data")
 
+        logger.info(f"MythenDataLoader filepath = {self.filepath}")
+        logger.info(f"dataset_path = {self.dataset_path}")
+
         self.frames = frames
         self.modules = modules
         self.counter = counter
         self.mythen_data_path = mythen_data_path
 
         self.n_modules_in_data, self.n_frames = self.read_nxs_metadata()
+
+        logger.info(f"{self.n_modules_in_data=}, {self.n_frames=}")
 
     @property
     def pixels_per_module(self):
@@ -523,6 +531,8 @@ class MythenDetector:
             f"{Path(self.filename).stem}_reduced_mythen3{self.filename_suffix}.nxs",
         )
 
+        logger.info(f"{self.processed_nexus_filepath=}")
+
         # the raw nexus is copied the first time anything is saved to it
         self._processed_nexus_created = False
 
@@ -531,7 +541,12 @@ class MythenDetector:
             f"{self.filename}_summed_mythen3{self.filename_suffix}.xye",
         )
 
+        logger.info(f"{self.xye_filepath_out=}")
+
         self.settings = settings or MythenSettings()
+
+        logger.info(f"{self.settings=}")
+
         self.calibration = angular_calibration or AngularCalibration.load(
             self.settings.angcal_filepath
         )
@@ -565,7 +580,7 @@ class MythenDetector:
 
         self.contruct_modules()
 
-    def _make_mythen_module_kwargs(self, n_module, nth_active_module):
+    def _make_mythen_module_kwargs(self, n_module: int, nth_active_module: int):
         """MythenModule requires quite a lot of info,
         so it's easier to make a contructor of it's kwargs"""
 
@@ -608,6 +623,8 @@ class MythenDetector:
         point in the same order. Uses every frame, or just one if frame is given"""
 
         selected_modules = [self.get_module(f, frame) for f in modules]
+
+        logger.info(f"{selected_modules=}")
 
         if masked:
             module_tth_list = [m.tth for m in selected_modules]
