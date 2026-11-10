@@ -7,8 +7,6 @@
 
 A repository for useful python data analysis tools for the X-ray powder diffraction beamlines at Diamond Light Source
 
-This is where you should write a short paragraph that describes what your module does,
-how it does it, and why people should use it.
 
 What            | Where
 :---:           | :---:
@@ -24,7 +22,7 @@ from xrpd_toolbox import __version__
 print(f"Hello xrpd_toolbox {__version__}")
 ```
 
-Here are some useful things for xrpd users at Diamond
+Here are some useful things for xrpd users at Diamond:
 
 ```python
 from xrpd_toolbox.utils.messenger import Messenger
