@@ -8,6 +8,7 @@ import numpy as np
 from xrpd_toolbox.data_loader import BaseDataLoader
 from xrpd_toolbox.i11.mythen import PIXELS_PER_MODULE, MythenDetector, MythenSettings
 from xrpd_toolbox.plotting import DataPlot
+from xrpd_toolbox.utils.files import get_filenumber_from_filepath
 from xrpd_toolbox.utils.utils import (
     get_entry,
     wait_for_finished_file,
@@ -93,11 +94,11 @@ class MythenBlueskyDataLoader(BaseDataLoader):
 
 
 def _publish_xye(
-    output_xy_filepath: str | Path,
-    data_type: str,
+    output_xy_filepath: str | Path, data_type: str, filenumber: int | None = None
 ):
     try:
         data_plot = DataPlot.from_csv(output_xy_filepath)
+        data_plot.filenumber = filenumber
         data_plot.x_label = "2θ (deg)"
         data_plot.data_type = data_type
         data_plot.publish(beamline="i11")
@@ -124,16 +125,29 @@ def run_mythen_time_resolved_scan(
         filepath=filepath, settings=settings, data_loader=MythenBlueskyDataLoader
     )
 
-    filepaths = detector.process_time_resolved()
+    xye_filepaths = detector.process_time_resolved()
 
-    for filepath in filepaths:
+    filenumber = get_filenumber_from_filepath(filepath)
+
+    for xye_filepath in xye_filepaths:
         logger.info(f"Filepath: {filepath}")
-        _publish_xye(filepath, data_type="pxrd")
+        _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
 
-    return filepaths
+    return xye_filepaths
 
 
 if __name__ == "__main__":
     filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487459.nxs"
+
+    absent = (4, 11, 17)
+    active_modules = [m for m in range(28) if m not in absent]
+
+    mythen_data = MythenBlueskyDataLoader(filepath, active_modules)
+
+    data = mythen_data.get_data(slice(None))
+
+    print(data.shape)
+
+    print(data)
 
     run_mythen_time_resolved_scan(filepath)
