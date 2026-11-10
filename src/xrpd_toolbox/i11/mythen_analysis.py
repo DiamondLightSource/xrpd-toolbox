@@ -7,7 +7,7 @@ import numpy as np
 
 from xrpd_toolbox.data_loader import BaseDataLoader
 from xrpd_toolbox.i11.mythen import PIXELS_PER_MODULE, MythenDetector, MythenSettings
-from xrpd_toolbox.plotting import DataPlot, XYEData
+from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.utils import (
     get_entry,
     wait_for_finished_file,
@@ -92,6 +92,20 @@ class MythenBlueskyDataLoader(BaseDataLoader):
         return np.ones(self.n_frames)
 
 
+def _publish_xye(
+    output_xy_filepath: str | Path,
+    data_type: str,
+):
+    try:
+        data_plot = DataPlot.from_csv(output_xy_filepath)
+        data_plot.x_label = "2θ (deg)"
+        data_plot.data_type = data_type
+        data_plot.publish(beamline="i11")
+
+    except Exception as e:
+        logger.error(e)
+
+
 def run_mythen_time_resolved_scan(
     filepath: str, absent_modules: Collection[int] = (4, 11, 17)
 ):
@@ -114,20 +128,12 @@ def run_mythen_time_resolved_scan(
 
     for filepath in filepaths:
         logger.info(f"Filepath: {filepath}")
-
-        data_plot = XYEData.from_csv(filepath)
-        data_plot = DataPlot(
-            **data_plot.model_dump(), x_label="2theta", data_type="pxrd"
-        )
-        try:
-            data_plot.publish(beamline="i11")
-        except Exception as e:
-            logger.error(f"Data could not be sent to datavis: {e}")
+        _publish_xye(filepath, data_type="pxrd")
 
     return filepaths
 
 
 if __name__ == "__main__":
-    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487387.nxs"
+    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487459.nxs"
 
     run_mythen_time_resolved_scan(filepath)

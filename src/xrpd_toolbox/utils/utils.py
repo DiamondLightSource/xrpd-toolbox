@@ -288,6 +288,9 @@ def bin_and_propagate_errors(
     if not (x.shape == y.shape == e.shape):
         raise ValueError("x, y, and e must have the same length")
 
+    # detector data can be uint8 (sqrt -> float16), which overflows when binned
+    x, y, e = np.array([x, y, e], dtype=np.float64)
+
     # --- Bin definition ---
     bin_centres, bin_edges, _ = create_bins(x, rebin_step)
 
@@ -317,13 +320,13 @@ def bin_and_propagate_errors(
         variance = (y2_sums - bin_counts * intensity**2) / (bin_counts - 1)
         std_errors = np.sqrt(variance)
 
-        if error_calc == "poisson" or "internal":
+        if error_calc in ("poisson", "internal"):
             errors = prop_errors
-        elif error_calc == "std_dev" or "external":
+        elif error_calc in ("std_dev", "external"):
             # Invalidate bins with <2 points for external error
             std_errors[bin_counts < 2] = np.nan
             errors = std_errors
-        elif error_calc == "max" or "best":
+        elif error_calc in ("max", "best"):
             std_errors[bin_counts < 2] = 0
             errors = np.maximum(prop_errors, std_errors)
         else:
