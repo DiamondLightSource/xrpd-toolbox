@@ -129,8 +129,8 @@ def run_mythen_time_resolved_scan(
 
     filenumber = get_filenumber_from_filepath(filepath)
 
-    for xye_filepath in xye_filepaths:
-        logger.info(f"Filepath: {filepath}")
+    for n, xye_filepath in enumerate(xye_filepaths):
+        logger.info(f"Frame: {n} Filepath: {xye_filepath}")
         _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
 
     return xye_filepaths
