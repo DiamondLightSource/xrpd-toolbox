@@ -108,7 +108,9 @@ def _publish_xye(
 
 
 def run_mythen_time_resolved_scan(
-    filepath: str, absent_modules: Collection[int] = (4, 11, 17)
+    filepath: str,
+    absent_modules: Collection[int] = (4, 11, 17),
+    frames_to_plot: int = 10,
 ):
 
     wait_for_finished_file(filepath)
@@ -129,9 +131,15 @@ def run_mythen_time_resolved_scan(
 
     filenumber = get_filenumber_from_filepath(filepath)
 
+    n_files = len(xye_filepaths)
+
+    plot_index = max(1, n_files // frames_to_plot)
+
     for n, xye_filepath in enumerate(xye_filepaths):
-        logger.info(f"Frame: {n} Filepath: {xye_filepath}")
-        _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
+        if (n == 0) or (n == n_files - 1) or (n % plot_index == 0):
+            logger.info(f"Publishing frame: {n} filepath: {xye_filepath}")
+
+            _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
 
     return xye_filepaths
 
@@ -141,13 +149,5 @@ if __name__ == "__main__":
 
     absent = (4, 11, 17)
     active_modules = [m for m in range(28) if m not in absent]
-
-    mythen_data = MythenBlueskyDataLoader(filepath, active_modules)
-
-    data = mythen_data.get_data(slice(None))
-
-    print(data.shape)
-
-    print(data)
 
     run_mythen_time_resolved_scan(filepath)
