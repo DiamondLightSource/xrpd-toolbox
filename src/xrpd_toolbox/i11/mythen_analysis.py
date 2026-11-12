@@ -109,7 +109,7 @@ def _publish_xye(
 
 def run_mythen_time_resolved_scan(
     filepath: str,
-    absent_modules: Collection[int] = (4, 11, 17),
+    absent_modules: Collection[int],
     frames_to_plot: int = 10,
 ):
 
@@ -144,10 +144,53 @@ def run_mythen_time_resolved_scan(
     return xye_filepaths
 
 
+def run_mythen_step_scan(
+    filepath: str,
+    absent_modules: Collection[int],
+):
+
+    wait_for_finished_file(filepath)
+
+    active_modules = [m for m in range(28) if m not in absent_modules]
+
+    logger.info(f"Active modules {active_modules}")
+    filenumber = get_filenumber_from_filepath(filepath)
+
+    settings = MythenSettings(
+        active_modules=active_modules, data_reduction_mode="time_resolved"
+    )
+
+    detector = MythenDetector(
+        filepath=filepath, settings=settings, data_loader=MythenBlueskyDataLoader
+    )
+
+    xye_filepath = detector.process_step_scan()
+
+    logger.info(f"Completed dat reduciton for{xye_filepath}")
+    _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
+
+
+def run_mythen_analysis(
+    nexus_filepath: str,
+    absent_modules: Collection[int] = (4, 11, 17),
+):
+
+    mythen_data = MythenBlueskyDataLoader(nexus_filepath, absent_modules)
+
+    plan_name = mythen_data.get_plan_name()
+
+    if plan_name == "fast_trigger_mythen":
+        run_mythen_time_resolved_scan(nexus_filepath, absent_modules)
+    elif plan_name == "scan_delta_with_mythen":
+        run_mythen_step_scan(nexus_filepath, absent_modules)
+    else:
+        raise ValueError(f"There is no process for {plan_name=}")
+
+
 if __name__ == "__main__":
     filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487459.nxs"
 
     absent = (4, 11, 17)
     active_modules = [m for m in range(28) if m not in absent]
 
-    run_mythen_time_resolved_scan(filepath)
+    run_mythen_time_resolved_scan(filepath, active_modules)

@@ -276,25 +276,6 @@ class EigerDataLoader(BaseDataLoader):
         else:
             return mask.astype(bool)
 
-    def get_scan_type(self) -> str:
-
-        scan_type_path = f"/{self.entry}/plan_metadata/scan_type"
-
-        return self._read_string(scan_type_path)
-
-    @cached_property
-    def plan_name(self) -> str:
-        """returns the plan name as a string, eg static_collection or data_collection"""
-
-        return self.get_plan_name()
-
-    def get_plan_name(self) -> str:
-        """returns the plan name as a string, eg static_collection or data_collection"""
-
-        plan_name_path = f"{self.entry}/plan_metadata/plan_name"
-
-        return self._read_string(plan_name_path)
-
     def get_collection_specification(self) -> dict:
         collection_specification_path = (
             f"/{self.entry}/plan_metadata/collection_specification"
