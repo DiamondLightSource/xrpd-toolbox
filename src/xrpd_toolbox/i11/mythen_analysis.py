@@ -210,7 +210,7 @@ def run_mythen_analysis(
     else:
         settings = MythenSettings(
             active_modules=active_modules,
-            data_reduction_mode="time_resolved",
+            data_reduction_mode="step_scan",
             bad_channels_filepath=bad_channel_filepath,
         )
         run_mythen_sum_all_positions(filepath=nexus_filepath, settings=settings)

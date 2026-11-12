@@ -287,8 +287,12 @@ def fake_run(monkeypatch):
 
 
 def test_run_one_diffraction_per_trigger(fake_run):
+    settings = MythenSettings(
+        active_modules=[m for m in range(28) if m not in (4, 11, 17)],
+        data_reduction_mode="time_resolved",
+    )
     xye_filepaths = run_mythen_one_diffraction_per_trigger(
-        "/data/i11-123456.nxs", absent_modules=(4, 11, 17), frames_to_plot=10
+        "/data/i11-123456.nxs", settings=settings, frames_to_plot=10
     )
 
     (detector,) = RecordingDetector.instances
@@ -309,9 +313,13 @@ def test_run_one_diffraction_per_trigger(fake_run):
 
 
 def test_run_sum_all_positions(fake_run):
-    run_mythen_sum_all_positions("/data/i11-123456.nxs", absent_modules=(0, 1))
+    settings = MythenSettings(
+        active_modules=list(range(2, 28)), data_reduction_mode="step_scan"
+    )
+    run_mythen_sum_all_positions("/data/i11-123456.nxs", settings=settings)
 
     (detector,) = RecordingDetector.instances
+    assert detector.settings is settings
     assert detector.settings.active_modules == list(range(2, 28))
     assert detector.data_loader is MythenBlueskyDataLoader
 
@@ -327,12 +335,12 @@ def dispatch(monkeypatch):
     monkeypatch.setattr(
         mythen_analysis,
         "run_mythen_one_diffraction_per_trigger",
-        lambda f, absent: calls.append(("trigger", f, tuple(absent))),
+        lambda filepath, settings: calls.append(("trigger", filepath, settings)),
     )
     monkeypatch.setattr(
         mythen_analysis,
         "run_mythen_sum_all_positions",
-        lambda f, absent: calls.append(("step", f, tuple(absent))),
+        lambda filepath, settings: calls.append(("step", filepath, settings)),
     )
 
     return calls
@@ -345,7 +353,10 @@ def test_run_mythen_analysis_fast_trigger(tmp_path: Path, dispatch):
 
     run_mythen_analysis(str(filepath), absent_modules=(4,))
 
-    assert dispatch == [("trigger", str(filepath), (4,))]
+    ((kind, called_filepath, settings),) = dispatch
+    assert (kind, called_filepath) == ("trigger", str(filepath))
+    assert settings.active_modules == [m for m in range(28) if m != 4]
+    assert settings.data_reduction_mode == "time_resolved"
 
 
 def test_run_mythen_analysis_step_scan(tmp_path: Path, dispatch):
@@ -355,7 +366,10 @@ def test_run_mythen_analysis_step_scan(tmp_path: Path, dispatch):
 
     run_mythen_analysis(str(filepath))
 
-    assert dispatch == [("step", str(filepath), (4, 11, 17))]
+    ((kind, called_filepath, settings),) = dispatch
+    assert (kind, called_filepath) == ("step", str(filepath))
+    assert settings.active_modules == [m for m in range(28) if m not in (4, 11, 17)]
+    assert settings.data_reduction_mode == "step_scan"
 
 
 def test_run_mythen_analysis_unknown_plan_runs_step_scan_then_raises(
@@ -366,4 +380,6 @@ def test_run_mythen_analysis_unknown_plan_runs_step_scan_then_raises(
     with pytest.raises(ValueError, match="mystery"):
         run_mythen_analysis(str(filepath))
 
-    assert dispatch == [("step", str(filepath), (4, 11, 17))]
+    ((kind, called_filepath, settings),) = dispatch
+    assert (kind, called_filepath) == ("step", str(filepath))
+    assert settings.active_modules == [m for m in range(28) if m not in (4, 11, 17)]
