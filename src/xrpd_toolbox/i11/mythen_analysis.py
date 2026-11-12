@@ -26,7 +26,7 @@ class MythenBlueskyDataLoader(BaseDataLoader):
     def __init__(
         self,
         filepath: str | Path,
-        modules: Collection[int],
+        modules: Collection[int] | slice,
         frames: int | slice | Collection[int] = slice(None),
     ):
         entry = get_entry(filepath)
@@ -51,9 +51,23 @@ class MythenBlueskyDataLoader(BaseDataLoader):
         return self.get_data(self.frames)
 
     @cached_property
+    def pixels_per_module(self):
+        return 1280
+
+    @cached_property
+    def n_modules_in_data(self):
+        # dataset is (frames, 1, pixels) - use the shape so no data is read
+        return int(self.dataset.shape[-1] // self.pixels_per_module)
+
+    @cached_property
     def module_data(self) -> list[np.ndarray]:
         """self.data split into modules - only read from file when first used"""
-        return np.array_split(self.data, len(self.modules), axis=-1)
+        n_modules = (
+            self.n_modules_in_data
+            if isinstance(self.modules, slice)
+            else len(self.modules)
+        )
+        return np.array_split(self.data, n_modules, axis=-1)
 
     def get_module_data(self, n_module: int) -> np.ndarray:
         """Reads only the nth module from file, for the selected frames.
