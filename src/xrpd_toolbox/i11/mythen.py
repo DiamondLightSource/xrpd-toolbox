@@ -789,8 +789,10 @@ class MythenDetector:
 
     def get_ring1_ring2_data(self):
         first_ring_pixels = len(self.active_ring1_modules) * PIXELS_PER_MODULE
-        ring1_data = self.mythen_data.get_data(modules=slice(0, first_ring_pixels))
-        ring2_data = self.mythen_data.get_data(modules=slice(first_ring_pixels, None))
+        # the data only has the active modules in it, in order, so works for
+        # any data loader
+        ring1_data = self.mythen_data.data[..., :first_ring_pixels]
+        ring2_data = self.mythen_data.data[..., first_ring_pixels:]
 
         return ring1_data, ring2_data
 
