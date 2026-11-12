@@ -1,4 +1,5 @@
 import datetime
+import logging
 import shutil
 import sys
 from pathlib import Path
@@ -28,6 +29,7 @@ from PyQt6.QtWidgets import (
 
 from xrpd_toolbox.gui.fast_icons import FastIconProvider
 from xrpd_toolbox.i11.mythen import MythenDataLoader
+from xrpd_toolbox.i11.mythen_analysis import MythenBlueskyDataLoader
 from xrpd_toolbox.utils.utils import load_int_array_from_file
 
 CURRENT_YEAR = datetime.datetime.now().year
@@ -39,6 +41,33 @@ try:
     CWD = Path.cwd()
 except Exception:
     CWD = Path.home()
+
+logger = logging.getLogger(__name__)
+
+
+def load_mythen_data(
+    filepath: str | Path,
+) -> MythenDataLoader | MythenBlueskyDataLoader:
+    """Load a Mythen nexus file, trying the legacy format first and falling
+    back to the Bluesky (fastcs_mythen3) format."""
+
+    try:
+        return MythenDataLoader(filepath)
+    except Exception as legacy_error:
+        logger.info(
+            f"MythenDataLoader could not read {filepath} ({legacy_error!r}), "
+            "trying MythenBlueskyDataLoader"
+        )
+        try:
+            return MythenBlueskyDataLoader(filepath, modules=slice(None))
+        except Exception as bluesky_error:
+            raise ValueError(
+                f"Could not read {filepath} as Mythen data.\n"
+                f"MythenDataLoader: {legacy_error!r}\n"
+                f"MythenBlueskyDataLoader: {bluesky_error!r}"
+            ) from bluesky_error
+
+
 # =========================
 # Plot canvas
 # =========================
@@ -47,7 +76,7 @@ except Exception:
 class PlotCanvas(FigureCanvasQTAgg):
     def __init__(
         self,
-        data: MythenDataLoader,
+        data: MythenDataLoader | MythenBlueskyDataLoader,
         global_selected_indices: set[int],
         selection_callback,
         parent: QWidget | None = None,
@@ -102,7 +131,7 @@ class PlotCanvas(FigureCanvasQTAgg):
         start = self.current_module * self.pixels_per_modules
         return np.asarray(x) - start
 
-    def set_data(self, data: MythenDataLoader) -> None:
+    def set_data(self, data: MythenDataLoader | MythenBlueskyDataLoader) -> None:
         self.data = data
         self.raw_data = data.data
         self.x = np.arange(self.pixels_per_modules)
@@ -214,7 +243,7 @@ EMPTY_BAD_CHANNELS: set[int] = set()
 class BadModuleMainWindow(QMainWindow):
     def __init__(
         self,
-        data: MythenDataLoader | None = None,
+        data: MythenDataLoader | MythenBlueskyDataLoader | None = None,
         bad_channels: set[int] = EMPTY_BAD_CHANNELS,
         bad_channels_save_path: str | Path | None = None,
     ) -> None:
@@ -225,7 +254,7 @@ class BadModuleMainWindow(QMainWindow):
         if data is None:
             filepath = self.nexus_file_dialog()
 
-            data = MythenDataLoader(filepath)
+            data = load_mythen_data(filepath)
 
         else:
             data = data
@@ -384,14 +413,14 @@ class BadModuleMainWindow(QMainWindow):
     def load_nexus_file(self, filepath: str) -> None:
 
         try:
-            self.data = MythenDataLoader(filepath)
+            self.data = load_mythen_data(filepath)
             self.canvas.set_data(self.data)
             self.module_slider.setRange(0, self.data.n_modules_in_data - 1)
             self._update_bad_channel_canvas()
             self.file_label.setText(f"File: {self.data.filepath}")
 
         except ValueError as e:
-            QMessageBox.information(self, title="error", text=f"{e}")
+            QMessageBox.warning(self, "Error loading file", str(e))
 
     def load_bad_channels(self) -> None:
 
@@ -661,7 +690,7 @@ def run_bad_pixel_gui(
 ) -> None:
 
     if filepath is not None:
-        data = MythenDataLoader(filepath)
+        data = load_mythen_data(filepath)
     else:
         data = None
 
@@ -691,7 +720,7 @@ def run_bad_pixel_gui(
 
 
 if __name__ == "__main__":
-    DATA_FILE = "/workspaces/outputs/step_scan/1410286.nxs"
+    DATA_FILE = "/workspaces/outputs/i11/i11-1487529.nxs"
 
     run_bad_pixel_gui(
         DATA_FILE,
