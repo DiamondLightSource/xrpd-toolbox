@@ -15,6 +15,10 @@ class BaseDataLoader:
 
     def __init__(self, filepath: str | Path, dataset_path: str):
         self.filepath = str(filepath)
+
+        if not Path(self.filepath).exists():
+            raise FileNotFoundError(f"{self.filepath} doesn't exist")
+
         self._file: File | None = None
 
         self.entry = list(self.file.keys())[0]  # /entry

@@ -113,7 +113,7 @@ def _publish_xye(
         logger.error(e)
 
 
-def run_mythen_time_resolved_scan(
+def run_mythen_one_diffraction_per_trigger(
     filepath: str,
     absent_modules: Collection[int],
     frames_to_plot: int = 10,
@@ -150,7 +150,7 @@ def run_mythen_time_resolved_scan(
     return xye_filepaths
 
 
-def run_mythen_step_scan(
+def run_mythen_sum_all_positions(
     filepath: str,
     absent_modules: Collection[int],
 ):
@@ -188,11 +188,11 @@ def run_mythen_analysis(
     logger.info(f"{plan_name=}")
 
     if plan_name == "fast_trigger_mythen":
-        run_mythen_time_resolved_scan(nexus_filepath, absent_modules)
+        run_mythen_one_diffraction_per_trigger(nexus_filepath, absent_modules)
     elif plan_name == "scan_delta_with_mythen":
-        run_mythen_step_scan(nexus_filepath, absent_modules)
+        run_mythen_sum_all_positions(nexus_filepath, absent_modules)
     else:
-        run_mythen_step_scan(nexus_filepath, absent_modules)
+        run_mythen_sum_all_positions(nexus_filepath, absent_modules)
 
         raise ValueError(
             f"There is no process for {plan_name=}, treated it as a step scan anyway"
@@ -200,9 +200,8 @@ def run_mythen_analysis(
 
 
 if __name__ == "__main__":
-    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487459.nxs"
+    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487465.nxs"
 
     absent = (4, 11, 17)
-    active_modules = [m for m in range(28) if m not in absent]
 
-    run_mythen_analysis(filepath, active_modules)
+    run_mythen_analysis(filepath, absent_modules=absent)
