@@ -184,7 +184,11 @@ def run_mythen_analysis(
     elif plan_name == "scan_delta_with_mythen":
         run_mythen_step_scan(nexus_filepath, absent_modules)
     else:
-        raise ValueError(f"There is no process for {plan_name=}")
+        run_mythen_step_scan(nexus_filepath, absent_modules)
+
+        raise ValueError(
+            f"There is no process for {plan_name=}, treated it as a step scan anyway"
+        )
 
 
 if __name__ == "__main__":
