@@ -420,7 +420,7 @@ class BadModuleMainWindow(QMainWindow):
             self.file_label.setText(f"File: {self.data.filepath}")
 
         except ValueError as e:
-            QMessageBox.warning(self, "Error loading file", str(e))
+            QMessageBox.information(self, "Error loading file", str(e))
 
     def load_bad_channels(self) -> None:
 
