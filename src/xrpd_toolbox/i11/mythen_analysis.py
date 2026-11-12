@@ -75,17 +75,23 @@ class MythenBlueskyDataLoader(BaseDataLoader):
         else:
             return len(self.frames)
 
-    @cached_property
-    def positions(self) -> np.ndarray:
+    def get_positions(self):
 
         position_path = f"/{self.entry}/instrument/diff_stage/delta"
         deltas = self._read_array(position_path)
 
-        mean_delta = np.mean(deltas)
+        return deltas
 
-        interpolated_delta = np.full(self.n_frames, mean_delta)
+    @cached_property
+    def positions(self) -> np.ndarray:
 
-        return interpolated_delta
+        positions = self.get_positions()
+
+        if len(positions) != self.n_frames:
+            mean_delta = np.mean(positions)
+            positions = np.full(self.n_frames, mean_delta)
+
+        return positions
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -179,6 +185,8 @@ def run_mythen_analysis(
 
     plan_name = mythen_data.get_plan_name()
 
+    logger.info(f"{plan_name=}")
+
     if plan_name == "fast_trigger_mythen":
         run_mythen_time_resolved_scan(nexus_filepath, absent_modules)
     elif plan_name == "scan_delta_with_mythen":
@@ -197,4 +205,4 @@ if __name__ == "__main__":
     absent = (4, 11, 17)
     active_modules = [m for m in range(28) if m not in absent]
 
-    run_mythen_time_resolved_scan(filepath, active_modules)
+    run_mythen_analysis(filepath, active_modules)
