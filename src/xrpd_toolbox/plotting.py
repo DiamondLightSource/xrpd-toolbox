@@ -101,6 +101,7 @@ class DataPlot(XYEData):
             url=datavis_url,
             data=self.model_dump_json(),
             headers={"Content-Type": "application/json"},
+            timeout=1,
         )
         response.raise_for_status()
 

@@ -1,4 +1,5 @@
 from collections.abc import Collection
+from functools import cached_property
 from pathlib import Path
 from typing import Self
 
@@ -14,6 +15,10 @@ class BaseDataLoader:
 
     def __init__(self, filepath: str | Path, dataset_path: str):
         self.filepath = str(filepath)
+
+        if not Path(self.filepath).exists():
+            raise FileNotFoundError(f"{self.filepath} doesn't exist")
+
         self._file: File | None = None
 
         self.entry = list(self.file.keys())[0]  # /entry
@@ -131,3 +136,22 @@ class BaseDataLoader:
             max_values[n] = np.nanmax(data[index])
 
         return max_values
+
+    def get_scan_type(self) -> str:
+
+        scan_type_path = f"/{self.entry}/plan_metadata/scan_type"
+
+        return self._read_string(scan_type_path)
+
+    @cached_property
+    def plan_name(self) -> str:
+        """returns the plan name as a string, eg static_collection or data_collection"""
+
+        return self.get_plan_name()
+
+    def get_plan_name(self) -> str:
+        """returns the plan name as a string, eg static_collection or data_collection"""
+
+        plan_name_path = f"{self.entry}/plan_metadata/plan_name"
+
+        return self._read_string(plan_name_path)

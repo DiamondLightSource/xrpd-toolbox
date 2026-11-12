@@ -727,6 +727,34 @@ class MythenDetector:
                 str(self.filepath), str(xye_filepath_out)
             )  # sends to ispyb
 
+    def save_step_scan_nexus(self, xyedata: XYEData):
+
+        xye_names_and_data = {
+            "tth": xyedata.x,
+            "counts": xyedata.y,
+            "error": xyedata.e,
+        }
+
+        self.save_data_to_nexus(
+            self.processed_nexus_filepath,
+            subpath="/xye",
+            names_and_data=xye_names_and_data,
+        )
+
+        ring1_data, ring2_data = self.get_ring1_ring2_data()
+        self.save_data_to_nexus(
+            self.processed_nexus_filepath,
+            subpath="/ring1",
+            names_and_data={"data": ring1_data},
+        )
+        self.save_data_to_nexus(
+            self.processed_nexus_filepath,
+            subpath="/ring2",
+            names_and_data={"data": ring2_data},
+        )
+
+        print(f"Data saved to: {self.processed_nexus_filepath}")
+
     def process_step_scan(self, plot: bool = False, control: bool = True):
         """Analyses the data using the settings provided by the MythenSettings class
         Takes all of the data from each module and each step of the multistep scan
@@ -747,58 +775,44 @@ class MythenDetector:
         self.binned_counts = self.binned_counts[keep_index]
         self.binned_error = self.binned_error[keep_index]
 
-        self.xye_data = XYEData(
+        xye_data = XYEData(
             title=Path(self.filepath).stem,
             x=self.binned_tth,
             y=self.binned_counts,
             e=self.binned_error,
         )
-        self.xye_data.save_to_xye(self.xye_filepath_out)
+        xye_data.save_to_xye(self.xye_filepath_out)
 
-        xye_names_and_data = {
-            "tth": self.binned_tth,
-            "counts": self.binned_counts,
-            "error": self.binned_error,
-        }
+        self.save_step_scan_nexus(xye_data)
 
-        self.save_data_to_nexus(subpath="/xye", names_and_data=xye_names_and_data)
-
-        ring1_data, ring2_data = self.get_ring1_ring2_data()
-        self.save_data_to_nexus(subpath="/ring1", names_and_data={"data": ring1_data})
-        self.save_data_to_nexus(subpath="/ring2", names_and_data={"data": ring2_data})
-
-        print(f"Data saved to: {self.processed_nexus_filepath}")
-
-        if control:
-            try:
-                self.communicate_with_control(
-                    xye_filepath_out=self.xye_filepath_out,
-                    send_to_ispyb=self.settings.send_to_ispyb,
-                )
-            except Exception as e:
-                print(f"Could not connect with control - {e}")
-                pass
+        return self.xye_filepath_out
 
     def get_ring1_ring2_data(self):
         first_ring_pixels = len(self.active_ring1_modules) * PIXELS_PER_MODULE
-        ring1_data = self.mythen_data.get_data(modules=slice(0, first_ring_pixels))
-        ring2_data = self.mythen_data.get_data(modules=slice(first_ring_pixels, None))
+        # the data only has the active modules in it, in order, so works for
+        # any data loader
+        ring1_data = self.mythen_data.data[..., :first_ring_pixels]
+        ring2_data = self.mythen_data.data[..., first_ring_pixels:]
 
         return ring1_data, ring2_data
 
     def save_data_to_nexus(
-        self, subpath: str, names_and_data: dict[str, np.ndarray], **kwargs
+        self,
+        processed_nexus_filepath,
+        subpath: str,
+        names_and_data: dict[str, np.ndarray],
+        **kwargs,
     ):
         """Saves into the processed nexus file, which starts as a copy of the
         raw nexus file - the raw nexus file is never written to"""
 
         if not self._processed_nexus_created:
-            copy(self.filepath, self.processed_nexus_filepath)
+            copy(self.filepath, processed_nexus_filepath)
             self._processed_nexus_created = True
 
         for name, data in names_and_data.items():
             save_data_to_h5(
-                self.processed_nexus_filepath,
+                processed_nexus_filepath,
                 f"{self.mythen_data.entry}{subpath}/{name}",
                 data,
                 **kwargs,
@@ -832,12 +846,13 @@ class MythenDetector:
 
             logging.info(f"{frame=}, {xye_filepath=}")
 
-            XYEData(
+            xye_data = XYEData(
                 title=f"{Path(self.filepath).stem}_{frame}",
                 x=tth[keep_index],
                 y=counts[keep_index],
                 e=error[keep_index],
-            ).save_to_xye(xye_filepath)
+            )
+            xye_data.save_to_xye(xye_filepath)
 
             xye_filepaths.append(xye_filepath)
 

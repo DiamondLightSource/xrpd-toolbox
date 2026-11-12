@@ -75,17 +75,23 @@ class MythenBlueskyDataLoader(BaseDataLoader):
         else:
             return len(self.frames)
 
-    @cached_property
-    def positions(self) -> np.ndarray:
+    def get_positions(self):
 
         position_path = f"/{self.entry}/instrument/diff_stage/delta"
         deltas = self._read_array(position_path)
 
-        mean_delta = np.mean(deltas)
+        return deltas
 
-        interpolated_delta = np.full(self.n_frames, mean_delta)
+    @cached_property
+    def positions(self) -> np.ndarray:
 
-        return interpolated_delta
+        positions = self.get_positions()
+
+        if len(positions) != self.n_frames:
+            mean_delta = np.mean(positions)
+            positions = np.full(self.n_frames, mean_delta)
+
+        return positions
 
     @cached_property
     def durations(self) -> np.ndarray:
@@ -107,9 +113,9 @@ def _publish_xye(
         logger.error(e)
 
 
-def run_mythen_time_resolved_scan(
+def run_mythen_one_diffraction_per_trigger(
     filepath: str,
-    absent_modules: Collection[int] = (4, 11, 17),
+    absent_modules: Collection[int],
     frames_to_plot: int = 10,
 ):
 
@@ -144,10 +150,58 @@ def run_mythen_time_resolved_scan(
     return xye_filepaths
 
 
+def run_mythen_sum_all_positions(
+    filepath: str,
+    absent_modules: Collection[int],
+):
+
+    wait_for_finished_file(filepath)
+
+    active_modules = [m for m in range(28) if m not in absent_modules]
+
+    logger.info(f"Active modules {active_modules}")
+    filenumber = get_filenumber_from_filepath(filepath)
+
+    settings = MythenSettings(
+        active_modules=active_modules, data_reduction_mode="time_resolved"
+    )
+
+    detector = MythenDetector(
+        filepath=filepath, settings=settings, data_loader=MythenBlueskyDataLoader
+    )
+
+    xye_filepath = detector.process_step_scan()
+
+    logger.info(f"Completed dat reduciton for{xye_filepath}")
+    _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
+
+
+def run_mythen_analysis(
+    nexus_filepath: str,
+    absent_modules: Collection[int] = (4, 11, 17),
+):
+
+    mythen_data = MythenBlueskyDataLoader(nexus_filepath, absent_modules)
+
+    plan_name = mythen_data.get_plan_name()
+
+    logger.info(f"{plan_name=}")
+
+    if plan_name == "fast_trigger_mythen":
+        run_mythen_one_diffraction_per_trigger(nexus_filepath, absent_modules)
+    elif plan_name == "scan_delta_with_mythen":
+        run_mythen_sum_all_positions(nexus_filepath, absent_modules)
+    else:
+        run_mythen_sum_all_positions(nexus_filepath, absent_modules)
+
+        raise ValueError(
+            f"There is no process for {plan_name=}, treated it as a step scan anyway"
+        )
+
+
 if __name__ == "__main__":
-    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487459.nxs"
+    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487465.nxs"
 
     absent = (4, 11, 17)
-    active_modules = [m for m in range(28) if m not in absent]
 
-    run_mythen_time_resolved_scan(filepath)
+    run_mythen_analysis(filepath, absent_modules=absent)
