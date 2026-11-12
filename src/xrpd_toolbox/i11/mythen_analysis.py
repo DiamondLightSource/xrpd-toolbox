@@ -11,6 +11,7 @@ from xrpd_toolbox.plotting import DataPlot
 from xrpd_toolbox.utils.files import get_filenumber_from_filepath
 from xrpd_toolbox.utils.utils import (
     get_entry,
+    load_int_array_from_file,
     wait_for_finished_file,
 )
 
@@ -168,6 +169,54 @@ def run_mythen_sum_all_positions(filepath: str, settings: MythenSettings):
     _publish_xye(xye_filepath, data_type="pxrd", filenumber=filenumber)
 
 
+def bad_channels_to_physical(
+    bad_channels: np.ndarray, active_modules: Collection[int]
+) -> np.ndarray:
+    """The bluesky data only holds the active modules, packed together, so the
+    bad channels file counts channels by position in the data
+    (max len(active_modules) * PIXELS_PER_MODULE). MythenDetector picks masks by
+    physical module, so convert each channel to its physical channel number:
+    channel in the nth module of the data -> same pixel in active_modules[n]"""
+
+    bad_channels = np.asarray(bad_channels, dtype=int)
+    active_modules = np.asarray(list(active_modules), dtype=int)
+
+    n_module, pixel = np.divmod(bad_channels, PIXELS_PER_MODULE)
+
+    in_data = (n_module >= 0) & (n_module < len(active_modules))
+    if not np.all(in_data):
+        logger.warning(
+            f"Ignoring bad channels outside the {len(active_modules)} active "
+            f"modules: {bad_channels[~in_data].tolist()}"
+        )
+
+    physical = active_modules[n_module[in_data]] * PIXELS_PER_MODULE + pixel[in_data]
+
+    return np.unique(physical)
+
+
+def write_physical_bad_channels_file(
+    bad_channels_filepath: str | Path,
+    active_modules: Collection[int],
+    output_filepath: str | Path,
+) -> Path:
+    """Writes bad_channels_to_physical of the given file to output_filepath"""
+
+    output_filepath = Path(output_filepath)
+    output_filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    bad_channels = load_int_array_from_file(bad_channels_filepath)
+    physical = bad_channels_to_physical(bad_channels, active_modules)
+    np.savetxt(output_filepath, physical, fmt="%d")
+
+    logger.info(
+        f"Bad channels from {bad_channels_filepath} converted to physical "
+        f"channels in {output_filepath}"
+    )
+
+    return output_filepath
+
+
 def run_mythen_analysis(
     nexus_filepath: str,
     absent_modules: Collection[int] = (4, 11, 17),
@@ -180,6 +229,16 @@ def run_mythen_analysis(
 
     active_modules = [m for m in range(28) if m not in absent_modules]
     logger.info(f"Active modules {active_modules}")
+
+    # the bad channels file counts channels by position in the data, so convert
+    # it to physical channels (resolving the default file if there isn't one)
+    bad_channel_filepath = write_physical_bad_channels_file(
+        bad_channels_filepath=MythenSettings(
+            bad_channels_filepath=bad_channel_filepath
+        ).bad_channels_filepath,
+        active_modules=active_modules,
+        output_filepath=folder / "processed" / "badchannels_physical.txt",
+    )
 
     mythen_data = MythenBlueskyDataLoader(
         filepath=nexus_filepath, modules=active_modules

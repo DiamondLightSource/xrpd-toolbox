@@ -13,6 +13,7 @@ from xrpd_toolbox.i11 import mythen_analysis
 from xrpd_toolbox.i11.mythen import PIXELS_PER_MODULE, MythenDetector, MythenSettings
 from xrpd_toolbox.i11.mythen_analysis import (
     MythenBlueskyDataLoader,
+    bad_channels_to_physical,
     run_mythen_analysis,
     run_mythen_one_diffraction_per_trigger,
     run_mythen_sum_all_positions,
@@ -383,3 +384,17 @@ def test_run_mythen_analysis_unknown_plan_runs_step_scan_then_raises(
     ((kind, called_filepath, settings),) = dispatch
     assert (kind, called_filepath) == ("step", str(filepath))
     assert settings.active_modules == [m for m in range(28) if m not in (4, 11, 17)]
+
+
+def test_bad_channels_to_physical_skips_absent_modules():
+    active = [m for m in range(28) if m not in (4, 11, 17)]
+    ppm = PIXELS_PER_MODULE
+    data_position = np.array([5, 4 * ppm + 7, 10 * ppm + 1, 24 * ppm + 3, 25 * ppm])
+
+    physical = bad_channels_to_physical(data_position, active)
+
+    # slot 4 -> module 5, slot 10 -> module 12, slot 24 -> module 27,
+    # 25 * ppm is past the active modules so is dropped
+    np.testing.assert_array_equal(
+        physical, [5, 5 * ppm + 7, 12 * ppm + 1, 27 * ppm + 3]
+    )
