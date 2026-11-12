@@ -119,8 +119,6 @@ def run_mythen_one_diffraction_per_trigger(
     frames_to_plot: int = 10,
 ):
 
-    wait_for_finished_file(filepath)
-
     active_modules = [m for m in range(28) if m not in absent_modules]
 
     logger.info(f"Active modules {active_modules}")
@@ -155,8 +153,6 @@ def run_mythen_sum_all_positions(
     absent_modules: Collection[int],
 ):
 
-    wait_for_finished_file(filepath)
-
     active_modules = [m for m in range(28) if m not in absent_modules]
 
     logger.info(f"Active modules {active_modules}")
@@ -180,6 +176,7 @@ def run_mythen_analysis(
     nexus_filepath: str,
     absent_modules: Collection[int] = (4, 11, 17),
 ):
+    wait_for_finished_file(nexus_filepath)
 
     mythen_data = MythenBlueskyDataLoader(nexus_filepath, absent_modules)
 
