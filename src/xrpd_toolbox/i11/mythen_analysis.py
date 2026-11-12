@@ -129,17 +129,9 @@ def _publish_xye(
 
 def run_mythen_one_diffraction_per_trigger(
     filepath: str,
-    absent_modules: Collection[int],
+    settings: MythenSettings,
     frames_to_plot: int = 10,
 ):
-
-    active_modules = [m for m in range(28) if m not in absent_modules]
-
-    logger.info(f"Active modules {active_modules}")
-
-    settings = MythenSettings(
-        active_modules=active_modules, data_reduction_mode="time_resolved"
-    )
 
     detector = MythenDetector(
         filepath=filepath, settings=settings, data_loader=MythenBlueskyDataLoader
@@ -162,19 +154,9 @@ def run_mythen_one_diffraction_per_trigger(
     return xye_filepaths
 
 
-def run_mythen_sum_all_positions(
-    filepath: str,
-    absent_modules: Collection[int],
-):
+def run_mythen_sum_all_positions(filepath: str, settings: MythenSettings):
 
-    active_modules = [m for m in range(28) if m not in absent_modules]
-
-    logger.info(f"Active modules {active_modules}")
     filenumber = get_filenumber_from_filepath(filepath)
-
-    settings = MythenSettings(
-        active_modules=active_modules, data_reduction_mode="time_resolved"
-    )
 
     detector = MythenDetector(
         filepath=filepath, settings=settings, data_loader=MythenBlueskyDataLoader
@@ -192,18 +174,46 @@ def run_mythen_analysis(
 ):
     wait_for_finished_file(nexus_filepath)
 
-    mythen_data = MythenBlueskyDataLoader(nexus_filepath, absent_modules)
+    folder = Path(nexus_filepath).parent
+
+    bad_channel_filepath = folder / "badchannels.txt"
+
+    active_modules = [m for m in range(28) if m not in absent_modules]
+    logger.info(f"Active modules {active_modules}")
+
+    mythen_data = MythenBlueskyDataLoader(
+        filepath=nexus_filepath, modules=active_modules
+    )
 
     plan_name = mythen_data.get_plan_name()
 
     logger.info(f"{plan_name=}")
 
     if plan_name == "fast_trigger_mythen":
-        run_mythen_one_diffraction_per_trigger(nexus_filepath, absent_modules)
+        settings = MythenSettings(
+            active_modules=active_modules,
+            data_reduction_mode="time_resolved",
+            bad_channels_filepath=bad_channel_filepath,
+        )
+
+        run_mythen_one_diffraction_per_trigger(
+            filepath=nexus_filepath,
+            settings=settings,
+        )
     elif plan_name == "scan_delta_with_mythen":
-        run_mythen_sum_all_positions(nexus_filepath, absent_modules)
+        settings = MythenSettings(
+            active_modules=active_modules,
+            data_reduction_mode="step_scan",
+            bad_channels_filepath=bad_channel_filepath,
+        )
+        run_mythen_sum_all_positions(filepath=nexus_filepath, settings=settings)
     else:
-        run_mythen_sum_all_positions(nexus_filepath, absent_modules)
+        settings = MythenSettings(
+            active_modules=active_modules,
+            data_reduction_mode="time_resolved",
+            bad_channels_filepath=bad_channel_filepath,
+        )
+        run_mythen_sum_all_positions(filepath=nexus_filepath, settings=settings)
 
         raise ValueError(
             f"There is no process for {plan_name=}, treated it as a step scan anyway"
