@@ -4,7 +4,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from xrpd_toolbox.core import XYEData
 from xrpd_toolbox.fit_engine.background import ConstantBackground
+from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE
 from xrpd_toolbox.i15_1.sample_alignment import (
     SampleAligner,
     is_flat,
@@ -100,3 +102,18 @@ def test_sample_alignment_saves_plot_into_processed_subfolder(tmp_path):
     # data like goniometer calibrations)
     assert not (tmp_path / "NIST_Si-95016_alignment_fit.png").exists()
     assert not (tmp_path / "processed" / "NIST_Si-95016_alignment_fit.png").exists()
+
+
+def test_sample_alignment_fails_when_signal_is_noise(tmp_path):
+
+    shutter_closed_data = XYEData(
+        title="tests",
+        x=np.arange(100),
+        y=np.full(100, np.multiply(*DEFAULT_MAX_SHAPE) - 1),
+    )
+    shutter_closed_csv = tmp_path / "shutter_closed_data.csv"
+
+    shutter_closed_data.save_to_xye(shutter_closed_csv)
+
+    with pytest.raises(RuntimeError):
+        sample_alignment_i15_1(shutter_closed_csv, save=False, beamline=None)
