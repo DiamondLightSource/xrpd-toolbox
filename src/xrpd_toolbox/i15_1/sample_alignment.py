@@ -24,7 +24,7 @@ from xrpd_toolbox.fit_engine.peaks import (
     calculate_profile,
     peak_factory,
 )
-from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
+from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, EigerDataLoader
 from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
@@ -371,7 +371,15 @@ def sample_alignment_i15_1(
 
         xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
 
-    if is_flat(xyedata.y):
+    if np.amax(xyedata.y) < np.multiply(*DEFAULT_MAX_SHAPE):
+        raise RuntimeError(
+            f"The maximum number of counts in a frame is: {np.amax(xyedata.y)}"
+            f"and the detector has {np.multiply(*DEFAULT_MAX_SHAPE)} pixels"
+            "There is no real signal. Is the shutter closed?"
+            "Sample alignment cannot be peformed on noise"
+        )
+
+    elif is_flat(xyedata.y):
         flat_data = DataPlot(
             title="Sample_Alignment",
             x=xyedata.x,
@@ -379,8 +387,9 @@ def sample_alignment_i15_1(
         )
         flat_data.publish(beamline=beamline)
 
-        raise ValueError(
-            "The data appears to be flat. Is the shutter closed?"
+        raise RuntimeError(
+            "The data appears to be flat. Have you missed the sample?"
+            "Is the shutter closed?"
             "Sample alignment cannot be performed."
         )
 
