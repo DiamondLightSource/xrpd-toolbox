@@ -245,10 +245,11 @@ def run_mythen_analysis(
     )
 
     plan_name = mythen_data.get_plan_name()
+    scan_type = mythen_data.get_scan_type()
 
-    logger.info(f"{plan_name=}")
+    logger.info(f"{plan_name=} {scan_type=}")
 
-    if plan_name == "fast_trigger_mythen":
+    if scan_type == "time_resolved":
         settings = MythenSettings(
             active_modules=active_modules,
             data_reduction_mode="time_resolved",
@@ -259,7 +260,7 @@ def run_mythen_analysis(
             filepath=nexus_filepath,
             settings=settings,
         )
-    elif plan_name == "scan_delta_with_mythen":
+    elif scan_type == "step_scan":
         settings = MythenSettings(
             active_modules=active_modules,
             data_reduction_mode="step_scan",
@@ -275,13 +276,17 @@ def run_mythen_analysis(
         run_mythen_sum_all_positions(filepath=nexus_filepath, settings=settings)
 
         raise ValueError(
-            f"There is no process for {plan_name=}, treated it as a step scan anyway"
+            f"There is no process for {scan_type=}, treated it as a step scan anyway"
         )
 
 
-if __name__ == "__main__":
-    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487465.nxs"
+# if __name__ == "__main__":
+#     filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487561.nxs"
 
-    absent = (4, 11, 17)
+#     absent = (4, 11, 17)
 
-    run_mythen_analysis(filepath, absent_modules=absent)
+#     run_mythen_analysis(filepath, absent_modules=absent)
+
+#     filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487562.nxs"
+
+#     run_mythen_analysis(filepath, absent_modules=absent)

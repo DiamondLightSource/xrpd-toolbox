@@ -29,7 +29,7 @@ def write_bluesky_h5(
     deltas,
     n_frames: int = N_FRAMES,
     plan_name: str | bytes | None = "scan_delta_with_mythen",
-    scan_type: str | None = "step",
+    scan_type: str | None = "step_scan",
 ) -> Path:
     n_channels = len(MODULES) * PIXELS_PER_MODULE
     data = np.ones((n_frames, 1, n_channels), dtype=np.uint32)
@@ -329,61 +329,111 @@ def test_run_sum_all_positions(fake_run):
 
 @pytest.fixture
 def dispatch(monkeypatch):
-    """Records which run function run_mythen_analysis chooses"""
+    """Records which processing run_mythen_analysis chooses, while still
+    running the real processing so the files it makes can be checked"""
 
     calls = []
+    real_trigger = mythen_analysis.run_mythen_one_diffraction_per_trigger
+    real_step = mythen_analysis.run_mythen_sum_all_positions
+
+    def trigger(filepath, settings):
+        calls.append(("time_resolved", filepath, settings))
+        return real_trigger(filepath, settings)
+
+    def step(filepath, settings):
+        calls.append(("step_scan", filepath, settings))
+        return real_step(filepath, settings)
 
     monkeypatch.setattr(
-        mythen_analysis,
-        "run_mythen_one_diffraction_per_trigger",
-        lambda filepath, settings: calls.append(("trigger", filepath, settings)),
+        mythen_analysis, "run_mythen_one_diffraction_per_trigger", trigger
     )
-    monkeypatch.setattr(
-        mythen_analysis,
-        "run_mythen_sum_all_positions",
-        lambda filepath, settings: calls.append(("step", filepath, settings)),
-    )
+    monkeypatch.setattr(mythen_analysis, "run_mythen_sum_all_positions", step)
+    monkeypatch.setattr(mythen_analysis, "wait_for_finished_file", lambda f: None)
+    monkeypatch.setattr(mythen_analysis, "_publish_xye", lambda *args, **kwargs: None)
 
     return calls
 
 
-def test_run_mythen_analysis_fast_trigger(tmp_path: Path, dispatch):
+# the synthetic data only has MODULES in it
+ABSENT_MODULES = [m for m in range(28) if m not in MODULES]
+
+
+def processed_files(folder: Path, pattern: str) -> list[Path]:
+    return sorted((folder / "processed").rglob(pattern))
+
+
+def test_run_mythen_analysis_time_resolved(tmp_path: Path, dispatch):
     filepath = write_bluesky_h5(
-        tmp_path / "i11-1.nxs", [1.0], plan_name="fast_trigger_mythen"
+        tmp_path / "i11-1.nxs",
+        [1.0],
+        plan_name="fast_trigger_mythen",
+        scan_type="time_resolved",
     )
 
-    run_mythen_analysis(str(filepath), absent_modules=(4,))
+    run_mythen_analysis(str(filepath), absent_modules=ABSENT_MODULES)
 
     ((kind, called_filepath, settings),) = dispatch
-    assert (kind, called_filepath) == ("trigger", str(filepath))
-    assert settings.active_modules == [m for m in range(28) if m != 4]
+    assert (kind, called_filepath) == ("time_resolved", str(filepath))
+    assert settings.active_modules == MODULES
     assert settings.data_reduction_mode == "time_resolved"
+
+    # one xye per frame, in processed/<filename>/, and no summed xye or nexus
+    xye_files = processed_files(tmp_path, "*.xye")
+    assert xye_files == [
+        tmp_path / "processed" / "i11-1" / f"i11-1_summed_mythen3_{n}.xye"
+        for n in range(N_FRAMES)
+    ]
+    assert processed_files(tmp_path, "*.nxs") == []
 
 
 def test_run_mythen_analysis_step_scan(tmp_path: Path, dispatch):
     filepath = write_bluesky_h5(
-        tmp_path / "i11-1.nxs", [1.0], plan_name="scan_delta_with_mythen"
+        tmp_path / "i11-12345.nxs",
+        [10.0, 11.0, 12.0, 13.0],
+        plan_name="scan_delta_with_mythen",
+        scan_type="step_scan",
     )
 
-    run_mythen_analysis(str(filepath))
+    run_mythen_analysis(str(filepath), absent_modules=ABSENT_MODULES)
 
     ((kind, called_filepath, settings),) = dispatch
-    assert (kind, called_filepath) == ("step", str(filepath))
-    assert settings.active_modules == [m for m in range(28) if m not in (4, 11, 17)]
+    assert (kind, called_filepath) == ("step_scan", str(filepath))
+    assert settings.active_modules == MODULES
     assert settings.data_reduction_mode == "step_scan"
 
+    # every position summed into a single xye and a single processed nexus
+    assert processed_files(tmp_path, "*.xye") == [
+        tmp_path / "processed" / "i11-12345_summed_mythen3.xye"
+    ]
+    assert processed_files(tmp_path, "*.nxs") == [
+        tmp_path / "processed" / "i11-12345_reduced_mythen3.nxs"
+    ]
 
-def test_run_mythen_analysis_unknown_plan_runs_step_scan_then_raises(
+
+def test_run_mythen_analysis_unknown_scan_type_runs_step_scan_then_raises(
     tmp_path: Path, dispatch
 ):
-    filepath = write_bluesky_h5(tmp_path / "i11-1.nxs", [1.0], plan_name="mystery")
+    filepath = write_bluesky_h5(
+        tmp_path / "i11-12345.nxs",
+        [10.0, 11.0, 12.0, 13.0],
+        plan_name="mystery_plan",
+        scan_type="mystery",
+    )
 
     with pytest.raises(ValueError, match="mystery"):
-        run_mythen_analysis(str(filepath))
+        run_mythen_analysis(str(filepath), absent_modules=ABSENT_MODULES)
 
     ((kind, called_filepath, settings),) = dispatch
-    assert (kind, called_filepath) == ("step", str(filepath))
-    assert settings.active_modules == [m for m in range(28) if m not in (4, 11, 17)]
+    assert (kind, called_filepath) == ("step_scan", str(filepath))
+    assert settings.active_modules == MODULES
+    assert settings.data_reduction_mode == "step_scan"
+
+    assert processed_files(tmp_path, "*.xye") == [
+        tmp_path / "processed" / "i11-12345_summed_mythen3.xye"
+    ]
+    assert processed_files(tmp_path, "*.nxs") == [
+        tmp_path / "processed" / "i11-12345_reduced_mythen3.nxs"
+    ]
 
 
 def test_bad_channels_to_physical_skips_absent_modules():
