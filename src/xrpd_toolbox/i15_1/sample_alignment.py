@@ -24,7 +24,7 @@ from xrpd_toolbox.fit_engine.peaks import (
     calculate_profile,
     peak_factory,
 )
-from xrpd_toolbox.i15_1.eiger_500k import EigerDataLoader
+from xrpd_toolbox.i15_1.eiger_500k import DEFAULT_MAX_SHAPE, EigerDataLoader
 from xrpd_toolbox.plotting import DataPlot, FittedDataPlot
 from xrpd_toolbox.utils.utils import (
     cluster_points_auto,
@@ -349,6 +349,62 @@ def run_sample_alignment(data: XYEData | str) -> SampleAligner:
     return best_model
 
 
+def sample_alignement(
+    xyedata: XYEData,
+    name: str,
+    beamline: str | None,
+    detector_shape: tuple[int, int],
+    save_file: str | Path | None = None,
+):
+
+    if np.amax(xyedata.y) < np.multiply(*detector_shape):
+        noise_data = DataPlot(
+            title=f"BAD {name} Sample_Alignment",
+            x=xyedata.x,
+            y=xyedata.y,
+        )
+        if beamline is not None:
+            noise_data.publish(beamline=beamline)
+
+        raise RuntimeError(
+            f"The maximum number of counts in a frame is: {np.amax(xyedata.y)}"
+            f"and the detector has {np.multiply(*detector_shape)} pixels"
+            "There is no real signal. Is the shutter closed?"
+            "Sample alignment cannot be peformed on noise"
+        )
+
+    elif is_flat(xyedata.y):
+        flat_data = DataPlot(
+            title=f"BAD {name} Sample_Alignment",
+            x=xyedata.x,
+            y=xyedata.y,
+        )
+
+        if beamline is not None:
+            flat_data.publish(beamline=beamline)
+
+        raise RuntimeError(
+            "The data appears to be flat. Have you missed the sample? "
+            "Is the shutter closed? "
+            "Sample alignment cannot be performed."
+        )
+
+    best_model = run_sample_alignment(data=xyedata)
+
+    sample_centre_result = best_model.get_sample_centre()
+    sample_centre_result.deparameterise_all()
+
+    plot_data = best_model.get_plot_data()
+
+    if beamline is not None:
+        plot_data.publish(beamline=beamline)
+
+    if save_file is not None:
+        plot_data.plot(save_to=str(save_file))
+
+    return sample_centre_result.model_dump_json()
+
+
 def sample_alignment_i15_1(
     filepath: str | Path,
     dataset_path: str = "/entry/instrument/fastcs_eiger/data",
@@ -371,35 +427,19 @@ def sample_alignment_i15_1(
 
         xyedata = XYEData(title="sample_alignment", x=positions, y=summed_frames)
 
-    if is_flat(xyedata.y):
-        flat_data = DataPlot(
-            title="Sample_Alignment",
-            x=xyedata.x,
-            y=xyedata.y,
-        )
-        flat_data.publish(beamline=beamline)
-
-        raise ValueError(
-            "The data appears to be flat. Is the shutter closed?"
-            "Sample alignment cannot be performed."
-        )
-
-    best_model = run_sample_alignment(data=xyedata)
-
-    sample_centre_result = best_model.get_sample_centre()
-    sample_centre_result.deparameterise_all()
-
-    plot_data = best_model.get_plot_data()
-
-    if beamline is not None:
-        plot_data.publish(beamline=beamline)
-
     if save:
         processed_dir, file_name = processed_directory_and_filename(filepath)
         save_file = os.path.join(processed_dir, file_name + "_alignment_fit.png")
-        plot_data.plot(save_to=save_file)
+    else:
+        save_file = None
 
-    return sample_centre_result.model_dump_json()
+    return sample_alignement(
+        xyedata=xyedata,
+        name=Path(filepath).stem,
+        beamline=beamline,
+        detector_shape=DEFAULT_MAX_SHAPE,
+        save_file=save_file,
+    )
 
 
 def fake_sample_alignment_i15_1(
