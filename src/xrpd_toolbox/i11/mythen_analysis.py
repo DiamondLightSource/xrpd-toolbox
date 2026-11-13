@@ -280,13 +280,13 @@ def run_mythen_analysis(
         )
 
 
-if __name__ == "__main__":
-    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487561.nxs"
+# if __name__ == "__main__":
+#     filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487561.nxs"
 
-    absent = (4, 11, 17)
+#     absent = (4, 11, 17)
 
-    run_mythen_analysis(filepath, absent_modules=absent)
+#     run_mythen_analysis(filepath, absent_modules=absent)
 
-    filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487562.nxs"
+#     filepath = "/workspaces/outputs/i11/fast_trigger/i11-1487562.nxs"
 
-    run_mythen_analysis(filepath, absent_modules=absent)
+#     run_mythen_analysis(filepath, absent_modules=absent)
