@@ -444,7 +444,7 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
     nexus_filepath: str | Path,
     output_xy_filepath: str | Path | None = None,
     composition: str | None = None,
-    publish: bool = True
+    publish: bool = True,
 ) -> Path | list[Path]:
 
     output_xy_filepaths = do_eiger_data_reduction(
@@ -468,7 +468,7 @@ def do_eiger_data_reduction_and_send_xy_to_pdfcurl(
                 composition=composition or eiger_data.get_composition(),
                 wavelength=eiger_data.get_wavelength(),
                 background_file=background_file_xy,
-                publish=publish
+                publish=publish,
             )
             logger.info(response_from_pdfcurl)
 
