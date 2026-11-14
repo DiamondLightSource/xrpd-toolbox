@@ -77,7 +77,7 @@ def send_xy_to_pdfcurl(
     wavelength: float,
     background_file: str | Path | None = None,
     output_filepath: list[str | Path] | None = None,
-    publish: bool = False,
+    publish: bool = True,
     dataformat: Literal["QA", "Qnm", "twotheta"] = "twotheta",
     outputtypes: OUTPUT_TYPES | list[OUTPUT_TYPES] | None = None,
     qmaxinst: float = 50.0,
